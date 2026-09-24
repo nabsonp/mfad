@@ -2,11 +2,13 @@
 
 Two kinds of requirement, told in the form each one deserves.
 
-**Behaviour requirements (RF)** say what the tool does to code and to artefacts, as *given / when / then*. Nobody is interacting in them: they hold whether the analysis was started from a terminal, from a script or from a page, and they are what a test asserts.
+**Behaviour requirements (RF)** say what the tool produces, as *given / when / then*. Nobody is interacting in them: they hold whether the analysis was started from a terminal, from a script or from a page, and they are what a test asserts.
+
+They are also technology-agnostic. Which artefacts exist and what each must carry is settled here; **how** a given technology produces them belongs to [extraction/](extraction/), one document per reconstructor. A requirement that named `registerApplication` would have to be rewritten for the next technology, and that is the wrong place for it.
 
 **User stories (US)** say what someone wants from the tool and why. There is one per command, plus one for reading the report — they document the surface a person touches, and nothing beyond it.
 
-Behaviour numbers are carried over from the previous revision, so `RF-25` here was `US-25` there. The user stories were renumbered, because the set is no longer the same: they now follow the commands.
+Behaviour numbers are carried over from the previous revision, so `RF-25` here was `US-25` there, except for the rules split out of the old `US-32`. The user stories were renumbered, because the set is no longer the same: they now follow the commands.
 
 | status | meaning |
 |---|---|
@@ -18,73 +20,107 @@ Behaviour numbers are carried over from the previous revision, so `RF-25` here w
 
 # Part 1 · Behaviour
 
-## Discovery
+## The artefacts
 
-### RF-01 · Micro frontend inventory
+What the reconstruction must produce, whatever the technology. **How** each technology produces it is in [extraction/](extraction/) — one document per reconstructor, plus the rules every technology shares.
 
-> **Given** a repository
-> **when** the reconstructor recognises the technology
-> **then** every deployable unit is listed, each with its identity, its routes and its role.
+### RF-01 · Inventory of units
 
-For single-spa the units come from `registerApplication`, in both the object and the positional form; for Module Federation, from the federation declaration in each build config. A unit whose entrypoint does not resolve still appears, carrying the fields that could be determined — disappearing is worse than showing up incomplete.
+> **Given** a repository whose technology is recognised
+> **then** every separately deployable unit is listed, each with an identity, the routes it owns, its role and its size.
 
-**Done.**
-
-### RF-02 · The orchestrator as a node
-
-> **Given** the registrations of a system
-> **when** the package that declares them is identified
-> **then** it becomes a node with `role = "shell"`, listing the units it mounts.
-
-One node per orchestrator, because a repository may hold more than one system. Living in the orchestrator's package does not make an application the shell: a monolith loaded by relative path from `root-config` is a registered application like any other.
+A unit whose entrypoint cannot be resolved still appears, carrying the fields that could be determined. Disappearing is worse than showing up incomplete.
 
 **Done.**
 
-### RF-03 · Screens and routes
+### RF-02 · The orchestrator
 
-> **Given** a micro frontend
-> **when** any of its files declares a route
-> **then** each declaration becomes a screen, with the component and the resolved route.
+> **Given** the units of a system
+> **then** whatever composes them is a node too, marked as such and listing what it mounts.
 
-The route resolves through constants and one level of indirection; when it does not resolve, the original expression is kept. A screen declared in a file no import reaches is extracted all the same and marked unreachable — it exists in the code and not at runtime, and both facts matter.
+Without it the graph shows units floating, with nothing explaining how they reach the page — the relation that defines the system. One node per orchestrator, because a repository may hold more than one.
+
+**Done.**
+
+### RF-03 · Screens
+
+> **Given** a unit
+> **then** every screen it declares is listed, with its component, its route and whether anything reaches it.
+
+A route that cannot be resolved keeps its original expression, so the reader sees what the code said. A screen declared in a file no import reaches is extracted all the same and marked: it exists in the code and not at runtime, and both facts matter.
 
 **Done.**
 
 ### RF-04 · Exposed fragments
 
-> **Given** a micro frontend's entrypoint
-> **when** it exports something that is not a lifecycle, or declares `exposes`
-> **then** each name is a fragment, pointing at the file that defines it.
+> **Given** a unit
+> **then** everything it publishes for others to consume is listed, each pointing at the file that defines it.
 
 **Done.**
 
 ### RF-05 · Fragment consumption
 
-> **Given** the fragment catalogue of every unit
-> **when** one unit imports, from another, a name in that catalogue
-> **then** the consumption is recorded, with where it was imported, where it was instantiated, and in which screens it appears.
+> **Given** the fragments of every unit
+> **when** one unit consumes another's
+> **then** the consumption is recorded with where it was imported, where it was instantiated, and in which screens it appears.
 
-Only names in the catalogue count, so shared libraries stay out. Import aliases resolve. An import with no instantiation is recorded as such. A fragment instantiated inside a helper component is attributed through relative-import reachability, and when the fragment is itself the route's component, that screen alone is recorded.
+Only what a unit actually publishes counts, so shared libraries stay out. An import with no instantiation is recorded as such — a dependency that costs a build and delivers nothing. A fragment instantiated inside a helper component belongs to the screens that reach it, not to none.
 
 **Done.**
 
-### RF-06 · Navigation between micro frontends
+### RF-06 · Navigation between units
 
 > **Given** an expression that produces a URL
-> **when** that URL belongs to another micro frontend
-> **then** a navigation is recorded from the origin to the route's owner.
+> **when** that URL belongs to another unit
+> **then** a navigation is recorded from the origin to the route's owner, carrying how certain the resolution is.
 
-The detection knows no router and no navigation library: it recognises the destination, not the call. Ownership is by longest matching prefix on a segment boundary, so the shell's catch-all does not swallow every route, and `/` matches only itself. Destinations expressed as a literal, a constant, a template or a `.replace(":param", …)` resolve, each carrying whether the match is exact or a prefix. Navigation inside a single unit is not reported.
+The detection recognises the destination, not the call: there is no standard navigation API to look for, and every technology declares who owns which route. Navigation inside a single unit is not reported.
 
 **Done.**
 
-### RF-08 · Communication between micro frontends
+### RF-08 · Communication between units
 
 > **Given** the source of a system
-> **when** a platform primitive, a known bus or a declared mechanism publishes or subscribes to a channel
-> **then** producer and consumer are paired by channel name.
+> **when** one unit publishes on a channel another subscribes to
+> **then** the two are paired by channel name, and the edge records whether its direction means anything.
 
-Three tiers with one result. Platform primitives — `CustomEvent`, `BroadcastChannel`, `postMessage` — hold anywhere with no configuration. Known buses are recognised by import specifier, never by variable name. The declared mechanism covers the project's own wrapper. Without a declaration the result is not empty: the first two tiers still apply, and the absence of a declaration is reported as a distinct state from the absence of communication.
+Pairing is by channel because the channel is the contract between the ends, not the shape of the call. Direction matters to whoever walks the graph: a message has a side, shared state does not.
+
+Platform primitives and known buses are recognised with no configuration; a project's own wrapper is declared once. The absence of a declaration is reported as a state distinct from the absence of communication.
+
+**Done.**
+
+### RF-24 · Global state
+
+> **Given** a unit that reads a slice of shared state
+> **then** the access is recorded, and when two or more units read the same slice, undirected edges are derived between them.
+
+Writes are deliberately excluded: the call site names the dispatched action, not the slice it changes, and recording both would mix two vocabularies. The derived edges belong in the graph because the coupling is real — two units reading the same slice depend on the same data shape without knowing each other.
+
+**Done.**
+
+### RF-29 · External service calls
+
+> **Given** a unit that calls an external service
+> **then** the call is recorded with its path, how certain the resolution is, and the screens and fragments that reach it.
+
+An empty reachability list is information: the call sits in code no screen reaches.
+
+**Done.**
+
+### RF-30 · Size of each unit
+
+> **Given** the scan already under way
+> **then** each unit's files and lines of code are counted, without a second read of the disk.
+
+**Done.**
+
+### RF-31 · Declared business domains
+
+> **Given** a domain map declared in the analysed repository
+> **then** each domain resolves to its routes, its endpoints, its screens and the units that serve it.
+
+Business domains are not in the code and no static analysis determines them, which is why they are declared. A subdomain is a record, not a division: it folds into the domain containing it, and rules operate at the top level, so the granularity chosen by whoever declares does not change the verdict.
 
 **Done.**
 
@@ -96,98 +132,108 @@ Three tiers with one result. Platform primitives — `CustomEvent`, `BroadcastCh
 
 **Done.**
 
-## Measurement
+### RF-10 · Persistence
 
-### RF-24 · Global state reads
+> **Given** the artefacts of a run
+> **then** each collection is written to its own file, stable between runs over the same code, and readable back without touching source again.
 
-> **Given** an import of a known state library
-> **when** a read walks a path into the state
-> **then** the access is recorded, with the library and the path.
-
-Libraries are recognised by import specifier. A selector that assembles an object counts every slice it walks. Access inside a shared package is not coupling between units and stays out. Writes are deliberately excluded: the call site names the dispatched action, not the slice it changes, and recording both would mix two vocabularies.
-
-When two or more units read the same slice, undirected communication edges are derived between them — the coupling is real, and leaving it out of the graph made the rules that walk it undercount.
+Stability is what makes a diff between two commits mean something: it shows coupling that appeared or vanished, not noise from the extraction order.
 
 **Done.**
 
-### RF-29 · External service calls
-
-> **Given** the code of a micro frontend
-> **when** it calls the platform's HTTP API or a recognised client
-> **then** the call is recorded, with the path resolved and the screens and fragments that reach it.
-
-`fetch` and `XMLHttpRequest` need no configuration, being platform rather than framework. Known clients are identified by import specifier, including instances built by a factory such as `axios.create()`. An empty reachability list is information: the call sits in code no screen reaches.
-
-**Done.**
-
-### RF-30 · Size of each unit
-
-> **Given** the scan already under way
-> **then** each unit's files and lines of code are counted, without a second read of the disk.
-
-A comment line is identified through the syntax tree, never by text prefix, so `//` inside a string does not count, and a line with code followed by a comment is still code.
-
-**Done.**
-
-### RF-31 · Declared business domains
-
-> **Given** a `.damfe/domains.yml` in the analysed repository
-> **when** routes and endpoints are matched against it
-> **then** each domain resolves to its members and to the units that serve it.
-
-Routes and endpoints are separate fields, being separate vocabularies. A subdomain is a record, not a division: its routes and endpoints fold into the domain containing it, and rules operate at the top level, so the granularity chosen by whoever declares does not change the verdict. Matching is by prefix on a segment boundary, and `/` matches only the exact path.
-
-**Done.**
+---
 
 ## Detection
 
-### RF-13 · Rules over artefacts
+Each rule reads artefacts and nothing else — never source, and never anything that says which technology produced them. That is what lets a rule written today hold for a technology supported tomorrow.
+
+### RF-13 · Applying the rules
 
 > **Given** the artefacts
 > **when** the rules run
-> **then** each occurrence names the elements involved and, where applicable, the places in the code.
+> **then** each occurrence names the rule, the elements involved, the relation that produced it and the places in the code.
 
-Detection reads only the artefact model, never source. Rules can be applied in full or selected by name. Having no rules registered is reported, and not confused with having no problems.
+Rules can be applied in full or selected by name. Having none registered is reported, and not confused with having no problems. There is no severity scale: assigning one would need a justified criterion the catalogue does not give, so each occurrence carries its **dimension** instead — which architectural relation produced it.
 
 **Done.**
 
-### RF-14 · Dependency cycle
+### RF-14 · Cyclic dependency
 
-> **Given** the composition, navigation and communication graphs, each on its own
-> **when** an elementary cycle exists in one of them
-> **then** it is reported with the chain in the order it closes and the relation that produced it.
+> **Given** the fragment consumptions, the navigations and the communications
+> **when** an elementary cycle exists within **one** of those relations
+> **then** it is reported with the chain in the order it closes.
 
 One cycle per relation rather than one per pair: importing a fragment and navigating are different couplings with different remedies. Symmetric edges are excluded — coupling through shared state has no direction, and looking for cycles in it finds one in every pair. The enumeration is capped so a dense graph cannot stall the run.
 
 **Done.**
 
-### RF-15 · Screen concentrating fragments
+### RF-15 · Hub-like dependency
 
-> **Given** the screens and the render sites
-> **when** a screen instantiates five or more fragments
-> **then** it is reported with the fragments and where they come from.
+> **Given** the screens and the render sites of the fragment consumptions
+> **when** a screen instantiates **five or more** fragments
+> **then** it is reported with the fragments and the units they come from.
 
 The count is of fragments, not of distinct providers: five from one provider concentrate as much contract change as five from five. Counting providers punished the normal design — with a shared component library, any screen using one of its components plus any other fragment became a hub.
 
 **Done.**
 
-### RF-16 · Unit connected to nearly all others
+### RF-16 · One for all
 
-> **Given** every relation summed
-> **when** one unit touches 90% or more of the others, in a system of at least five
+> **Given** every relation summed, and the inventory
+> **when** one unit touches **90% or more** of the others, in a system of at least **five**
 > **then** it is reported, separating how many it depends on from how many depend on it.
 
-Connection is counted without direction: being the centre is a problem either way. The orchestrator is excluded, reaching everything by definition. Systems below the minimum size are not assessed, because being connected to everyone is normal in them.
+Connection is counted without direction: being the centre is a problem either way. The orchestrator is excluded, reaching everything by definition. Systems below the minimum are not assessed, because being connected to everyone is normal in them.
 
 **Done.**
 
-### RF-32 · Domain and unit out of alignment
+### RF-17 · Hammering APIs
 
-> **Given** the screens, the API calls and the declared domain map
-> **when** a unit serves more than one domain, or covers part of a domain another unit dominates, or calls services from more than one domain
+> **Given** the external service calls
+> **when** **two or more** units call the same path
+> **then** it is reported with the methods and the callers.
+
+Grouping is by path, not by unit: it is the contract that is shared. This is the coupling no other graph shows — the units do not import one another, do not navigate to one another and exchange no messages, and still break together when the response format changes.
+
+**Done.**
+
+### RF-18 · Global state as a channel
+
+> **Given** the global state accesses
+> **when** a slice is read by **two or more** units
+> **then** a single occurrence reports the practice, with the slices and who reads each.
+
+One occurrence, not one per slice: what matters is whether the practice exists and who takes part, and emitting one per slice would say the same thing repeatedly.
+
+**Done.**
+
+### RF-19 · Mega frontend
+
+> **Given** the screens and the declared domain map
+> **when** a unit's screens fall into **more than one** domain
 > **then** it is reported, naming **which screens differ and where they would go**.
 
-Size is not the condition: it disambiguates which of the two is the fragment, and corroborates the evidence. Without a declared map the rules fall back to size relative to the system median and say which criterion they used. A unit whose screens fall in no domain is undetermined and the rule abstains. When the median is zero the rules abstain too: a zero median means nothing was measured, not that everything is small.
+A count does not say what to do; a screen name and a destination do. Without a declared map the rule falls back to size — **twice** the system median — and says which criterion it used. A unit whose screens fall in no domain is undetermined and the rule abstains, as it does when the median is zero: zero means nothing was measured, not that everything is small.
+
+**Done.**
+
+### RF-20 · Nano frontend
+
+> **Given** the screens, the fragments and the declared domain map
+> **when** a unit's screens all sit in a domain that another unit **dominates**
+> **then** it is reported, naming the domain and who would absorb it.
+
+The problem is not being small: it is not being a unit of a domain. A micro frontend with a single screen is legitimate when that screen is the domain. Without a map the fallback is **0.4×** the median, with the same abstentions as above.
+
+**Done.**
+
+### RF-21 · Access to different domains
+
+> **Given** the external service calls and the declared domain map
+> **when** a unit's calls fall into **two or more** domains
+> **then** it is reported with the domains consumed.
+
+Distinct from the mega frontend, and the difference changes the remedy: that one looks at what a unit **serves** — its screens; this one at what it **depends on** — its calls. A unit may serve one domain and consume three, and then the problem is API federation.
 
 **Done.**
 
