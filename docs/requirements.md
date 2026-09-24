@@ -4,9 +4,9 @@ Two kinds of requirement, told in the form each one deserves.
 
 **Behaviour requirements (RF)** say what the tool does to code and to artefacts, as *given / when / then*. Nobody is interacting in them: they hold whether the analysis was started from a terminal, from a script or from a page, and they are what a test asserts.
 
-**User stories (US)** say what someone wants from the tool and why. They are kept only where there is a person on the other side — running a command, filling in a declaration, reading a report, extending the tool.
+**User stories (US)** say what someone wants from the tool and why. There is one per command, plus one for reading the report — they document the surface a person touches, and nothing beyond it.
 
-Numbers are carried over from the previous revision, so `RF-25` here was `US-25` there. Prefixes changed; numbers did not.
+Behaviour numbers are carried over from the previous revision, so `RF-25` here was `US-25` there. The user stories were renumbered, because the set is no longer the same: they now follow the commands.
 
 | status | meaning |
 |---|---|
@@ -195,109 +195,75 @@ Size is not the condition: it disambiguates which of the two is the fragment, an
 
 # Part 2 · User stories
 
-## Running an analysis
+One per command. Each says who runs it, what they want and why, followed by what the command does today.
 
-### US-09 · Run one extraction at a time
+### US-01 · `damfe analyze`
 
-> As an **analyst**, I want to run only the extraction I care about, so that I can inspect one aspect without paying for the rest.
+> As an **analyst**, I want one command that takes a repository and gives me the report, so that I need not learn how the stages fit together.
 
-The repository scan is reused when steps are chained, so the same files are not reprocessed.
+Runs reconstruction, detection and visualisation in one pass, writing the artefacts, the detections and `architecture.html` into `artifacts/`. Takes `--prefix` to restrict the analysis to one organisation, `--out` to change the destination, `--rule` to select rules and `--format` to change the renderer.
 
-**Done** — `reconstruct --only <collection>`.
-
-### US-10 · Keep the artefacts
-
-> As a **researcher**, I want the artefacts on disk, so that I can version them and compare the architecture between two moments of the project.
-
-One collection per file, in readable JSON, stable between runs over the same code so that a diff reflects real architectural change. They can be read back and feed the later stages without touching source again.
+The chaining it hides is real: `detect` reads what `reconstruct` wrote, and `visualize` needs to be told where the detections are. That is a fact about the tool, not a decision the person should have to make.
 
 **Done.**
 
-### US-12 · Restrict the analysis to one organisation
+### US-02 · `damfe reconstruct`
 
-> As an **analyst**, I want to consider only the micro frontends of one organisation, so that third-party registrations in a monorepo stay out.
+> As an **analyst**, I want to extract the artefacts and stop there, so that I can inspect the model or feed it to something other than the report.
 
-**Done** — an optional prefix; without it, every registered unit enters.
-
-### US-17 · Keep the detections
-
-> As a **researcher**, I want the detections on disk, so that I can follow how the deviations evolve.
+Recognises the technology, extracts every collection and writes one JSON file per collection. `--only <collection>` narrows it to a single extraction, which is what makes debugging one extractor cheap. `--prefix` restricts to one organisation, `--framework` forces a reconstructor when detection is wrong, `--spec` points at a communication declaration elsewhere.
 
 **Done.**
 
-## Declaring what the code cannot say
+### US-03 · `damfe detect`
 
-### US-07 · Declare the communication mechanism
+> As an **analyst**, I want to run the rules over artefacts I already have, so that I can change a threshold or a domain map without reading the code again.
 
-> As an **analyst**, I want to declare once how the micro frontends exchange messages, so that the extraction stays deterministic even though the ecosystem has no standard.
-
-A command writes a commented template. The declaration lives in `.damfe/` in the analysed repository, not among the artefacts, because it is input to the analysis rather than output — and it survives deleting the output directory.
+Reads the artefacts, applies every registered rule or those named with `--rule`, prints each occurrence with the elements involved and the places in the code, and writes `detections.json` with `--out`.
 
 **Done.**
 
-### US-34 · Store access to a language model
+### US-04 · `damfe visualize`
 
-> As an **analyst**, I want to store a credential once, for the authoring steps, without passing it on every run.
+> As an **analyst**, I want the report on its own, so that I can regenerate it after editing a declaration without redoing the extraction.
 
-The credential lives in the user's config directory, **never** in `.damfe/`, which is versioned with the analysed project. The file is created readable only by its owner, with no window in which others could read it. An environment variable takes precedence. The credential is never shown in full. No analysis command uses it.
-
-**Done.**
-
-## Reading the result
-
-### US-18 · A complete visual report
-
-> As an **analyst**, I want a visual report of the architecture and its deviations, so that I can show the result to someone who will not read JSON.
-
-A single file with no network dependency: it opens offline and can be archived next to the text citing it. The drawing is produced by the tool rather than the browser, so the same artefacts always give the same image. The graph tells the relations apart, and edges out and back between the same pair stay distinguishable.
+Writes `architecture.html` into the artefacts directory. `--detections` overlays the occurrences on the drawing; without it the report shows the architecture alone. `--format features` prints a Markdown summary of the system to standard output instead, which is the input the domain-mapping prompt expects. `--out` chooses another destination.
 
 **Done.**
 
-### US-19 · See the deviations over the drawing
+### US-05 · `damfe setup`
 
-> As an **analyst**, I want elements with detections highlighted in the graph, so that the drawing is evidence of the finding rather than an illustration of it.
+> As an **analyst**, I want a page that asks what the tool cannot infer and shows me straight away what my answers produced, so that I can tell a wrong declaration from a right one.
 
-Each rule declares which pairs make up the occurrence, and the drawing highlights those nodes and edges. The highlight is distinguishable from the orchestrator's own mark.
+Serves a page on `127.0.0.1` and opens the browser. Three steps: the model credential, four fields describing how the system discovers, composes, routes and communicates, and a run whose counts are shown on the same screen. The agent's declaration is written to `.damfe/` and read back immediately, so invalid YAML fails at once.
 
-**Done.**
+Runs in the directory of one system. Pointed at a folder holding several, it reads them as one.
 
-### US-20 · Isolate one relation
+**Partial** — the interview produces `discovery`, `composition` and `routing` sections that no extractor reads yet. Only `mechanisms` takes effect.
 
-> As an **analyst**, I want to see one relation at a time, so that I can compare the code graph with the flow graph.
+### US-06 · `damfe setup-llm`
 
-Each relation can be switched on and off, and the report stays correct and readable with no script running.
+> As an **analyst**, I want to store a credential once, so that the authoring steps stop asking for it.
 
-**Done.**
-
-### US-33 · Summarise the system for assisted authoring
-
-> As an **analyst**, I want a compact summary of the system, to feed an assistant that proposes the domains.
-
-Screens with routes, exposed and composed fragments, services called and state read, per unit. Fields irrelevant to the question — file paths, line numbers, props — stay out. The tool produces it deterministically.
+Takes `--key`, `--model` and `--url`, and writes them to the user's config directory — **never** to `.damfe/`, which is versioned with the analysed project. The file is created readable only by its owner, with no window in which others could read it. An environment variable takes precedence over the file. The credential is never printed in full, and no analysis command reads it.
 
 **Done.**
 
-## Extending the tool
+### US-07 · `damfe setup-communication`
 
-### US-21 · Add an anti-pattern rule
+> As an **analyst**, I want a template of the declaration, so that I can fill it in by hand without learning the schema from documentation.
 
-> As a **maintainer**, I want to write a new rule without touching the rest of the tool, so that the catalogue grows without risking regression.
-
-A rule is a class implementing the interface, plus one line of registration. It receives the artefact model and knows nothing of the technology behind it. No change is needed in ports, use cases or the command line.
-
-**Done** — exercised by eight rules.
-
-### US-22 · Add a visualisation format
-
-> As a **maintainer**, I want to add output formats without touching the analysis.
+Writes a commented template to `.damfe/` in the analysed repository — input to the analysis, not output, which is why it does not live among the artefacts and survives deleting them.
 
 **Done.**
 
-### US-23 · Support another micro frontend technology
+### US-08 · Reading the report
 
-> As a **maintainer**, I want to extend the tool to another technology without touching detection and visualisation.
+> As an **analyst**, I want to move between the finding and the drawing, so that the picture is evidence rather than illustration.
 
-**Done** — the second reconstructor measured the separation: only discovery had to be written. Navigation, external calls, global state and communication start from the extracted applications and from platform primitives, and were reused unchanged.
+`architecture.html` is one file with no network dependency: it opens offline and can be archived next to the text citing it. The drawing is produced by the tool rather than the browser, so the same artefacts always give the same image. Relations can be switched on and off one at a time; elements named in a detection are highlighted, distinguishably from the orchestrator's own mark; and each occurrence links back to the nodes and edges that produced it.
+
+**Done.**
 
 ---
 
@@ -329,16 +295,18 @@ The keys are already read; the channel is not. It is standardised by the technol
 
 **Pending.**
 
-### US-27 · Generate the communication declaration from prose
+### US-09 · Generate the communication declaration from prose
 
-> As an **analyst**, I want to describe in prose how the system communicates and get the declaration ready, so that I need not learn the format.
+> As an **analyst**, I want to describe in prose how the system works and get the declaration ready, so that I need not learn the format.
 
-The proposal would be validated against the schema and checked against the repository before being written. Non-determinism stays confined to the setup step, whose result is reviewed and versioned; the analysis stays reproducible.
+This is `damfe setup` finished: the proposal validated against the schema and checked against the repository before being written, and the sections for discovery, composition and routing actually read by an extractor. Non-determinism stays confined to the setup step, whose result is reviewed and versioned; the analysis stays reproducible.
 
 **Pending.** A setup page exists with the interview, but what it generates for composition and routing is not yet read by any extractor.
 
-### US-28 · Automated test suite
+### RF-28 · Automated test suite
 
-> As a **maintainer**, I want tests over extraction, rules and persistence, so that I can claim the reconstruction is reproducible and change the tool without silent regression.
+> **Given** the extraction, the rules and the persistence
+> **when** the suite runs
+> **then** a regression fails the build instead of reaching a repository.
 
 **Pending.** The architecture was built to allow it — injected ports, use cases without side effects — and the possibility sits unused. Every regression found so far was found by rerunning two real repositories by hand.
