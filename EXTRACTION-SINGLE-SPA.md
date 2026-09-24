@@ -98,6 +98,22 @@ Those are single-spa's contract, and they are what confirms the thing is a micro
 
 ---
 
+### 1.5 · The orchestrator as a node
+
+> **Given** the registrations, grouped by the package that declares them
+> **when** each group is read
+> **then** that package becomes a node of its own, with `role = "shell"`, identified by the `name` in its `package.json`, and `metadata.mounts` listing the applications it registers.
+
+The shell never appears in a `registerApplication` — it is the caller — so it used to be left out of the graph although it is what mounts everything else. What was missing with it is the relation that defines the system: micro frontends drawn loose, with nothing explaining how they reach the page.
+
+It also answers a question that looks like composition and is not. A navigation bar registered at `/` shows up on every screen, and yet no micro frontend imports it — the shell puts it there. Modelling visual co-presence as imports between peers would invent edges that exist nowhere in the code, and would turn the navigation bar into a hub in the very report meant to reveal coupling.
+
+One node per orchestrator, because a repository can hold more than one system, and merging their registrations would invent an orchestrator mounting applications across systems.
+
+Being registered in the same package as the orchestrator does **not** make an application the shell. A monolith loaded through a relative path from `root-config` lives in that package and is still a registered application like any other.
+
+---
+
 ## 2. Composition
 
 ### 2.1 · Exposed fragments
