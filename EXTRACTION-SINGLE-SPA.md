@@ -102,7 +102,7 @@ Those are single-spa's contract, and they are what confirms the thing is a micro
 
 > **Given** the registrations, grouped by the package that declares them
 > **when** each group is read
-> **then** that package becomes a node of its own, with `role = "shell"`, identified by the `name` in its `package.json`, and `metadata.mounts` listing the applications it registers.
+> **then** that package becomes a node of its own, with `role = "shell"`, identified by the `name` in its `package.json`, and `mounts` listing the applications it registers.
 
 The shell never appears in a `registerApplication` — it is the caller — so it used to be left out of the graph although it is what mounts everything else. What was missing with it is the relation that defines the system: micro frontends drawn loose, with nothing explaining how they reach the page.
 

@@ -249,7 +249,7 @@ def _mounts(artifacts: ArtifactSet) -> list[dict]:
 
     for item in artifacts.microfrontends:
 
-        for mounted in item.metadata.get("mounts", []):
+        for mounted in item.mounts:
 
             if mounted not in known:
                 continue

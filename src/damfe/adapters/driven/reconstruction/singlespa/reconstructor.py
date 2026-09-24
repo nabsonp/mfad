@@ -257,7 +257,7 @@ class SingleSpaReconstructor(Reconstructor):
 
             # Quem ele monta. É a aresta de composição do sistema: o
             # shell escolhe a aplicação por URL e a põe na página.
-            shell.metadata["mounts"] = sorted(
+            shell.mounts = sorted(
                 registration.name for registration in registrations
             )
 

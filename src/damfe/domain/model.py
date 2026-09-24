@@ -127,6 +127,15 @@ class MicroFrontend:
     entrypoint: str = ""
     routes: list[str] = field(default_factory=list)
     role: str = "microfrontend"
+
+    #: As unidades que este monta, quando ele é o orquestrador.
+    #:
+    #: Campo, e não entrada de `metadata`, porque é contrato: toda
+    #: tecnologia tem quem componha as demais, e quem escreve um
+    #: reconstrutor novo precisa ver isso na porta em vez de
+    #: descobrir uma chave combinada em algum lugar. `metadata` é
+    #: para o que só faz sentido dentro de uma tecnologia.
+    mounts: list[str] = field(default_factory=list)
     fragments: list[Fragment] = field(default_factory=list)
     screens: list[Screen] = field(default_factory=list)
     size: CodeSize = field(default_factory=CodeSize)
