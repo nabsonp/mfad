@@ -84,6 +84,29 @@ class MicroFrontendBuilder:
                 )
             )
 
+        # Sob single-spa-layout as rotas não estão no registro: elas
+        # vivem no template, e o registro fica sem activeWhen algum.
+        if not microfrontend.routes:
+
+            declared = self.context.layout_routes.get(registration.name)
+
+            if declared:
+                microfrontend.routes = declared
+                microfrontend.metadata["routes_from"] = "single-spa-layout"
+
+        # A forma do activeWhen viaja junto: rota vinda de função de
+        # atividade não tem a mesma confiança de rota literal, e quem
+        # lê o artefato precisa poder distinguir.
+        if registration.active_when_form != "literal":
+            microfrontend.metadata["active_when_form"] = (
+                registration.active_when_form
+            )
+
+        if registration.custom_props:
+            microfrontend.metadata["custom_props"] = (
+                registration.custom_props
+            )
+
         container = self._container_of(root, source)
 
         if container:
@@ -273,7 +296,8 @@ class MicroFrontendBuilder:
         O elemento do shell em que este micro frontend é montado.
 
         `domElementGetter` é como o single-spa deixa a aplicação
-        escolher onde aparecer. Declará-lo significa que o shell
+        escolher onde aparecer, e `domElement` é a forma direta que
+        os adaptadores de framework aceitam. Declará-lo significa que o shell
         reservou um lugar no layout — `#navbar-container` —, e que
         aquilo é encaixado numa página junto de outras coisas. Quem
         não declara recebe um `div` que o single-spa anexa ao corpo,
@@ -293,7 +317,7 @@ class MicroFrontendBuilder:
 
             key = AstReader.strip_quotes(AstReader.text(key_node, source))
 
-            if key != "domElementGetter":
+            if key not in ("domElementGetter", "domElement"):
                 continue
 
             expression = AstReader.text(value_node, source)

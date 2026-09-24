@@ -9,6 +9,8 @@ para convenção de nome.
 
 from __future__ import annotations
 
+import re
+
 from pathlib import Path
 
 from tree_sitter import Node
@@ -19,7 +21,7 @@ from damfe.domain import (
     RenderSite,
     SourceLocation,
 )
-from damfe.adapters.driven.reconstruction.ast import ImportTable
+from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 
@@ -147,4 +149,95 @@ class FragmentImportExtractor:
                 )
             )
 
+            # <Parcel config={Modal} /> — o componente renderizado é
+            # sempre `Parcel`, e o fragmento de verdade está na prop.
+            if tag.endswith("Parcel"):
+
+                for name in self._parcel_config(opening, source):
+                    sites.setdefault(name, []).append(
+                        RenderSite(
+                            file=relative,
+                            line=element.start_point.row + 1,
+                            props=jsx.prop_names(opening, source),
+                        )
+                    )
+
+        sites.update(
+            self._parcel_mounts(root, source, relative, sites)
+        )
+
         return sites
+
+    @staticmethod
+    def _parcel_config(opening: Node, source: bytes) -> list[str]:
+        """O identificador passado em `config={...}` de um `<Parcel>`."""
+
+        found = jsx.attributes(opening, source).get("config", "")
+
+        return re.findall(r"[A-Za-z_$][\w$]*", found)[:1]
+
+    def _parcel_mounts(
+        self,
+        root: Node,
+        source: bytes,
+        relative: str,
+        sites: dict[str, list[RenderSite]],
+    ) -> dict[str, list[RenderSite]]:
+        """
+        Montagem manual de parcel: o outro jeito de compor.
+
+        Um parcel é um componente agnóstico de framework que uma
+        aplicação exporta e outra monta à mão, sem JSX:
+
+            mountRootParcel(Modal, { domElement })
+            props.mountParcel(Modal, { domElement })
+
+        Procurar só por elemento JSX perde isso inteiro, e um sistema
+        composto por parcels voltaria sem consumo de fragmento algum
+        — resultado que parece válido e não é.
+
+        O primeiro argumento é a configuração do parcel, que é o
+        fragmento importado.
+        """
+
+        MOUNTS = {"mountRootParcel", "mountParcel"}
+
+        found: dict[str, list[RenderSite]] = {}
+
+        for call in AstReader.find_all(root, "call_expression"):
+
+            function = call.child_by_field_name("function")
+            arguments = call.child_by_field_name("arguments")
+
+            if not function or not arguments:
+                continue
+
+            # `mountRootParcel(...)` e `props.mountParcel(...)`
+            name = AstReader.text(function, source).split(".")[-1].strip()
+
+            if name not in MOUNTS:
+                continue
+
+            parts = [
+                child
+                for child in arguments.named_children
+                if child.type != "comment"
+            ]
+
+            if not parts:
+                continue
+
+            config = AstReader.text(parts[0], source).strip()
+
+            if not re.fullmatch(r"[A-Za-z_$][\w$]*", config):
+                continue
+
+            found.setdefault(config, list(sites.get(config, []))).append(
+                RenderSite(
+                    file=relative,
+                    line=call.start_point.row + 1,
+                    props=[],
+                )
+            )
+
+        return found

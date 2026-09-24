@@ -16,7 +16,7 @@ Every rule below consumes one of these. They are produced in this order, each fr
 |---|---|---|
 | **repository** | the directory handed to `damfe reconstruct`, minus `node_modules`, `dist`, `build` and other generated trees | `mfe-hands-on/` |
 | **orchestrator file** | the source file containing calls to `registerApplication`. Found by scanning the repository; there is usually one | `root-config/src/nabstore-root-config.js` |
-| **registration** | one `registerApplication` call, read into `name`, `activeWhen`, the loader's `specifier`, and the file it was declared in. `customProps`, the fourth argument, is not read | `{ name: "@nabstore/mfe-users", activeWhen: ["/users"], specifier: "@nabstore/mfe-users" }` |
+| **registration** | one `registerApplication` call, read into `name`, `activeWhen`, the loader's `specifier`, the file it was declared in, how `activeWhen` was written, and the keys of `customProps` | `{ name: "@nabstore/mfe-users", activeWhen: ["/users"], specifier: "@nabstore/mfe-users" }` |
 | **entrypoint file** | the source file the registration's loader resolves to — the micro frontend's first module, the one exporting its lifecycles | `mfe-users/src/nabstore-mfe-users.js` |
 | **micro frontend directory** | the directory whose `package.json` contains the entrypoint file | `mfe-users/` |
 | **root component file** | the file holding the component passed as `rootComponent` to the single-spa adapter, resolved through the entrypoint's imports | `mfe-users/src/root.component.js` |
@@ -35,6 +35,18 @@ Every rule below consumes one of these. They are produced in this order, each fr
 > **then** each call is a micro frontend, with `name` as its identity and the string literals found inside `activeWhen` as its routes.
 
 Reading string literals is what makes both forms work, but it is coarser than the API. single-spa accepts `activeWhen` as a string, as an activity function `(location) => boolean`, or as an array mixing the two. A function is not interpreted: whatever string literals appear inside it are taken as routes. `pathToActiveWhen("/users")` and `(l) => l.pathname.startsWith("/users")` both yield `/users` by coincidence, while a function holding no literal yields nothing, and one testing a literal negatively yields a route it does not own.
+
+> **Given** a registration
+> **when** its `activeWhen` is an activity function, or an array containing one
+> **then** `metadata.active_when_form = "function"`; when there is no `activeWhen` at all, `"absent"`.
+
+Routes read out of a function do not carry the confidence of literal ones, and whoever reads the artefact has to be able to tell them apart. A literal `activeWhen` sets nothing, so the mark only ever means "look closer here".
+
+> **Given** a registration
+> **when** it carries `customProps` as an object literal
+> **then** the keys go into `metadata.custom_props`.
+
+The values are not read: they are runtime data, and often a function. The keys are enough to know what the shell hands down to that micro frontend.
 
 `registerApplication` is single-spa's own source of truth about which applications exist — including those with no package of their own. Starting from `package.json` misses those.
 
@@ -56,7 +68,17 @@ This is how a monolith under migration enters the graph: it is a registered appl
 
 Applications registered with inline lifecycles in the shell do exist. Disappearing is worse than showing up incomplete.
 
-### 1.3 · Role in the system
+### 1.3 · Routes declared in a layout
+
+> **Given** a registration with no routes, and the repository's HTML and template files
+> **when** a `<template id="single-spa-layout">` names that application inside one or more `<route path=…>`
+> **then** those paths become its routes, concatenated through nesting, and `metadata.routes_from = "single-spa-layout"`.
+
+single-spa-layout moves route ownership out of the registration and into a template, and under it an application needs no `activeWhen` at all. Reading only the registration would return the application's name and no routes — a whole system with no route owners, no navigation and no screens, with nothing saying information was missing.
+
+The JavaScript form, `constructRoutes({ routes: [...] })`, is not read: it is data assembled at runtime, and resolving it would mean evaluating the module.
+
+### 1.4 · Role in the system
 
 > **Given** the entrypoint file
 > **when** it exports `bootstrap`, `mount`, `unmount` or `update`
@@ -82,7 +104,7 @@ Those are single-spa's contract, and they are what confirms the thing is a micro
 
 Declaring a container means the shell reserved a slot in its layout: that micro frontend is fitted into a page alongside other things. One that declares nothing gets a `div` single-spa appends to the body, named `single-spa-application:{name}`.
 
-Only the `domElementGetter` written in the entrypoint is read. The same element can arrive through `customProps` or, with `single-spa-react`, as a `domElement` prop, and neither is recognised.
+Both `domElementGetter` and the direct `domElement` accepted by the framework adapters are read. An element arriving through `customProps` is not: there the value is assembled by the shell, and the entrypoint holds no trace of it.
 
 ### 2.3 · Fragment consumption
 
@@ -92,7 +114,13 @@ Only the `domElementGetter` written in the entrypoint is read. The same element 
 
 The catalogue is what buys precision here: without it there is no way to tell a fragment from any other export of the same package, nor to recognise a JSX instantiation without falling back on naming conventions.
 
-This covers composition by import. single-spa has a second mechanism for the same purpose — **parcels** — which is not extracted. A parcel is a framework-agnostic component one application exports and another mounts by hand, through `mountRootParcel`, through the `mountParcel` prop, or through a framework wrapper such as `<Parcel>`. Composition through parcels is invisible to this rule, so a system built that way comes back with no fragment consumption at all.
+The rule above finds the import. Where the fragment is then used is recorded as a render site, and single-spa offers two shapes for that.
+
+> **Given** a fragment imported from another micro frontend
+> **when** it is rendered as a JSX element, or passed as `config` to a `<Parcel>`, or handed as the first argument to `mountRootParcel` or to the `mountParcel` prop
+> **then** each occurrence is a render site of that fragment.
+
+A **parcel** is single-spa's framework-agnostic component: one application exports it, another mounts it by hand. It composes exactly like an imported component, but never appears as a JSX tag of its own — `<Parcel config={Modal} />` renders `Parcel`, and `mountRootParcel(Modal, …)` renders nothing at all. Looking only for JSX elements would return a system composed entirely of parcels as having no fragment consumption, which reads as a valid answer and is not one.
 
 ---
 
@@ -138,7 +166,17 @@ An always-on `activeWhen` (`/`) is **not** used as a signal: two applications ca
 
 `/` is treated as its own URL, not as a prefix over everything. In single-spa it does match every URL, but reading it as a prefix here would turn any path — an API endpoint included — into navigation towards whoever registered it.
 
-Dynamic segments are not handled. single-spa matches `/users/:userId/profile` against `/users/123/profile`; the rule above compares literally, so a route carrying `:` never matches a concrete URL. Hash routes (`/pathname/#/hash`) are likewise compared as plain text.
+> **Given** a URL and a route containing a `:segment`
+> **when** compared
+> **then** the segment matches any non-empty value in that position, and what follows the declared part still belongs to the same application.
+
+`/users/:id/profile` owns `/users/123/profile` and `/users/123/profile/edit`, and does not own `/users//profile` or `/users/123`.
+
+> **Given** a URL and a route containing `#`
+> **when** compared
+> **then** the hash must match in full, while the path before it is still matched as a prefix.
+
+`/pathname/#/hash` owns `/pathname/#/hash` and not `/#/hash`.
 
 ---
 
@@ -233,12 +271,10 @@ For the project's own wrapper, which no catalogue knows. Without a declaration t
 
 | | |
 |---|---|
-| `single-spa-layout` | routes and slots declared in layout HTML or through `constructRoutes` are not read. Under a layout an application needs no `activeWhen` at all, so §1.1 finds its name and no routes, and §3.3 and §3.4 fall silent |
-| Parcels | composition through `mountRootParcel`, the `mountParcel` prop or `<Parcel>` is not extracted — see §2.3 |
-| Activity functions | `activeWhen` given as a function is not interpreted, only scanned for string literals — see §1.1 |
-| Dynamic and hash routes | `:segment` and `#` are compared literally — see §3.4 |
-| `customProps` | not extracted, in either form of the call |
-| Runtime composition | a container created dynamically is not recognised, and neither is `domElement` arriving through props — see §2.2 |
+| Activity functions | an `activeWhen` written as a function is scanned for string literals, never interpreted. The result is flagged, not fixed — see §1.1 |
+| `constructRoutes` | the JavaScript form of single-spa-layout is not read, only the HTML template — see §1.3 |
+| `customProps` values | only the keys are extracted; the values are runtime data — see §1.1 |
+| Runtime composition | a container assembled at runtime, or handed down through `customProps`, is not recognised — see §2.2 |
 | State writes | out of scope, see §6 |
 | Component containment | fragment → screen is not resolved (US-26) |
 | Coverage | the report does not say what was left unresolved (US-25) |

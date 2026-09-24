@@ -14,6 +14,7 @@ from pathlib import Path
 
 from tree_sitter import Node
 
+from damfe.adapters.driven.reconstruction.singlespa import layout
 from damfe.adapters.driven.reconstruction.ast import (
     AstReader,
     RouteConstantTable,
@@ -37,6 +38,22 @@ class Registration:
     specifier: str | None
     declared_in: Path
 
+    #: Como o `activeWhen` foi escrito: `literal` quando são strings
+    #: ou lista de strings, `function` quando é função de atividade,
+    #: `absent` quando não há.
+    #:
+    #: A API aceita `(location) => boolean`, e função não se resolve
+    #: estaticamente. O que se extrai dela são os literais de string
+    #: que aparecem dentro, o que acerta os casos comuns e erra em
+    #: silêncio nos demais — função sem literal devolve rota
+    #: nenhuma, função que testa um literal negativamente devolve uma
+    #: rota que a aplicação não possui. Quem consome precisa saber a
+    #: diferença.
+    active_when_form: str = "absent"
+
+    #: Nomes das chaves passadas em `customProps`, quando literais.
+    custom_props: list[str] = field(default_factory=list)
+
 
 @dataclass
 class ScanContext:
@@ -47,6 +64,9 @@ class ScanContext:
     routes: RouteConstantTable
     registrations: list[Registration] = field(default_factory=list)
     packages: dict[str, Path] = field(default_factory=dict)
+
+    #: aplicação -> rotas declaradas em template de layout
+    layout_routes: dict[str, list[str]] = field(default_factory=dict)
 
     #: caminho -> (linhas físicas, linhas de código)
     measurements: dict[Path, tuple[int, int]] = field(default_factory=dict)
@@ -66,6 +86,10 @@ class ScanContext:
         context.packages = context._index_packages()
 
         context._scan()
+
+        context.layout_routes = layout.routes_by_application(
+            repository, tree
+        )
 
         context.routes.resolve_pending()
 
@@ -189,9 +213,13 @@ class ScanContext:
             return None
 
         if parts[0].type == "object":
-            name, active_when, loader = self._object_form(parts[0], source)
+            name, active_when, loader, form, custom_props = (
+                self._object_form(parts[0], source)
+            )
         else:
-            name, active_when, loader = self._positional_form(parts, source)
+            name, active_when, loader, form, custom_props = (
+                self._positional_form(parts, source)
+            )
 
         if not name:
             return None
@@ -203,17 +231,21 @@ class ScanContext:
                 self._loader_specifier(loader, source) if loader else None
             ),
             declared_in=file_path,
+            active_when_form=form,
+            custom_props=custom_props,
         )
 
     def _object_form(
         self,
         node: Node,
         source: bytes,
-    ) -> tuple[str | None, list[str], Node | None]:
+    ) -> tuple[str | None, list[str], Node | None, str, list[str]]:
 
         name: str | None = None
         active_when: list[str] = []
         loader: Node | None = None
+        form = "absent"
+        custom_props: list[str] = []
 
         for pair in node.named_children:
 
@@ -235,17 +267,21 @@ class ScanContext:
 
             elif key == "activeWhen":
                 active_when = self._string_literals(value_node, source)
+                form = self._active_when_form(value_node)
 
             elif key == "app":
                 loader = value_node
 
-        return name, active_when, loader
+            elif key == "customProps":
+                custom_props = self._property_names(value_node, source)
+
+        return name, active_when, loader, form, custom_props
 
     def _positional_form(
         self,
         parts: list[Node],
         source: bytes,
-    ) -> tuple[str | None, list[str], Node | None]:
+    ) -> tuple[str | None, list[str], Node | None, str, list[str]]:
 
         name = AstReader.strip_quotes(AstReader.text(parts[0], source))
 
@@ -257,7 +293,63 @@ class ScanContext:
             else []
         )
 
-        return name, active_when, loader
+        form = (
+            self._active_when_form(parts[2]) if len(parts) > 2 else "absent"
+        )
+
+        custom_props = (
+            self._property_names(parts[3], source) if len(parts) > 3 else []
+        )
+
+        return name, active_when, loader, form, custom_props
+
+    @staticmethod
+    def _active_when_form(node: Node) -> str:
+        """Se o `activeWhen` é literal ou função de atividade."""
+
+        FUNCTIONS = {
+            "arrow_function",
+            "function_expression",
+            "function_declaration",
+            "identifier",
+            "call_expression",
+        }
+
+        if node.type in FUNCTIONS:
+            return "function"
+
+        if node.type == "array":
+            return (
+                "function"
+                if any(
+                    child.type in FUNCTIONS for child in node.named_children
+                )
+                else "literal"
+            )
+
+        return "literal"
+
+    @staticmethod
+    def _property_names(node: Node, source: bytes) -> list[str]:
+        """As chaves de um literal de objeto, quando houver."""
+
+        names = []
+
+        for pair in node.named_children:
+
+            if pair.type != "pair":
+                continue
+
+            key_node = pair.child_by_field_name("key")
+
+            if key_node:
+                names.append(
+                    AstReader.strip_quotes(
+                        AstReader.text(key_node, source)
+                    )
+                )
+
+        return sorted(names)
 
     @staticmethod
     def _string_literals(node: Node, source: bytes) -> list[str]:

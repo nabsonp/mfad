@@ -38,6 +38,14 @@ class SourceTree:
             if path.suffix in AstReader.SUPPORTED_EXTENSIONS:
                 yield path
 
+    def markup_files(self) -> Iterator[Path]:
+        """HTML e templates, onde mora o layout declarativo."""
+
+        for path in self._walk():
+
+            if path.suffix in (".html", ".ejs", ".htm"):
+                yield path
+
     def manifests(self, name: str = "package.json") -> Iterator[Path]:
 
         for path in self._walk():
