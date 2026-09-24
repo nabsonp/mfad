@@ -1,22 +1,10 @@
 # Extraction rules — Module Federation
 
-What the Module Federation reconstructor reads from source, and under which conditions. Each rule as *given / when / then*, the same shape as [single-spa.md](single-spa.md).
+What the Module Federation reconstructor reads from source, and under which conditions. Each rule as *given / when / then*.
 
 Written from the implementation in `src/damfe/adapters/driven/reconstruction/modulefederation/`, and checked against a real system: [diego-coronado/microfrontend-healthcare-system](https://github.com/diego-coronado/diego-coronado-microfrontend-healthcare-system), seven Vite units.
 
 No rule executes the analysed code, reaches the network, or consults a language model.
-
-## What differs from single-spa
-
-Three structural differences drive every rule below.
-
-**There is no orchestrator.** No file registers the system's units. Each unit declares itself in its own build config, and the system is what emerges when those declarations are read together. Discovery therefore sweeps configs instead of starting from one file.
-
-**There is no `activeWhen`.** Module Federation resolves remote code loading and says nothing about URLs. A unit's routes are its own router's routes, and exist only if it has one. A unit that only publishes components owns no URL, and zero routes is the correct answer for it.
-
-**There is no declared shell.** Host and remote are not exclusive — a unit can consume remotes and be consumed at the same time. What can be stated is who consumes without being consumed.
-
-Everything after discovery is shared with single-spa: navigation, external calls, global state and communication start from the extracted applications and from platform primitives, and are reused unchanged.
 
 ---
 
@@ -36,6 +24,8 @@ Everything after discovery is shared with single-spa: navigation, external calls
 
 ### 2.1 · Unit inventory
 
+Module Federation has no orchestrator: no file registers the system's units. Each unit declares itself in its own build config, and the system is what emerges when those declarations are read together. Discovery therefore sweeps configs rather than starting from one file.
+
 > **Given** the repository
 > **when** a federation config contains a call to `ModuleFederationPlugin`, `withModuleFederation`, `NxModuleFederationPlugin`, `federation` or `moduleFederationPlugin`, carrying an object with a `name`
 > **then** that object declares a micro frontend, identified by `name`.
@@ -54,6 +44,8 @@ A unit's federation name is its identity on the network and need not match the p
 
 ### 2.3 · Host without a host
 
+Host and remote are not exclusive roles here: a unit can consume remotes and be consumed at the same time. What can be stated from the declarations is who consumes without being consumed.
+
 > **Given** every unit's `remotes`
 > **when** a unit declares remotes and appears in nobody else's
 > **then** it takes `role = "shell"`, with `mounts` listing the remotes it consumes.
@@ -70,7 +62,7 @@ This is the closest thing Module Federation defines to an orchestrator. When eve
 > **when** it carries `exposes`
 > **then** each key is a fragment of that unit, and its value resolves to the internal file, trying the path as given, then with each known extension, then as a directory with an `index`.
 
-`exposes` is an explicit declaration, which makes it a better signal than single-spa's, where any named export could be a fragment.
+`exposes` is an explicit declaration, which is why it is trusted directly: the unit states what it publishes, and nothing has to be inferred from naming or from which exports happen to exist.
 
 ### 3.2 · Static consumption
 
@@ -129,15 +121,13 @@ Pointing at the router makes every screen reach everything the router imports, a
 > **Given** a unit's screens
 > **then** its routes are the routes of those screens.
 
-There is no `activeWhen` to read. A unit with no router has no routes, and that is correct: it answers no URL.
+Module Federation resolves remote code loading and says nothing about URLs, so there is no route to read from the declaration. A unit with no router has no routes, and that is correct: it answers no URL.
 
 ---
 
-## 5. Everything else
+## 5. Beyond composition
 
-Navigation, external calls, global state and communication are extracted by the same code used for single-spa, without changes. They start from the extracted applications and from platform primitives, and know nothing about either technology.
-
-That boundary is the test of the architecture. Had supporting a second technology required rewriting those five extractors, the line between what belongs to a technology and what belongs to the domain would be in the wrong place.
+Navigation, external calls, global state and communication do not depend on how the system is composed, and are described in [common.md](common.md).
 
 ---
 
