@@ -1,0 +1,44 @@
+"""Extrair as navegações que cruzam a fronteira entre aplicações."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from damfe.application.errors import RepositoryNotFound
+from damfe.application.ports import Reconstructor, UseCase
+from damfe.application.results import NavigationsResult
+from damfe.domain import MicroFrontend
+
+
+class ExtractNavigationsUseCase(UseCase[NavigationsResult]):
+
+    def __init__(
+        self,
+        repository_path: Path,
+        reconstructor: Reconstructor,
+        microfrontends: list[MicroFrontend] | None = None,
+    ):
+        self.repository_path = repository_path
+        self.reconstructor = reconstructor
+
+        # Quando já foram extraídas, não se extrai de novo.
+        self.microfrontends = microfrontends
+
+    def execute(self) -> NavigationsResult:
+
+        if not self.repository_path.exists():
+            raise RepositoryNotFound(self.repository_path)
+
+        microfrontends = self.microfrontends
+
+        if microfrontends is None:
+            microfrontends = self.reconstructor.microfrontends(
+                self.repository_path
+            )
+
+        return NavigationsResult(
+            navigations=self.reconstructor.navigations(
+                self.repository_path,
+                microfrontends,
+            )
+        )

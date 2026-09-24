@@ -1,0 +1,251 @@
+"""
+O modelo neutro de artefatos arquiteturais.
+
+Este módulo é o CONTRATO entre os três módulos do CLI.
+Nada aqui pode falar de single-spa, Module Federation ou
+qualquer outro framework: quem traduz o vocabulário de um
+framework para estes tipos é o módulo de reconstruction.
+
+Detalhes específicos de framework, quando valem a pena,
+vão no campo `metadata` de cada entidade.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from damfe.domain.communication import Communication
+    from damfe.domain.domains import Domain
+
+
+@dataclass
+class SourceLocation:
+    """Onde algo aparece no código-fonte."""
+
+    file: str
+    line: int
+    code: str | None = None
+
+
+@dataclass
+class RenderSite:
+    """Onde um fragmento é de fato instanciado na interface."""
+
+    file: str
+    line: int
+    props: list[str] = field(default_factory=list)
+
+
+@dataclass
+class CodeSize:
+    """
+    Tamanho do código de uma unidade.
+
+    `lines` é a contagem física; `code_lines` desconta linhas em
+    branco e linhas que são apenas comentário — as segundas
+    identificadas pela árvore sintática, não por heurística de
+    texto.
+    """
+
+    files: int = 0
+    lines: int = 0
+    code_lines: int = 0
+
+
+@dataclass
+class Fragment:
+    """
+    Uma unidade de interface que uma aplicação expõe para
+    que outras consumam.
+    """
+
+    name: str
+    microfrontend: str
+    file: str | None = None
+    line: int = 0
+
+    @property
+    def id(self) -> str:
+        return f"{self.microfrontend}#{self.name}"
+
+
+@dataclass
+class Screen:
+    """Uma tela roteável de uma aplicação."""
+
+    component: str
+    microfrontend: str
+    route: str | None = None
+    route_expression: str = ""
+    file: str | None = None
+    line: int = 0
+
+    #: Se o componente raiz alcança o arquivo que declara esta tela.
+    #:
+    #: Uma tela declarada num arquivo que ninguém importa existe no
+    #: código e não existe em execução. As duas coisas interessam, e
+    #: por motivos diferentes: a reconstrução responde quais telas o
+    #: micro frontend define, e esta marca responde quais delas estão
+    #: ligadas hoje. Decidir o que fazer com a diferença é de quem lê
+    #: o resultado — tela desligada costuma ser refatoração pela
+    #: metade, não erro de extração.
+    reachable: bool = True
+
+    @property
+    def id(self) -> str:
+        return f"{self.microfrontend}#{self.component}"
+
+
+@dataclass
+class MicroFrontend:
+    """
+    Uma unidade de implantação independente — o que o
+    single-spa chama de microfrontend e o Module Federation
+    chama de remote.
+
+    `role` distingue o orquestrador das demais.
+    """
+
+    id: str
+    directory: str = ""
+    entrypoint: str = ""
+    routes: list[str] = field(default_factory=list)
+    role: str = "microfrontend"
+    fragments: list[Fragment] = field(default_factory=list)
+    screens: list[Screen] = field(default_factory=list)
+    size: CodeSize = field(default_factory=CodeSize)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class FragmentImport:
+    """
+    Aresta: uma aplicação consome um fragmento de outra.
+
+    `renders` vazio significa import sem uso — o fragmento
+    foi importado mas nunca instanciado.
+    """
+
+    consumer: str
+    provider: str
+    fragment: str
+    local_name: str
+    imported_at: SourceLocation
+    renders: list[RenderSite] = field(default_factory=list)
+
+
+@dataclass
+class ApiCall:
+    """
+    Aresta: um micro frontend chama um serviço externo.
+
+    Diferente das demais, esta aresta não liga dois micro
+    frontends — liga um deles a um endereço fora do sistema. O
+    acoplamento aparece quando dois consomem o mesmo endpoint.
+
+    `path` costuma ser relativo, porque a base normalmente vem de
+    variável de ambiente e não é determinável estaticamente.
+
+    `screens` e `fragments` dizem quem alcança a chamada seguindo
+    os imports internos do micro frontend. São listas porque um
+    módulo de serviço compartilhado é alcançado por várias telas —
+    e ficam vazias quando a chamada não é alcançável a partir de
+    nenhuma delas, o que também é informação.
+    """
+
+    microfrontend: str
+    method: str
+    path: str
+    match: str
+    client: str
+    at: SourceLocation
+    screens: list[str] = field(default_factory=list)
+    fragments: list[str] = field(default_factory=list)
+
+
+@dataclass
+class StateAccess:
+    """
+    Um micro frontend LÊ uma parte do estado global.
+
+    Acoplamento sem mensagem e sem import: dois micro frontends que
+    leem a mesma fatia dependem do mesmo formato de dado, e uma
+    mudança nela quebra os dois — ainda que não se conheçam.
+
+    Só leitura, deliberadamente. A escrita existe e também acopla,
+    mas o que o código revela no ponto da chamada é o nome da ação
+    despachada, não a fatia alterada — descobrir a fatia exigiria
+    seguir o redutor, que pode viver noutro pacote. Registrar as
+    duas na mesma lista misturaria dois vocabulários: caminho de
+    estado e nome de ação não são a mesma coisa.
+    """
+
+    microfrontend: str
+    library: str
+    path: str
+    at: SourceLocation
+
+
+@dataclass
+class Navigation:
+    """
+    Aresta: código de uma aplicação leva o usuário para uma
+    rota pertencente a outra.
+
+    `match` diz o grau de confiança: `exact` quando a URL foi
+    resolvida por inteiro, `prefix` quando só o começo dela
+    pôde ser determinado estaticamente.
+    """
+
+    source: str
+    target: str
+    expression: str
+    resolved_url: str | None
+    match: str
+    at: SourceLocation
+
+
+@dataclass
+class ArtifactSet:
+    """Tudo que a reconstrução extraiu de um repositório."""
+
+    #: nome do projeto analisado, para identificar o relatório.
+    #: Só o nome, nunca o caminho absoluto — o artefato é
+    #: versionado, e caminho de máquina sujaria o diff.
+    project: str = ""
+    microfrontends: list[MicroFrontend] = field(default_factory=list)
+    fragment_imports: list[FragmentImport] = field(default_factory=list)
+    navigations: list[Navigation] = field(default_factory=list)
+    communications: list["Communication"] = field(default_factory=list)
+    api_calls: list[ApiCall] = field(default_factory=list)
+    state_accesses: list[StateAccess] = field(default_factory=list)
+    domains: list["Domain"] = field(default_factory=list)
+
+    def microfrontend(self, identifier: str) -> MicroFrontend | None:
+
+        for microfrontend in self.microfrontends:
+
+            if microfrontend.id == identifier:
+                return microfrontend
+
+        return None
+
+    @property
+    def fragments(self) -> list[Fragment]:
+
+        return [
+            fragment
+            for microfrontend in self.microfrontends
+            for fragment in microfrontend.fragments
+        ]
+
+    @property
+    def screens(self) -> list[Screen]:
+
+        return [
+            screen
+            for microfrontend in self.microfrontends
+            for screen in microfrontend.screens
+        ]

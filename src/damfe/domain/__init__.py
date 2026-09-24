@@ -1,0 +1,56 @@
+"""
+O núcleo do hexágono.
+
+Entidades puras: sem dependência de framework, de I/O ou de
+qualquer tecnologia de micro frontend. Tudo mais aponta para cá.
+"""
+
+from damfe.domain.communication import (
+    ChannelOperation,
+    edges_from_state,
+    Communication,
+    CommunicationSpec,
+    Mechanism,
+)
+from damfe.domain.detection import AntiPatternDetection
+from damfe.domain.domains import (
+    Domain,
+    DomainDeclaration,
+    DomainMap,
+)
+from damfe.domain.model import (
+    ApiCall,
+    CodeSize,
+    MicroFrontend,
+    ArtifactSet,
+    Fragment,
+    FragmentImport,
+    Navigation,
+    RenderSite,
+    Screen,
+    SourceLocation,
+    StateAccess,
+)
+
+__all__ = [
+    "edges_from_state",
+    "ApiCall",
+    "MicroFrontend",
+    "ChannelOperation",
+    "Communication",
+    "CodeSize",
+    "CommunicationSpec",
+    "Domain",
+    "DomainDeclaration",
+    "DomainMap",
+    "ArtifactSet",
+    "AntiPatternDetection",
+    "Fragment",
+    "FragmentImport",
+    "Mechanism",
+    "Navigation",
+    "RenderSite",
+    "Screen",
+    "SourceLocation",
+    "StateAccess",
+]
