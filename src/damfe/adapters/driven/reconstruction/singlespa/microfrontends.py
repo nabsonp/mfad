@@ -88,7 +88,7 @@ class MicroFrontendBuilder:
         microfrontend.screens = self._screens(microfrontend, root_component)
 
         if not microfrontend.screens and root_component:
-            self._root_as_fragment(root_component, microfrontend)
+            self._root_without_router(root_component, microfrontend)
 
         return microfrontend
 
@@ -287,40 +287,64 @@ class MicroFrontendBuilder:
 
         return None
 
-    def _root_as_fragment(
+    def _root_without_router(
         self,
         root_component: Path,
         microfrontend: MicroFrontend,
     ) -> None:
         """
-        O componente raiz como fragmento, quando não há tela alguma.
+        O que o componente raiz é, quando o micro frontend não tem
+        roteador próprio.
 
-        Um micro frontend sem rota nenhuma não serve tela: ele entrega
-        um pedaço de interface que o shell monta — cromo como barra de
-        navegação e rodapé, ou um bloco que compõe uma página. O que
-        ele expõe é o `rootComponent`, e é isso que os outros veem.
+        Em single-spa o roteador é o `activeWhen`: um micro frontend
+        registrado num prefixo já serve aquela rota, e roteador
+        interno só faz falta para servir várias telas sob o mesmo
+        prefixo. Então ausência de `<Route>` não significa ausência de
+        tela — significa uma tela só.
 
-        Chamar esse componente de tela seria afirmar que o micro
-        frontend responde por uma rota, o que não é verdade: barra de
-        navegação registrada com `activeWhen: ["/"]` monta em todas as
-        URLs e não é dona de nenhuma.
+        O discriminante é o próprio registro:
 
-        A distinção entre cromo e bloco de página não é decidível
-        daqui, e não é feita: os dois são fragmento.
+        `activeWhen: ["/"]` casa com toda URL, então o componente
+        monta em qualquer rota e não é dono de nenhuma. Isso é
+        interface permanente — barra de navegação, rodapé —, e o que
+        ele expõe é um fragmento.
+
+        Qualquer outro prefixo monta só ali. Isso é uma tela, e a rota
+        dela é a do registro; não há expressão a resolver, porque ela
+        não foi escrita no código da tela.
         """
 
         name = root_component.stem
 
-        if any(item.name == name for item in microfrontend.fragments):
+        if self._always_mounted(microfrontend.routes):
+
+            if any(item.name == name for item in microfrontend.fragments):
+                return
+
+            microfrontend.fragments.append(
+                Fragment(
+                    name=name,
+                    microfrontend=microfrontend.id,
+                    file=self.context.relative(root_component),
+                )
+            )
+
             return
 
-        microfrontend.fragments.append(
-            Fragment(
-                name=name,
+        microfrontend.screens = [
+            Screen(
+                component=name,
                 microfrontend=microfrontend.id,
+                route=microfrontend.routes[0] if microfrontend.routes else None,
                 file=self.context.relative(root_component),
             )
-        )
+        ]
+
+    @staticmethod
+    def _always_mounted(routes: list[str]) -> bool:
+        """Se o registro casa com qualquer URL."""
+
+        return bool(routes) and all(route == "/" for route in routes)
 
     def _screens(
         self,
