@@ -25,6 +25,9 @@ from damfe.adapters.driven.antipatterns.rules import (
 from damfe.adapters.driven.reconstruction.singlespa.reconstructor import (
     SingleSpaReconstructor,
 )
+from damfe.adapters.driven.reconstruction.modulefederation import (
+    ModuleFederationReconstructor,
+)
 from damfe.adapters.driven.visualization.features import FeaturesRenderer
 from damfe.adapters.driven.visualization.html import HtmlRenderer
 from damfe.adapters.driven.storage import (
@@ -62,6 +65,7 @@ def bootstrap() -> None:
         return
 
     reconstruction.register(SingleSpaReconstructor())
+    reconstruction.register(ModuleFederationReconstructor())
 
     antipatterns.register(AccessToDifferentDomains())
     antipatterns.register(CyclicDependency())
