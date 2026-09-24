@@ -326,6 +326,7 @@ pre.snippet .ln { color: #64748b; user-select: none; }
   background: #eef2f7; color: var(--muted);
 }
 .badge.shell { background: #f5f0ff; color: #6d28d9; }
+.badge.lib { background: #fff7ed; color: #b45309; cursor: help; }
 .badge.alert { background: #fee2e2; color: #b91c1c; }
 .empty { color: var(--muted); font-size: 13px; }
 

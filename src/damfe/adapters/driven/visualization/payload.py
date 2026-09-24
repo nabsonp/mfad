@@ -126,6 +126,7 @@ def _microfrontend(item, degrees: dict, counts: dict) -> dict:
         "id": item.id,
         "short": short(item.id),
         "role": item.role,
+        "reexports": item.metadata.get("reexports", 0),
         "directory": item.directory,
         "entrypoint": item.entrypoint,
         "routes": item.routes,

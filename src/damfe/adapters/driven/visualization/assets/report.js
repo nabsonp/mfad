@@ -217,6 +217,14 @@
       (item.role === "shell"
         ? '<span class="badge shell">orquestrador</span>'
         : '<span class="badge">micro frontend</span>') +
+      // Sinal, não veredito: o módulo exposto só reexporta, que é
+      // forma de biblioteca. Quem lê decide o que isso significa.
+      (item.reexports
+        ? '<span class="badge lib" title="O módulo exposto apenas ' +
+          'reexporta ' + item.reexports + ' nomes, em vez de definir ' +
+          'o que publica — forma de biblioteca de componentes.">' +
+          'expõe catálogo de ' + item.reexports + '</span>'
+        : "") +
       '<div class="summary">' +
         cell(item.screens.length, "telas") +
         cell(item.fragments.length, "fragmentos") +

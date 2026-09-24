@@ -64,6 +64,12 @@ This is the closest thing Module Federation defines to an orchestrator. When eve
 
 `exposes` is an explicit declaration, which is why it is trusted directly: the unit states what it publishes, and nothing has to be inferred from naming or from which exports happen to exist.
 
+> **Given** an exposed module
+> **when** its body only re-exports names declared elsewhere — `export { Card } from "./ui/card"` — rather than defining what it publishes
+> **then** the count of re-exported names goes into `metadata.reexports`.
+
+A module shaped like that is a catalogue of parts rather than a part, which is the shape of a component library. It is recorded as a signal and changes no rule: a library can expose one component per entry and show no barrel, and a remote can expose a barrel of pages. The shape catches the common case and never proves what the unit is — and telling a shared library from a micro frontend everyone depends on is a judgement about the thing, not about the graph, since both look identical in it.
+
 ### 3.2 · Static consumption
 
 > **Given** the fragment catalogue and a source file

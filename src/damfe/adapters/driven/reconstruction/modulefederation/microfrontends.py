@@ -69,15 +69,34 @@ class FederatedBuilder:
         if published and published != federation.name:
             microfrontend.metadata["package"] = published
 
+        barrels = 0
+
         for path, target in sorted(federation.exposes.items()):
+
+            resolved = self._resolve(directory, target)
 
             microfrontend.fragments.append(
                 Fragment(
                     name=path,
                     microfrontend=federation.name,
-                    file=self._resolve(directory, target),
+                    file=resolved,
                 )
             )
+
+            barrels += self._reexports(resolved)
+
+        # Forma de biblioteca: o módulo exposto só reexporta, em vez
+        # de definir o que publica. A unidade entrega um catálogo de
+        # peças, não uma peça.
+        #
+        # É sinal, não classificação. Biblioteca que exponha componente
+        # por componente não tem barril, e remoto pode expor um barril
+        # de páginas — o formato acerta o caso comum e não prova a
+        # natureza da coisa. Quem decide se aquilo é biblioteca é quem
+        # lê, e é por isso que o número fica registrado em vez de mudar
+        # o comportamento das regras.
+        if barrels:
+            microfrontend.metadata["reexports"] = barrels
 
         if federation.remotes:
             microfrontend.metadata["remotes"] = sorted(federation.remotes)
@@ -119,6 +138,50 @@ class FederatedBuilder:
                 return self.context.relative(candidate)
 
         return None
+
+    def _reexports(self, relative: str | None) -> int:
+        """
+        Quantos nomes o módulo reexporta sem definir.
+
+        `export { Card } from "./ui/card"` conta; `export default
+        function Pharmacy()` não. Zero significa que o módulo define o
+        que publica.
+        """
+
+        if not relative:
+            return 0
+
+        path = self.context.repository / relative
+
+        if not path.is_file():
+            return 0
+
+        try:
+            root, source = self.context.reader.parse(path)
+        except Exception:
+            return 0
+
+        found = 0
+
+        for node in AstReader.find_all(root, "export_statement"):
+
+            text = AstReader.text(node, source)
+
+            if " from " not in text:
+                continue
+
+            for clause in node.named_children:
+
+                if clause.type != "export_clause":
+                    continue
+
+                found += sum(
+                    1
+                    for child in clause.named_children
+                    if child.type == "export_specifier"
+                )
+
+        return found
 
     def _screens(self, directory: Path, owner: str) -> list[Screen]:
         """
