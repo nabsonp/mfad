@@ -61,17 +61,17 @@ class HubLikeDependency(Rule):
         """
         Agrupa os fragmentos instanciados por tela.
 
-        A ligação é pelo ARQUIVO: um fragmento pertence à tela cujo
-        arquivo o instancia. Fragmento renderizado dentro de um
-        componente auxiliar, e não no arquivo da tela, não é
-        atribuído — ver a limitação registrada no README.
+        A ligação vem do próprio sítio de renderização, que já sabe em
+        que telas aparece. Antes era pelo ARQUIVO — a tela cujo
+        arquivo instancia o fragmento —, e isso quebrava quando várias
+        telas são declaradas no mesmo roteador: o mapa ficava com uma
+        tela arbitrária por arquivo, e a acusação caía sobre ela.
         """
 
         screens = {
-            screen.file: screen
+            screen.id: screen
             for microfrontend in artifacts.microfrontends
             for screen in microfrontend.screens
-            if screen.file
         }
 
         hosts: dict[str, Host] = {}
@@ -80,24 +80,26 @@ class HubLikeDependency(Rule):
 
             for render in item.renders:
 
-                screen = screens.get(render.file)
+                for identifier in render.screens:
 
-                if not screen:
-                    continue
+                    screen = screens.get(identifier)
 
-                host = hosts.setdefault(
-                    screen.id,
-                    Host(
-                        screen=screen.component,
-                        owner=screen.microfrontend,
-                    ),
-                )
+                    if not screen:
+                        continue
 
-                host.providers.add(item.provider)
-                host.fragments.append(item.fragment)
-                host.locations.append(
-                    SourceLocation(file=render.file, line=render.line)
-                )
+                    host = hosts.setdefault(
+                        screen.id,
+                        Host(
+                            screen=screen.component,
+                            owner=screen.microfrontend,
+                        ),
+                    )
+
+                    host.providers.add(item.provider)
+                    host.fragments.append(item.fragment)
+                    host.locations.append(
+                        SourceLocation(file=render.file, line=render.line)
+                    )
 
         return hosts
 

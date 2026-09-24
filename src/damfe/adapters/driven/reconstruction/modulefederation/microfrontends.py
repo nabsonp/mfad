@@ -25,7 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from damfe.domain import Fragment, MicroFrontend, Screen
-from damfe.adapters.driven.reconstruction.ast import AstReader
+from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.modulefederation import config
@@ -146,6 +146,8 @@ class FederatedBuilder:
             except Exception:
                 continue
 
+            imports = ImportTable(root, source, file_path)
+
             for element, opening in jsx.elements(root):
 
                 if jsx.tag_name(opening, source) != "Route":
@@ -171,13 +173,24 @@ class FederatedBuilder:
 
                 seen.add(key)
 
+                # O arquivo da tela é o do COMPONENTE, não o do
+                # roteador. Apontar para o roteador faz toda tela
+                # alcançar tudo que ele importa, e a atribuição de
+                # fragmento a tela vira ruído: cada tela recebe as
+                # dependências de todas as outras.
+                target = imports.file_for(component)
+
                 found.append(
                     Screen(
                         component=component,
                         microfrontend=owner,
                         route=route,
                         route_expression=attributes.get("path", ""),
-                        file=self.context.relative(file_path),
+                        file=(
+                            self.context.relative(target)
+                            if target
+                            else self.context.relative(file_path)
+                        ),
                         line=element.start_point.row + 1,
                     )
                 )

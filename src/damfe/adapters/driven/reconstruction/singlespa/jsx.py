@@ -106,23 +106,79 @@ def prop_names(opening: Node, source: bytes) -> list[str]:
     return names
 
 
+#: Componentes que embrulham uma tela sem serem a tela.
+#:
+#: `<Suspense fallback={…}><Pacientes /></Suspense>` declara a tela
+#: Pacientes; Suspense é a fronteira preguiçosa que o carregamento
+#: remoto exige, e aparece em todas as rotas de um host de Module
+#: Federation. Ficar com o nome de fora daria o mesmo componente como
+#: tela de todas as rotas do sistema.
+#:
+#: A lista é curta e de propósito: só embrulho que o próprio
+#: framework define. Embrulho do projeto não cabe aqui — seria
+#: convenção de repositório, e aí a regra da folha resolve.
+WRAPPERS = {
+    "Suspense",
+    "ErrorBoundary",
+    "React.Suspense",
+    "Route",
+    "Fragment",
+    "React.Fragment",
+}
+
+
 def component_name(element_expression: str) -> str | None:
-    """Extrai `Cart` de `<Cart addProduct={...} />`."""
+    """
+    O componente que a rota renderiza.
 
-    text = element_expression.strip()
+    `<Cart addProduct={...} />` devolve `Cart`. Quando há embrulho,
+    devolve o que está dentro: o que interessa é o que a rota mostra,
+    não a máquina que o coloca lá.
+    """
 
-    if not text.startswith("<"):
+    names = _component_names(element_expression)
+
+    if not names:
         return None
 
-    text = text[1:].lstrip()
+    for name in names:
+        if name not in WRAPPERS:
+            return name
 
-    name = ""
+    return names[0]
 
-    for character in text:
 
-        if character.isalnum() or character in "_$.":
-            name += character
-        else:
-            break
+def _component_names(expression: str) -> list[str]:
+    """
+    Os componentes citados, do mais externo para o mais interno.
 
-    return name or None
+    Só considera tag com inicial maiúscula: elemento de HTML é
+    minúsculo, e `<div>` dentro de um `fallback` não é tela.
+    """
+
+    found = []
+
+    text = expression
+
+    while "<" in text:
+
+        _, _, text = text.partition("<")
+
+        text = text.lstrip()
+
+        if text.startswith("/"):
+            continue
+
+        name = ""
+
+        for character in text:
+
+            if character.isalnum() or character in "_$.":
+                name += character
+            else:
+                break
+
+        if name and name[0].isupper():
+            found.append(name)
+
+    return found

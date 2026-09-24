@@ -24,7 +24,7 @@ from damfe.domain import (
     RenderSite,
     SourceLocation,
 )
-from damfe.adapters.driven.reconstruction.ast import ImportTable
+from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.singlespa.reachability import (
@@ -124,9 +124,14 @@ class RemoteImportExtractor:
 
         found = []
 
-        for record in ImportTable.records(root, source):
+        records = [
+            (record.module, record.local_name, record.line, record.code)
+            for record in ImportTable.records(root, source)
+        ] + self._dynamic(root, source)
 
-            provider, fragment = self._split(record.module)
+        for module, local_name, line, code in records:
+
+            provider, fragment = self._split(module)
 
             if not provider:
                 continue
@@ -139,17 +144,94 @@ class RemoteImportExtractor:
                     consumer=consumer,
                     provider=provider,
                     fragment=f"./{fragment}",
-                    local_name=record.local_name,
+                    local_name=local_name,
                     imported_at=SourceLocation(
                         file=relative,
-                        line=record.line,
-                        code=record.code,
+                        line=line,
+                        code=code,
                     ),
-                    renders=renders.get(record.local_name, []),
+                    renders=renders.get(local_name, []),
                 )
             )
 
         return found
+
+    def _dynamic(
+        self,
+        root: Node,
+        source: bytes,
+    ) -> list[tuple[str, str, int, str]]:
+        """
+        `const Pharmacy = lazy(() => import("hs-pharmacy/Pharmacy"))`.
+
+        É assim que um host carrega página remota, e não como import
+        estático: o ponto de Module Federation é buscar o código na
+        hora, e o framework exige uma fronteira preguiçosa para isso.
+        Ler só o import estático encontra as bibliotecas compartilhadas
+        e perde exatamente as páginas — o consumo que define o sistema.
+
+        O nome local vem da declaração que envolve a chamada, que é
+        por onde o componente é referenciado depois.
+        """
+
+        found = []
+
+        for call in AstReader.find_all(root, "call_expression"):
+
+            function = call.child_by_field_name("function")
+
+            if not function or AstReader.text(function, source) != "import":
+                continue
+
+            arguments = call.child_by_field_name("arguments")
+
+            if not arguments:
+                continue
+
+            literals = [
+                child
+                for child in arguments.named_children
+                if child.type == "string"
+            ]
+
+            if not literals:
+                continue
+
+            module = AstReader.strip_quotes(
+                AstReader.text(literals[0], source)
+            )
+
+            found.append(
+                (
+                    module,
+                    self._binding(call, source) or module.split("/")[-1],
+                    call.start_point.row + 1,
+                    AstReader.text(call, source).strip(),
+                )
+            )
+
+        return found
+
+    @staticmethod
+    def _binding(node: Node, source: bytes) -> str | None:
+        """O nome declarado que envolve a chamada, se houver."""
+
+        current = node.parent
+
+        while current is not None:
+
+            if current.type == "variable_declarator":
+
+                name = current.child_by_field_name("name")
+
+                return AstReader.text(name, source) if name else None
+
+            if current.type in ("statement_block", "program"):
+                return None
+
+            current = current.parent
+
+        return None
 
     def _split(self, module: str) -> tuple[str | None, str]:
         """
