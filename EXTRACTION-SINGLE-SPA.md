@@ -36,17 +36,23 @@ Every rule below consumes one of these. They are produced in this order, each fr
 
 Reading string literals is what makes both forms work, but it is coarser than the API. single-spa accepts `activeWhen` as a string, as an activity function `(location) => boolean`, or as an array mixing the two. A function is not interpreted: whatever string literals appear inside it are taken as routes. `pathToActiveWhen("/users")` and `(l) => l.pathname.startsWith("/users")` both yield `/users` by coincidence, while a function holding no literal yields nothing, and one testing a literal negatively yields a route it does not own.
 
-> **Given** a registration
-> **when** its `activeWhen` is an activity function, or an array containing one
-> **then** `metadata.active_when_form = "function"`; when there is no `activeWhen` at all, `"absent"`.
+> **Given** a registration whose `activeWhen` is an activity function
+> **when** the function has a recognised shape — `pathname.startsWith("/x")`, `pathname === "/x"`, `pathname.includes("/x")`, or `pathToActiveWhen("/x")`
+> **then** the route is read from it and `metadata.active_when_form = "function"`.
 
-Routes read out of a function do not carry the confidence of literal ones, and whoever reads the artefact has to be able to tell them apart. A literal `activeWhen` sets nothing, so the mark only ever means "look closer here".
+> **Given** a registration whose `activeWhen` is an activity function
+> **when** the shape is not recognised
+> **then** any string literal inside it is taken as a route and `metadata.active_when_form = "opaque"`.
+
+An arbitrary function does not resolve statically, but the ones written in practice are few and have fixed shapes. Recognising them is the difference between reading the right route and scanning literals hoping to hit it. `opaque` is the honest label for the rest: the routes there may be no routes at all, and the mark says so instead of letting them pass as equal to the others.
+
+A literal `activeWhen` sets no mark, so its presence always means "look closer here".
 
 > **Given** a registration
 > **when** it carries `customProps` as an object literal
-> **then** the keys go into `metadata.custom_props`.
+> **then** `metadata.custom_props` maps each key to its value when the value is a literal, and to an empty string otherwise.
 
-The values are not read: they are runtime data, and often a function. The keys are enough to know what the shell hands down to that micro frontend.
+A literal value is configuration written by hand and says something about the system. A value that is a function or a variable is assembled at runtime, and there only the key survives — knowing the key exists is already information.
 
 `registerApplication` is single-spa's own source of truth about which applications exist — including those with no package of their own. Starting from `package.json` misses those.
 
@@ -74,9 +80,13 @@ Applications registered with inline lifecycles in the shell do exist. Disappeari
 > **when** a `<template id="single-spa-layout">` names that application inside one or more `<route path=…>`
 > **then** those paths become its routes, concatenated through nesting, and `metadata.routes_from = "single-spa-layout"`.
 
-single-spa-layout moves route ownership out of the registration and into a template, and under it an application needs no `activeWhen` at all. Reading only the registration would return the application's name and no routes — a whole system with no route owners, no navigation and no screens, with nothing saying information was missing.
+> **Given** a registration with no routes, and the repository's source files
+> **when** `constructRoutes({ routes: [...] })` is called with an object literal naming that application under `{ type: "route", path: … }` entries
+> **then** the same applies.
 
-The JavaScript form, `constructRoutes({ routes: [...] })`, is not read: it is data assembled at runtime, and resolving it would mean evaluating the module.
+Only an object literal is read. `constructRoutes(myConfig)` stays out: resolving it would mean evaluating the module, and what looks like a route there may be assembled at runtime.
+
+single-spa-layout moves route ownership out of the registration and into a template, and under it an application needs no `activeWhen` at all. Reading only the registration would return the application's name and no routes — a whole system with no route owners, no navigation and no screens, with nothing saying information was missing.
 
 ### 1.4 · Role in the system
 
@@ -271,10 +281,14 @@ For the project's own wrapper, which no catalogue knows. Without a declaration t
 
 | | |
 |---|---|
-| Activity functions | an `activeWhen` written as a function is scanned for string literals, never interpreted. The result is flagged, not fixed — see §1.1 |
-| `constructRoutes` | the JavaScript form of single-spa-layout is not read, only the HTML template — see §1.3 |
-| `customProps` values | only the keys are extracted; the values are runtime data — see §1.1 |
-| Runtime composition | a container assembled at runtime, or handed down through `customProps`, is not recognised — see §2.2 |
-| State writes | out of scope, see §6 |
+Everything here is either undecidable from source or a deliberate choice, not work left undone.
+
+| | |
+|---|---|
+| Activity functions of unknown shape | flagged `opaque` and mined for literals — see §1.1. A function can compute its route from anything, so there is no shape list that closes this |
+| `constructRoutes(variable)` | resolving it means evaluating the module — see §1.3 |
+| `customProps` values that are not literals | assembled at runtime; the key is kept, the value cannot be — see §1.1 |
+| Containers assembled at runtime | `getElementById(someVariable)` names an element only the running page knows — see §2.2 |
+| State writes | a deliberate exclusion, not a gap. The call site names the action, never the slice — see §6 |
 | Component containment | fragment → screen is not resolved (US-26) |
 | Coverage | the report does not say what was left unresolved (US-25) |

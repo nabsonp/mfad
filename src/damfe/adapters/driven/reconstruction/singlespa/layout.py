@@ -22,9 +22,10 @@ navegação e sem telas, sem nada indicando que faltou informação.
 Aqui se lê o template e se recuperam os pares aplicação/rota. Rotas
 aninhadas concatenam, como no single-spa-layout.
 
-A forma JSON — `constructRoutes({ routes: [...] })` em JavaScript —
-não é lida: ela é dado montado em tempo de execução, e resolvê-la
-exigiria avaliar o módulo.
+A forma JavaScript — `constructRoutes({ routes: [...] })` — é lida
+quando o argumento é literal de objeto, que é como ela é escrita.
+Argumento montado em variável ou vindo de outro módulo não é
+resolvido: aí seria preciso avaliar o código.
 """
 
 from __future__ import annotations
@@ -111,3 +112,100 @@ def routes_by_application(repository: Path, tree) -> dict[str, list[str]]:
             found.setdefault(name, []).extend(routes)
 
     return {name: sorted(set(routes)) for name, routes in found.items()}
+
+
+def routes_from_construct(root, source, reader) -> dict[str, list[str]]:
+    """
+    Aplicação → rotas, lidas de `constructRoutes({ routes: [...] })`.
+
+    A forma JavaScript do mesmo layout, equivalente ao template:
+
+        constructRoutes({
+          routes: [
+            { type: "route", path: "/produtos", routes: [
+              { type: "application", name: "@org/mfe-produtos" }
+            ]}
+          ]
+        })
+
+    Só literal de objeto é lido. `constructRoutes(minhaConfig)` fica
+    de fora — resolver aquilo exigiria avaliar o módulo, e o que
+    parece uma rota ali pode ser montado em tempo de execução.
+    """
+
+    found: dict[str, list[str]] = {}
+
+    for call in reader.find_all(root, "call_expression"):
+
+        function = call.child_by_field_name("function")
+        arguments = call.child_by_field_name("arguments")
+
+        if not function or not arguments:
+            continue
+
+        name = reader.text(function, source).split(".")[-1].strip()
+
+        if name != "constructRoutes":
+            continue
+
+        for child in arguments.named_children:
+
+            if child.type == "object":
+                _walk_object(child, source, reader, [], found)
+
+    return {name: sorted(set(routes)) for name, routes in found.items()}
+
+
+def _walk_object(node, source, reader, depth, found) -> None:
+    """Um nó da configuração: rota empilha caminho, aplicação registra."""
+
+    fields = {}
+
+    for pair in node.named_children:
+
+        if pair.type != "pair":
+            continue
+
+        key_node = pair.child_by_field_name("key")
+        value_node = pair.child_by_field_name("value")
+
+        if key_node and value_node:
+            fields[reader.strip_quotes(reader.text(key_node, source))] = (
+                value_node
+            )
+
+    kind = (
+        reader.strip_quotes(reader.text(fields["type"], source))
+        if "type" in fields
+        else ""
+    )
+
+    if kind == "application" or ("name" in fields and "path" not in fields):
+
+        name = reader.strip_quotes(reader.text(fields["name"], source))
+
+        if name:
+            parts = [part.strip("/") for part in depth if part.strip("/")]
+
+            found.setdefault(name, []).append(
+                "/" + "/".join(parts) if parts else "/"
+            )
+
+        return
+
+    nested = depth
+
+    if "path" in fields:
+        nested = depth + [
+            reader.strip_quotes(reader.text(fields["path"], source))
+        ]
+
+    for key in ("routes", "children"):
+
+        if key not in fields:
+            continue
+
+        for child in fields[key].named_children:
+
+            if child.type == "object":
+                _walk_object(child, source, reader, nested, found)

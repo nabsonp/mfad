@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
+import re
+
 from pathlib import Path
 
 from tree_sitter import Node
@@ -51,8 +53,9 @@ class Registration:
     #: diferença.
     active_when_form: str = "absent"
 
-    #: Nomes das chaves passadas em `customProps`, quando literais.
-    custom_props: list[str] = field(default_factory=list)
+    #: `customProps` como chave -> valor, com valor vazio quando ele
+    #: não é literal.
+    custom_props: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -87,9 +90,15 @@ class ScanContext:
 
         context._scan()
 
-        context.layout_routes = layout.routes_by_application(
+        for name, routes in layout.routes_by_application(
             repository, tree
-        )
+        ).items():
+            context.layout_routes.setdefault(name, []).extend(routes)
+
+        context.layout_routes = {
+            name: sorted(set(routes))
+            for name, routes in context.layout_routes.items()
+        }
 
         context.routes.resolve_pending()
 
@@ -154,6 +163,13 @@ class ScanContext:
             self.routes.index_file(root, source)
 
             self.measurements[file_path] = sizing.measure(root, source)
+
+            # A forma JavaScript do layout mora no código, não no
+            # template, então é aqui que ela é colhida.
+            for name, routes in layout.routes_from_construct(
+                root, source, AstReader
+            ).items():
+                self.layout_routes.setdefault(name, []).extend(routes)
 
             self.registrations.extend(
                 self._registrations(root, source, file_path)
@@ -239,13 +255,13 @@ class ScanContext:
         self,
         node: Node,
         source: bytes,
-    ) -> tuple[str | None, list[str], Node | None, str, list[str]]:
+    ) -> tuple[str | None, list[str], Node | None, str, dict[str, str]]:
 
         name: str | None = None
         active_when: list[str] = []
         loader: Node | None = None
         form = "absent"
-        custom_props: list[str] = []
+        custom_props: dict[str, str] = {}
 
         for pair in node.named_children:
 
@@ -266,8 +282,7 @@ class ScanContext:
                 )
 
             elif key == "activeWhen":
-                active_when = self._string_literals(value_node, source)
-                form = self._active_when_form(value_node)
+                active_when, form = self._active_when(value_node, source)
 
             elif key == "app":
                 loader = value_node
@@ -281,31 +296,57 @@ class ScanContext:
         self,
         parts: list[Node],
         source: bytes,
-    ) -> tuple[str | None, list[str], Node | None, str, list[str]]:
+    ) -> tuple[str | None, list[str], Node | None, str, dict[str, str]]:
 
         name = AstReader.strip_quotes(AstReader.text(parts[0], source))
 
         loader = parts[1] if len(parts) > 1 else None
 
-        active_when = (
-            self._string_literals(parts[2], source)
+        active_when, form = (
+            self._active_when(parts[2], source)
             if len(parts) > 2
-            else []
-        )
-
-        form = (
-            self._active_when_form(parts[2]) if len(parts) > 2 else "absent"
+            else ([], "absent")
         )
 
         custom_props = (
-            self._property_names(parts[3], source) if len(parts) > 3 else []
+            self._property_names(parts[3], source) if len(parts) > 3 else {}
         )
 
         return name, active_when, loader, form, custom_props
 
-    @staticmethod
-    def _active_when_form(node: Node) -> str:
-        """Se o `activeWhen` é literal ou função de atividade."""
+    #: Formas de função de atividade que se resolvem estaticamente.
+    #:
+    #: A API aceita `(location) => boolean`, e função qualquer não se
+    #: resolve. Mas as que aparecem em código real são poucas e têm
+    #: forma fixa, e reconhecê-las é a diferença entre extrair a rota
+    #: certa e varrer literais torcendo para acertar.
+    ACTIVITY_SHAPES = (
+        # (l) => l.pathname.startsWith("/users")
+        r"""\.startsWith\(\s*["'`](?P<r>[^"'`]+)["'`]""",
+        # (l) => l.pathname === "/users"
+        r"""pathname\s*={2,3}\s*["'`](?P<r>[^"'`]+)["'`]""",
+        # (l) => l.pathname.includes("/users")
+        r"""\.includes\(\s*["'`](?P<r>[^"'`]+)["'`]""",
+        # pathToActiveWhen("/users")
+        r"""pathToActiveWhen\(\s*["'`](?P<r>[^"'`]+)["'`]""",
+    )
+
+    def _active_when(
+        self,
+        node: Node,
+        source: bytes,
+    ) -> tuple[list[str], str]:
+        """
+        As rotas do `activeWhen`, e como elas foram obtidas.
+
+        `literal` quando são strings ou lista de strings, e aí não há
+        o que interpretar. `function` quando é função de atividade de
+        forma reconhecida — `startsWith`, comparação de `pathname`,
+        `includes`, `pathToActiveWhen` —, que se resolve com a mesma
+        confiança de um literal. `opaque` quando é função de forma
+        desconhecida: aí sobram os literais de string que houver
+        dentro, que podem não ser rota nenhuma.
+        """
 
         FUNCTIONS = {
             "arrow_function",
@@ -315,25 +356,57 @@ class ScanContext:
             "call_expression",
         }
 
-        if node.type in FUNCTIONS:
-            return "function"
-
         if node.type == "array":
-            return (
-                "function"
-                if any(
-                    child.type in FUNCTIONS for child in node.named_children
-                )
-                else "literal"
+
+            routes: list[str] = []
+            forms: set[str] = set()
+
+            for child in node.named_children:
+
+                found, form = self._active_when(child, source)
+
+                routes.extend(found)
+                forms.add(form)
+
+            for level in ("opaque", "function", "literal"):
+                if level in forms:
+                    return routes, level
+
+            return routes, "absent"
+
+        if node.type not in FUNCTIONS:
+            return self._string_literals(node, source), "literal"
+
+        text = AstReader.text(node, source)
+
+        recognised = []
+
+        for shape in self.ACTIVITY_SHAPES:
+            recognised.extend(
+                found.group("r") for found in re.finditer(shape, text)
             )
 
-        return "literal"
+        if recognised:
+            return sorted(set(recognised)), "function"
 
-    @staticmethod
-    def _property_names(node: Node, source: bytes) -> list[str]:
-        """As chaves de um literal de objeto, quando houver."""
+        return self._string_literals(node, source), "opaque"
 
-        names = []
+    #: Nós cujo texto é o próprio valor.
+    LITERALS = {"string", "number", "true", "false", "null"}
+
+    @classmethod
+    def _property_names(cls, node: Node, source: bytes) -> dict[str, str]:
+        """
+        As chaves de um literal de objeto, e os valores que forem
+        estáticos.
+
+        Valor literal é configuração escrita à mão e diz algo sobre o
+        sistema. Valor que é função ou variável é dado montado em
+        tempo de execução, e aí só a chave sobrevive — registrada com
+        valor vazio, porque saber que a chave existe já é informação.
+        """
+
+        found: dict[str, str] = {}
 
         for pair in node.named_children:
 
@@ -341,15 +414,23 @@ class ScanContext:
                 continue
 
             key_node = pair.child_by_field_name("key")
+            value_node = pair.child_by_field_name("value")
 
-            if key_node:
-                names.append(
-                    AstReader.strip_quotes(
-                        AstReader.text(key_node, source)
-                    )
+            if not key_node:
+                continue
+
+            key = AstReader.strip_quotes(AstReader.text(key_node, source))
+
+            value = ""
+
+            if value_node and value_node.type in cls.LITERALS:
+                value = AstReader.strip_quotes(
+                    AstReader.text(value_node, source)
                 )
 
-        return sorted(names)
+            found[key] = value
+
+        return dict(sorted(found.items()))
 
     @staticmethod
     def _string_literals(node: Node, source: bytes) -> list[str]:
