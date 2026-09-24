@@ -36,16 +36,27 @@ class HubLikeDependency(Rule):
     name = "hub-like-dependency"
 
     description = (
-        "Tela que instancia fragmentos de vários micro frontends "
-        "distintos, concentrando dependências num só ponto."
+        "Tela que instancia muitos fragmentos, concentrando "
+        "dependências num só ponto."
     )
 
-    def __init__(self, min_providers: int = 2):
+    def __init__(self, min_fragments: int = 5):
 
-        #: A partir de quantos provedores distintos a tela é
-        #: considerada um hub. Dois já indica convergência; times
-        #: com muitos micro frontends podem querer subir isso.
-        self.min_providers = min_providers
+        #: A partir de quantos fragmentos a tela é considerada um
+        #: hub.
+        #:
+        #: A contagem é de FRAGMENTOS, não de micro frontends
+        #: provedores. É a quantidade de peças que a tela precisa
+        #: montar que a torna um ponto de convergência — cinco
+        #: fragmentos de um provedor só concentram tanta mudança de
+        #: contrato quanto cinco de cinco.
+        #:
+        #: Contar provedores distintos, como se fazia, punia o
+        #: desenho normal: numa arquitetura com biblioteca de
+        #: componentes compartilhada, qualquer tela que use um
+        #: componente dela mais um fragmento qualquer já somava dois
+        #: provedores e virava hub.
+        self.min_fragments = min_fragments
 
     def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
 
@@ -54,7 +65,7 @@ class HubLikeDependency(Rule):
         return [
             self._detection(host)
             for host in hosts.values()
-            if len(host.providers) >= self.min_providers
+            if len(host.fragments) >= self.min_fragments
         ]
 
     def _hosts(self, artifacts: ArtifactSet) -> dict[str, Host]:
@@ -111,14 +122,15 @@ class HubLikeDependency(Rule):
             rule=self.name,
             dimension="composição",
             explanation=(
-                "A tela instancia fragmentos de mais de um micro "
-                "frontend, concentrando num só ponto as falhas e as "
-                "mudanças de contrato de todos eles."
+                "A tela instancia muitos fragmentos, concentrando "
+                "num só ponto as falhas e as mudanças de contrato "
+                "de todos eles."
             ),
             message=(
                 f"A tela {host.screen}, de {self._short(host.owner)}, "
-                f"agrega {len(host.fragments)} fragmentos de "
-                f"{len(providers)} micro frontends: "
+                f"instancia {len(host.fragments)} fragmentos, de "
+                f"{len(providers)} micro "
+                f"{'frontend' if len(providers) == 1 else 'frontends'}: "
                 + ", ".join(self._short(item) for item in providers)
             ),
             subjects=[host.owner, *providers],
