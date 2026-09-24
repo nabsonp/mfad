@@ -272,8 +272,9 @@ costuma ser fluxo legítimo do produto.
 
 ### `hub-like-dependency`
 
-Tela que instancia fragmentos de vários micro frontends. O sinal é a
-quantidade de **provedores distintos**, não de fragmentos.
+Tela que instancia muitos fragmentos. O sinal é a quantidade de
+**fragmentos**, não de provedores: cinco fragmentos de um provedor só
+concentram tanta mudança de contrato quanto cinco de cinco. Padrão 5.
 
 ### `one-for-all`
 

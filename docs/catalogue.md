@@ -56,15 +56,24 @@ build; ciclo de navegação costuma ser fluxo legítimo do produto.
 | | |
 |---|---|
 | **Entrada** | `MicroFrontend.screens`, `FragmentImport.renders` |
-| **Detecção** | Agrupa as instanciações de fragmento por tela, ligando pelo arquivo. Acusa quando a tela hospeda fragmentos de `min_providers` provedores distintos. Padrão 2. |
-| **Saída** | Uma ocorrência por tela. Metadados: tela, provedores distintos, fragmentos instanciados. |
+| **Detecção** | Agrupa as instanciações de fragmento por tela, usando as telas que o sítio de renderização registra. Acusa quando a tela instancia `min_fragments` fragmentos. Padrão 5. |
+| **Saída** | Uma ocorrência por tela. Metadados: tela, provedores, fragmentos instanciados. |
 
-O sinal é a quantidade de **provedores distintos**, não de fragmentos:
-três fragmentos do mesmo provedor são reúso, não concentração.
+O sinal é a quantidade de **fragmentos**, não de provedores: é o
+número de peças que a tela precisa montar que a torna um ponto de
+convergência, e cinco fragmentos de um provedor só concentram tanta
+mudança de contrato quanto cinco de cinco.
 
-**Limitação:** a ligação fragmento↔tela é pelo arquivo. Fragmento
-instanciado num componente auxiliar que a tela renderiza não é atribuído
-a ela.
+Contar provedores distintos, como se fazia, punia o desenho normal:
+com biblioteca de componentes compartilhada, qualquer tela que usasse
+um componente dela mais um fragmento qualquer já somava dois
+provedores.
+
+A ligação fragmento↔tela não é mais pelo arquivo: o sítio de
+renderização registra em que telas aparece, seguindo os imports
+relativos a partir do componente da tela. Fragmento instanciado num
+componente auxiliar é atribuído corretamente, e quando o fragmento é
+o próprio componente da rota, a tela é aquela e só aquela.
 
 ## [Hammering APIs](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hammering%20APIs)
 > Vários MFEs chamam o mesmo endpoint de forma independente.
