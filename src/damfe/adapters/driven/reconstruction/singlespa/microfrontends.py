@@ -352,20 +352,13 @@ class MicroFrontendBuilder:
         prefixo. Então ausência de `<Route>` não significa ausência de
         tela — significa uma tela só.
 
-        Dois sinais dizem que é composição, e não tela:
-
-        Contêiner declarado. `domElementGetter` apontando para um
+        O sinal de que é composição, e não tela, é o contêiner
+        declarado. `domElementGetter` apontando para um
         elemento do shell significa que o layout reservou um lugar
         para aquilo — ele é encaixado numa página junto de outras
         coisas. Quem não declara recebe um `div` anexado ao corpo.
 
-        Montagem permanente. `activeWhen: ["/"]` casa com toda URL,
-        então o componente monta em qualquer rota e não é dono de
-        nenhuma. Este sinal só vale quando há outras aplicações no
-        sistema: aplicação única registrada em `/` é a página, não
-        composição.
-
-        Sem nenhum dos dois, o componente raiz é a tela daquele
+        Sem ele, o componente raiz é a tela daquele
         prefixo. A rota é a do registro; não há expressão a resolver,
         porque ela não foi escrita no código da tela.
         """
@@ -396,21 +389,18 @@ class MicroFrontendBuilder:
             )
         ]
 
-    def _is_fragment(self, microfrontend: MicroFrontend) -> bool:
-        """Se o micro frontend compõe uma página em vez de ser uma."""
-
-        if microfrontend.metadata.get("container"):
-            return True
-
-        return self._always_mounted(
-            microfrontend.routes
-        ) and len(self.context.registrations) > 1
-
     @staticmethod
-    def _always_mounted(routes: list[str]) -> bool:
-        """Se o registro casa com qualquer URL."""
+    def _is_fragment(microfrontend: MicroFrontend) -> bool:
+        """
+        Se o micro frontend compõe uma página em vez de ser uma.
 
-        return bool(routes) and all(route == "/" for route in routes)
+        Um sinal só: o contêiner declarado. Chegou-se a usar também
+        `activeWhen` permanente, e ele não serve — duas aplicações
+        podem dividir o mesmo `activeWhen` sendo as duas telas, e aí
+        montar em toda URL não diz nada sobre o papel de nenhuma.
+        """
+
+        return bool(microfrontend.metadata.get("container"))
 
     def _screens(
         self,
