@@ -37,6 +37,20 @@ class RenderSite:
     line: int
     props: list[str] = field(default_factory=list)
 
+    #: As telas em que esta instanciação aparece.
+    #:
+    #: Saber que `mfe-checkout` consome `DeliveryEstimateFragment`
+    #: responde quem depende de quem; saber que ele aparece na tela
+    #: de Carrinho responde ONDE aquilo é visto, que é a pergunta de
+    #: quem vai mexer no sistema.
+    #:
+    #: Mais de uma tela é resposta comum e correta: o fragmento pode
+    #: estar num componente compartilhado, alcançado a partir de
+    #: várias. Vazio significa que nenhuma tela alcança o arquivo —
+    #: instanciação em código morto, ou em arquivo que só o shell
+    #: monta.
+    screens: list[str] = field(default_factory=list)
+
 
 @dataclass
 class CodeSize:

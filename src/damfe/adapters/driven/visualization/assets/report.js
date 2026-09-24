@@ -275,6 +275,9 @@
         var renders = (e.renders || []).map(function (r) {
           return "<li>instanciado em <code>" + escapeHtml(r.file) + ":" +
                  r.line + "</code>" +
+                 (r.screens && r.screens.length
+                   ? " · aparece em " + escapeHtml(r.screens.join(", "))
+                   : " · nenhuma tela alcança") +
                  (r.props && r.props.length
                    ? " · props: " + escapeHtml(r.props.join(", "))
                    : "") + "</li>";

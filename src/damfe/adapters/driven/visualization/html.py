@@ -293,6 +293,7 @@ class HtmlRenderer(Renderer):
             f'<span class="swatch {key}" '
             f'style="border-bottom-color:{color}"></span>{label}</span>'
             for key, label, color in (
+                ("mount", "montagem", "#6b7280"),
                 ("fragment_import", "composição", "#1d4ed8"),
                 ("navigation", "navegação", "#059669"),
                 ("communication", "comunicação", "#be123c"),

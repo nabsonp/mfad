@@ -168,7 +168,12 @@ def _edges(artifacts: ArtifactSet) -> list[dict]:
     for item in artifacts.fragment_imports:
 
         renders = [
-            {"file": render.file, "line": render.line, "props": render.props}
+            {
+                "file": render.file,
+                "line": render.line,
+                "props": render.props,
+                "screens": [short(name) for name in render.screens],
+            }
             for render in item.renders
         ]
 

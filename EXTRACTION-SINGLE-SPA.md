@@ -130,6 +130,14 @@ The rule above finds the import. Where the fragment is then used is recorded as 
 > **when** it is rendered as a JSX element, or passed as `config` to a `<Parcel>`, or handed as the first argument to `mountRootParcel` or to the `mountParcel` prop
 > **then** each occurrence is a render site of that fragment.
 
+> **Given** a render site and the screens of the consuming micro frontend
+> **when** a screen reaches the render site's file through relative imports
+> **then** that screen is recorded on the render site.
+
+A fragment is rarely instantiated in a screen's own file. It usually sits in a component the screen uses, a layer or two down, so asking only about the file would return almost nothing. More than one screen is a common and correct answer — a fragment inside a shared component is seen from every screen that reaches it. None means no screen reaches that file: an instantiation in dead code, or in something only the shell mounts.
+
+Knowing that `mfe-checkout` consumes `DeliveryEstimateFragment` answers who depends on whom. Knowing it shows up on the Cart screen answers where it is seen, which is the question someone about to change the system actually has.
+
 A **parcel** is single-spa's framework-agnostic component: one application exports it, another mounts it by hand. It composes exactly like an imported component, but never appears as a JSX tag of its own — `<Parcel config={Modal} />` renders `Parcel`, and `mountRootParcel(Modal, …)` renders nothing at all. Looking only for JSX elements would return a system composed entirely of parcels as having no fragment consumption, which reads as a valid answer and is not one.
 
 ---
@@ -290,5 +298,4 @@ Everything here is either undecidable from source or a deliberate choice, not wo
 | `customProps` values that are not literals | assembled at runtime; the key is kept, the value cannot be — see §1.1 |
 | Containers assembled at runtime | `getElementById(someVariable)` names an element only the running page knows — see §2.2 |
 | State writes | a deliberate exclusion, not a gap. The call site names the action, never the slice — see §6 |
-| Component containment | fragment → screen is not resolved (US-26) |
 | Coverage | the report does not say what was left unresolved (US-25) |

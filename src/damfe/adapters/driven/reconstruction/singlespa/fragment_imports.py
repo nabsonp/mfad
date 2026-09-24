@@ -24,6 +24,9 @@ from damfe.domain import (
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
+from damfe.adapters.driven.reconstruction.singlespa.reachability import (
+    Reachability,
+)
 
 
 class FragmentImportExtractor:
@@ -42,6 +45,10 @@ class FragmentImportExtractor:
             for microfrontend in microfrontends
         }
 
+        self.microfrontends = microfrontends
+
+        self.containers: dict[str, list[str]] = {}
+
         self.owners: dict[str, str] = {
             microfrontend.directory: microfrontend.id
             for microfrontend in microfrontends
@@ -52,6 +59,8 @@ class FragmentImportExtractor:
 
         found: list[FragmentImport] = []
 
+        self.containers = self._containers()
+
         for file_path in self.context.tree.source_files():
 
             try:
@@ -61,6 +70,10 @@ class FragmentImportExtractor:
 
             found.extend(self._from_file(file_path, root, source))
 
+        for item in found:
+            for render in item.renders:
+                render.screens = self.containers.get(render.file, [])
+
         return sorted(
             found,
             key=lambda item: (
@@ -69,6 +82,47 @@ class FragmentImportExtractor:
                 item.fragment,
             ),
         )
+
+    def _containers(self) -> dict[str, list[str]]:
+        """
+        Arquivo → telas que o alcançam.
+
+        Invertido de propósito: a extração acha a instanciação e
+        precisa perguntar quem chega até ela, não o contrário.
+
+        O fragmento raramente é instanciado no arquivo da própria
+        tela. Ele costuma estar num componente que a tela usa, uma ou
+        duas camadas abaixo, e perguntar só pelo arquivo devolveria
+        quase nada. O fecho transitivo de imports relativos é o que
+        liga uma coisa à outra — o mesmo caminho que já atribui
+        chamada externa a tela.
+        """
+
+        reachability = Reachability(self.context)
+
+        found: dict[str, list[str]] = {}
+
+        for microfrontend in self.microfrontends:
+
+            for screen in microfrontend.screens:
+
+                if not screen.file:
+                    continue
+
+                origin = self.context.repository / screen.file
+
+                if not origin.is_file():
+                    continue
+
+                for reached in reachability.reachable_from(origin):
+
+                    found.setdefault(
+                        self.context.relative(reached), []
+                    ).append(screen.id)
+
+        return {
+            path: sorted(set(names)) for path, names in found.items()
+        }
 
     def _from_file(
         self,
