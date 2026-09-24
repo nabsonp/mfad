@@ -140,7 +140,7 @@ sem condicional — a spec não vira linguagem de programação.
 **Valor não resolvido retorna vazio.** A spec só enxerga o que está na
 própria chamada; `registerApplication(config)` com o objeto montado
 noutro lugar fica de fora. Começar pequeno: sem relato de cobertura,
-sem aviso. Se virar problema na prática, US-25 trata.
+sem aviso. Se virar problema na prática, RF-25 trata.
 
 **Falta um detector de tecnologia.** Hoje o DAMFE pressupõe single-spa
 em vez de descobrir. O registry de reconstrutores existe, mas ninguém
@@ -211,12 +211,11 @@ detecção seguinte lia dado errado sem qualquer aviso.
 
 | | |
 |---|---|
-| US-25 | relatar cobertura e o que não foi resolvido |
-| US-26 | contenção de componente para fragmento → tela |
+| RF-25 | relatar cobertura e o que não foi resolvido |
+| RF-35 | avisar quando os artefatos estão obsoletos |
+| RF-36 | extrair comunicação via `customProps` |
 | US-27 | spec de comunicação gerada por LLM, integrada |
 | US-28 | suíte de testes automatizados |
-| US-35 | avisar quando os artefatos estão obsoletos |
-| US-36 | extrair `customProps` |
 | — | `hub-like-dependency` conta aresta simétrica em dobro |
 | — | apresentação conta estado global duas vezes (aresta e acesso) |
 | — | reconstrutor para Module Federation: 63% da população amostrada |

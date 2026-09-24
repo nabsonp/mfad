@@ -233,4 +233,4 @@ Everything here is either undecidable from source or a deliberate choice, not wo
 | `customProps` values that are not literals | assembled at runtime; the key is kept, the value cannot be — see §1.1 |
 | Containers assembled at runtime | `getElementById(someVariable)` names an element only the running page knows — see §2.2 |
 | State writes | a deliberate exclusion, not a gap. The call site names the action, never the slice — see [common.md](common.md) |
-| Coverage | the report does not say what was left unresolved (US-25) |
+| Coverage | the report does not say what was left unresolved (RF-25) |

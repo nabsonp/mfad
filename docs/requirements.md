@@ -1,625 +1,344 @@
-# damfe — requisitos
+# damfe — requirements
 
-Histórias de usuário que documentam as funcionalidades da ferramenta. São 36, das quais 28 implementadas ou parciais.
+Two kinds of requirement, told in the form each one deserves.
 
-Cada história tem critérios de aceite verificáveis. O estado indica se a
-funcionalidade existe hoje:
+**Behaviour requirements (RF)** say what the tool does to code and to artefacts, as *given / when / then*. Nobody is interacting in them: they hold whether the analysis was started from a terminal, from a script or from a page, and they are what a test asserts.
 
-- **Implementado** — existe e foi exercitado
-- **Parcial** — existe com limitação registrada
-- **Pendente** — identificado, não construído
+**User stories (US)** say what someone wants from the tool and why. They are kept only where there is a person on the other side — running a command, filling in a declaration, reading a report, extending the tool.
 
-Papéis:
+Numbers are carried over from the previous revision, so `RF-25` here was `US-25` there. Prefixes changed; numbers did not.
 
-| papel | quem é |
+| status | meaning |
 |---|---|
-| **analista** | quem investiga a arquitetura de um sistema micro frontend |
-| **desenvolvedor** | quem trabalha num dos micro frontends |
-| **pesquisador** | quem usa a ferramenta como instrumento de estudo |
-| **mantenedor** | quem estende a própria ferramenta |
+| **Done** | exists and has been exercised on a real system |
+| **Partial** | exists with a recorded limitation |
+| **Pending** | identified, not built |
 
 ---
 
-## Épico 1 — Reconstrução arquitetural
+# Part 1 · Behaviour
 
-Extrair do código-fonte os artefatos que descrevem a arquitetura.
+## Discovery
 
-### US-01 · Descobrir os micro frontends do sistema
+### RF-01 · Micro frontend inventory
 
-> Como **analista**, quero obter a lista de micro frontends de um
-> repositório, para saber quais unidades independentes existem sem
-> depender de documentação.
+> **Given** a repository
+> **when** the reconstructor recognises the technology
+> **then** every deployable unit is listed, each with its identity, its routes and its role.
 
-**Critérios de aceite**
-- A descoberta parte das chamadas de `registerApplication`, que é o
-  contrato de registro do single-spa.
-- Micro frontends sem pacote próprio são encontrados.
-- As duas formas da API são aceitas: objeto (`{name, app, activeWhen}`) e
-  posicional (`(name, loadingFn, activeWhen)`).
-- Um micro frontend registrado cujo entrypoint não seja resolvível ainda
-  aparece no resultado, com os campos que puderam ser determinados.
+For single-spa the units come from `registerApplication`, in both the object and the positional form; for Module Federation, from the federation declaration in each build config. A unit whose entrypoint does not resolve still appears, carrying the fields that could be determined — disappearing is worse than showing up incomplete.
 
-**Estado:** Implementado
+**Done.**
 
----
+### RF-02 · The orchestrator as a node
 
-### US-02 · Distinguir o orquestrador dos demais
+> **Given** the registrations of a system
+> **when** the package that declares them is identified
+> **then** it becomes a node with `role = "shell"`, listing the units it mounts.
 
-> Como **analista**, quero saber qual é o shell, para não confundir a
-> aplicação que orquestra com as que ela orquestra.
+One node per orchestrator, because a repository may hold more than one system. Living in the orchestrator's package does not make an application the shell: a monolith loaded by relative path from `root-config` is a registered application like any other.
 
-**Critérios de aceite**
-- O micro frontend que reside no pacote que declara os registros é
-  marcado com papel distinto.
-- O papel fica disponível nos artefatos para uso por regras e
-  visualizações.
+**Done.**
 
-**Estado:** Parcial — a heurística é a coabitação de pacote. Dois
-micro frontends registrados no mesmo pacote tornam a marcação ambígua.
+### RF-03 · Screens and routes
 
----
+> **Given** a micro frontend
+> **when** any of its files declares a route
+> **then** each declaration becomes a screen, with the component and the resolved route.
 
-### US-03 · Inventariar telas e rotas
+The route resolves through constants and one level of indirection; when it does not resolve, the original expression is kept. A screen declared in a file no import reaches is extracted all the same and marked unreachable — it exists in the code and not at runtime, and both facts matter.
 
-> Como **analista**, quero as telas de cada micro frontend com suas
-> rotas, para saber o que cada um entrega ao usuário.
+**Done.**
 
-**Critérios de aceite**
-- As telas vêm das `<Route>` declaradas pelo componente raiz.
-- A rota é resolvida quando expressa por constante
-  (`path={checkoutRoutes.CART}` → `/checkout/cart`), inclusive com um
-  nível de indireção entre constantes.
-- Quando a rota não resolve, a expressão original é preservada.
+### RF-04 · Exposed fragments
 
-**Estado:** Implementado
+> **Given** a micro frontend's entrypoint
+> **when** it exports something that is not a lifecycle, or declares `exposes`
+> **then** each name is a fragment, pointing at the file that defines it.
 
----
+**Done.**
 
-### US-04 · Inventariar os fragmentos expostos
+### RF-05 · Fragment consumption
 
-> Como **desenvolvedor**, quero saber o que meu micro frontend expõe
-> publicamente, para conhecer a superfície que os outros podem consumir.
+> **Given** the fragment catalogue of every unit
+> **when** one unit imports, from another, a name in that catalogue
+> **then** the consumption is recorded, with where it was imported, where it was instantiated, and in which screens it appears.
 
-**Critérios de aceite**
-- Fragmentos são os exports do entrypoint que não pertencem ao contrato
-  de lifecycle (`bootstrap`, `mount`, `unmount`, `update`).
-- Cada fragmento aponta o arquivo que o define.
+Only names in the catalogue count, so shared libraries stay out. Import aliases resolve. An import with no instantiation is recorded as such. A fragment instantiated inside a helper component is attributed through relative-import reachability, and when the fragment is itself the route's component, that screen alone is recorded.
 
-**Estado:** Implementado
+**Done.**
 
----
+### RF-06 · Navigation between micro frontends
 
-### US-05 · Descobrir consumo de fragmento entre micro frontends
+> **Given** an expression that produces a URL
+> **when** that URL belongs to another micro frontend
+> **then** a navigation is recorded from the origin to the route's owner.
 
-> Como **analista**, quero saber quem usa componente de quem, para medir
-> o acoplamento de build entre as partes.
+The detection knows no router and no navigation library: it recognises the destination, not the call. Ownership is by longest matching prefix on a segment boundary, so the shell's catch-all does not swallow every route, and `/` matches only itself. Destinations expressed as a literal, a constant, a template or a `.replace(":param", …)` resolve, each carrying whether the match is exact or a prefix. Navigation inside a single unit is not reported.
 
-**Critérios de aceite**
-- Só conta import cujo nome importado pertença ao catálogo de fragmentos
-  do módulo de origem — bibliotecas compartilhadas não entram.
-- Alias no import é resolvido.
-- Cada consumo registra onde foi importado e onde foi instanciado em JSX,
-  com as props passadas.
-- Import sem instanciação correspondente é registrado como tal.
+**Done.**
 
-**Estado:** Implementado
+### RF-08 · Communication between micro frontends
 
----
+> **Given** the source of a system
+> **when** a platform primitive, a known bus or a declared mechanism publishes or subscribes to a channel
+> **then** producer and consumer are paired by channel name.
 
-### US-06 · Descobrir navegação entre micro frontends
+Three tiers with one result. Platform primitives — `CustomEvent`, `BroadcastChannel`, `postMessage` — hold anywhere with no configuration. Known buses are recognised by import specifier, never by variable name. The declared mechanism covers the project's own wrapper. Without a declaration the result is not empty: the first two tiers still apply, and the absence of a declaration is reported as a distinct state from the absence of communication.
 
-> Como **analista**, quero saber quais micro frontends levam o usuário a
-> quais outros, para enxergar o acoplamento de fluxo, que é invisível no
-> grafo de dependências de código.
+**Done.**
 
-**Critérios de aceite**
-- A detecção não depende de conhecer o roteador nem a biblioteca de
-  navegação do projeto.
-- O dono de cada rota é determinado pelo `activeWhen` declarado no
-  registro, com casamento por prefixo e fronteira de segmento.
-- Prefixo mais longo vence, para que o catch-all do shell não absorva
-  todas as rotas.
-- `activeWhen: ["/"]` casa apenas a URL exata `/`, e não todo caminho do
-  sistema.
-- Destinos expressos por literal, constante, template ou
-  `.replace(":param", …)` são resolvidos; o grau de certeza (`exact` ou
-  `prefix`) acompanha cada resultado.
-- Navegação interna ao próprio micro frontend não é reportada.
+### RF-11 · Technology recognition
 
-**Estado:** Implementado
+> **Given** a repository
+> **when** more than one reconstructor is registered
+> **then** the one that recognises it is chosen, and when none does the tool says so rather than returning an empty result.
 
----
+**Done.**
 
-### US-07 · Declarar o mecanismo de comunicação
+## Measurement
 
-> Como **analista**, quero declarar uma vez como os micro frontends
-> trocam mensagens, para que a extração seja determinística mesmo sem
-> haver um padrão no ecossistema.
+### RF-24 · Global state reads
 
-**Critérios de aceite**
-- Um comando gera um arquivo modelo comentado.
-- A declaração fica em `.damfe/` na raiz do repositório analisado, e não
-  junto dos artefatos, por ser entrada da análise e não saída.
-- A declaração sobrevive à remoção do diretório de saída.
-- O formato descreve, para cada mecanismo, o módulo, o nome exportado e a
-  posição do canal nos argumentos, dos dois lados.
+> **Given** an import of a known state library
+> **when** a read walks a path into the state
+> **then** the access is recorded, with the library and the path.
 
-**Estado:** Implementado
+Libraries are recognised by import specifier. A selector that assembles an object counts every slice it walks. Access inside a shared package is not coupling between units and stays out. Writes are deliberately excluded: the call site names the dispatched action, not the slice it changes, and recording both would mix two vocabularies.
 
----
+When two or more units read the same slice, undirected communication edges are derived between them — the coupling is real, and leaving it out of the graph made the rules that walk it undercount.
 
-### US-08 · Descobrir comunicação entre micro frontends
+**Done.**
 
-> Como **analista**, quero saber quem publica e quem consome cada canal,
-> para conhecer o acoplamento por mensagem.
+### RF-29 · External service calls
 
-**Critérios de aceite**
-- Só os mecanismos declarados são procurados; a ferramenta não adivinha.
-- As funções são reconhecidas pelo import, de modo que alias não escape.
-- O canal é resolvido quando literal ou constante.
-- Produtor e consumidor são pareados pelo valor do canal.
-- Sem declaração, o resultado é vazio e o comando informa que o setup não
-  foi feito — estado distinto de "não há comunicação".
+> **Given** the code of a micro frontend
+> **when** it calls the platform's HTTP API or a recognised client
+> **then** the call is recorded, with the path resolved and the screens and fragments that reach it.
 
-**Estado:** Implementado
+`fetch` and `XMLHttpRequest` need no configuration, being platform rather than framework. Known clients are identified by import specifier, including instances built by a factory such as `axios.create()`. An empty reachability list is information: the call sits in code no screen reaches.
 
----
+**Done.**
 
-### US-09 · Executar cada extração isoladamente
+### RF-30 · Size of each unit
 
-> Como **analista**, quero rodar só a extração que me interessa, para
-> inspecionar um aspecto sem pagar o custo do resto.
+> **Given** the scan already under way
+> **then** each unit's files and lines of code are counted, without a second read of the disk.
 
-**Critérios de aceite**
-- Existe um comando por tipo de artefato.
-- A varredura do repositório é reaproveitada quando os passos são
-  encadeados, sem reprocessar os mesmos arquivos.
+A comment line is identified through the syntax tree, never by text prefix, so `//` inside a string does not count, and a line with code followed by a comment is still code.
 
-**Estado:** Implementado
+**Done.**
 
----
+### RF-31 · Declared business domains
 
-### US-10 · Persistir os artefatos
+> **Given** a `.damfe/domains.yml` in the analysed repository
+> **when** routes and endpoints are matched against it
+> **then** each domain resolves to its members and to the units that serve it.
 
-> Como **pesquisador**, quero os artefatos em arquivo, para versioná-los
-> e comparar a arquitetura entre dois momentos do projeto.
+Routes and endpoints are separate fields, being separate vocabularies. A subdomain is a record, not a division: its routes and endpoints fold into the domain containing it, and rules operate at the top level, so the granularity chosen by whoever declares does not change the verdict. Matching is by prefix on a segment boundary, and `/` matches only the exact path.
 
-**Critérios de aceite**
-- Uma coleção por arquivo, em JSON legível.
-- O conteúdo é estável entre execuções sobre o mesmo código, de modo que
-  o diff entre versões reflita mudança real na arquitetura.
-- Os artefatos podem ser relidos e alimentar as demais etapas sem nova
-  leitura do código-fonte.
+**Done.**
 
-**Estado:** Implementado
+## Detection
 
----
+### RF-13 · Rules over artefacts
 
-### US-11 · Reconhecer a tecnologia automaticamente
+> **Given** the artefacts
+> **when** the rules run
+> **then** each occurrence names the elements involved and, where applicable, the places in the code.
 
-> Como **analista**, quero que a ferramenta identifique sozinha a
-> tecnologia do repositório, para não precisar informá-la.
+Detection reads only the artefact model, never source. Rules can be applied in full or selected by name. Having no rules registered is reported, and not confused with having no problems.
 
-**Critérios de aceite**
-- A detecção usa sinais independentes: dependência declarada no manifesto
-  e presença da chamada de registro no código.
-- É possível forçar um extrator específico.
-- Quando nenhum extrator reconhece o repositório, a ferramenta diz isso
-  em vez de produzir resultado vazio.
+**Done.**
 
-**Estado:** Implementado
+### RF-14 · Dependency cycle
+
+> **Given** the composition, navigation and communication graphs, each on its own
+> **when** an elementary cycle exists in one of them
+> **then** it is reported with the chain in the order it closes and the relation that produced it.
+
+One cycle per relation rather than one per pair: importing a fragment and navigating are different couplings with different remedies. Symmetric edges are excluded — coupling through shared state has no direction, and looking for cycles in it finds one in every pair. The enumeration is capped so a dense graph cannot stall the run.
+
+**Done.**
+
+### RF-15 · Screen concentrating fragments
+
+> **Given** the screens and the render sites
+> **when** a screen instantiates five or more fragments
+> **then** it is reported with the fragments and where they come from.
+
+The count is of fragments, not of distinct providers: five from one provider concentrate as much contract change as five from five. Counting providers punished the normal design — with a shared component library, any screen using one of its components plus any other fragment became a hub.
+
+**Done.**
+
+### RF-16 · Unit connected to nearly all others
+
+> **Given** every relation summed
+> **when** one unit touches 90% or more of the others, in a system of at least five
+> **then** it is reported, separating how many it depends on from how many depend on it.
+
+Connection is counted without direction: being the centre is a problem either way. The orchestrator is excluded, reaching everything by definition. Systems below the minimum size are not assessed, because being connected to everyone is normal in them.
+
+**Done.**
+
+### RF-32 · Domain and unit out of alignment
+
+> **Given** the screens, the API calls and the declared domain map
+> **when** a unit serves more than one domain, or covers part of a domain another unit dominates, or calls services from more than one domain
+> **then** it is reported, naming **which screens differ and where they would go**.
+
+Size is not the condition: it disambiguates which of the two is the fragment, and corroborates the evidence. Without a declared map the rules fall back to size relative to the system median and say which criterion they used. A unit whose screens fall in no domain is undetermined and the rule abstains. When the median is zero the rules abstain too: a zero median means nothing was measured, not that everything is small.
+
+**Done.**
 
 ---
 
-### US-12 · Restringir a análise a uma organização
+# Part 2 · User stories
 
-> Como **analista**, quero considerar apenas os micro frontends de uma
-> organização, para excluir registros de terceiros num monorepo.
+## Running an analysis
 
-**Critérios de aceite**
-- Um prefixo opcional filtra os micro frontends considerados.
-- Sem prefixo, todos os registrados entram.
+### US-09 · Run one extraction at a time
 
-**Estado:** Implementado
+> As an **analyst**, I want to run only the extraction I care about, so that I can inspect one aspect without paying for the rest.
 
----
+The repository scan is reused when steps are chained, so the same files are not reprocessed.
 
-## Épico 2 — Detecção de anti-padrões
+**Done** — `reconstruct --only <collection>`.
 
-Avaliar os artefatos em busca de desvios arquiteturais.
+### US-10 · Keep the artefacts
 
-### US-13 · Aplicar as regras sobre os artefatos
+> As a **researcher**, I want the artefacts on disk, so that I can version them and compare the architecture between two moments of the project.
 
-> Como **analista**, quero rodar as regras sobre os artefatos extraídos,
-> para descobrir problemas sem reler o código.
+One collection per file, in readable JSON, stable between runs over the same code so that a diff reflects real architectural change. They can be read back and feed the later stages without touching source again.
 
-**Critérios de aceite**
-- A detecção opera apenas sobre o modelo de artefatos, sem acesso ao
-  código-fonte.
-- É possível aplicar todas as regras ou selecionar por nome.
-- As ocorrências são ordenadas por gravidade.
-- Cada ocorrência aponta os elementos envolvidos e, quando aplicável, os
-  locais no código.
-- Ausência de regras registradas é informada, e não confundida com
-  ausência de problemas.
+**Done.**
 
-**Estado:** Implementado
+### US-12 · Restrict the analysis to one organisation
 
----
+> As an **analyst**, I want to consider only the micro frontends of one organisation, so that third-party registrations in a monorepo stay out.
 
-### US-14 · Detectar ciclo de dependência
+**Done** — an optional prefix; without it, every registered unit enters.
 
-> Como **analista**, quero saber se micro frontends dependem uns dos
-> outros em ciclo, porque isso quebra a premissa de implantação
-> independente.
+### US-17 · Keep the detections
 
-**Critérios de aceite**
-- As três relações são avaliadas separadamente, não num grafo único.
-- A gravidade acompanha o significado da relação: importação de fragmento
-  é acoplamento de build; comunicação é acoplamento de contrato;
-  navegação em ciclo costuma ser fluxo legítimo.
-- A mensagem apresenta o ciclo na ordem em que se fecha.
-- A enumeração tem teto, para que um grafo denso não trave a execução.
+> As a **researcher**, I want the detections on disk, so that I can follow how the deviations evolve.
 
-**Estado:** Implementado
+**Done.**
 
----
+## Declaring what the code cannot say
 
-### US-15 · Detectar tela que concentra fragmentos de vários micro frontends
+### US-07 · Declare the communication mechanism
 
-> Como **analista**, quero identificar telas que agregam fragmentos de
-> muitos micro frontends, porque elas viram ponto de convergência de
-> falha e de mudança.
+> As an **analyst**, I want to declare once how the micro frontends exchange messages, so that the extraction stays deterministic even though the ecosystem has no standard.
 
-**Critérios de aceite**
-- O sinal é a quantidade de provedores distintos, não a de fragmentos:
-  vários fragmentos do mesmo provedor são reúso.
-- O limiar é configurável no registro da regra.
+A command writes a commented template. The declaration lives in `.damfe/` in the analysed repository, not among the artefacts, because it is input to the analysis rather than output — and it survives deleting the output directory.
 
-**Estado:** Parcial — a ligação entre fragmento e tela é feita pelo
-arquivo. Fragmento instanciado em componente auxiliar que a tela renderiza
-não é atribuído a ela.
+**Done.**
 
----
+### US-34 · Store access to a language model
 
-### US-16 · Detectar micro frontend conectado a quase todos
+> As an **analyst**, I want to store a credential once, for the authoring steps, without passing it on every run.
 
-> Como **analista**, quero identificar um micro frontend que toca quase
-> todo o sistema, porque ele deixou de ser uma parte independente.
+The credential lives in the user's config directory, **never** in `.damfe/`, which is versioned with the analysed project. The file is created readable only by its owner, with no window in which others could read it. An environment variable takes precedence. The credential is never shown in full. No analysis command uses it.
 
-**Critérios de aceite**
-- A conexão é contada sem direção, unindo as três relações.
-- A proporção de cada sentido é registrada, porque depender de todos e
-  ser dependido por todos são problemas distintos.
-- O orquestrador é excluído do cálculo, por alcançar todos por definição.
-- Sistemas abaixo de um tamanho mínimo não são avaliados, porque neles
-  estar conectado a todos é o normal.
-- Proporção e tamanho mínimo são configuráveis.
+**Done.**
 
-**Estado:** Implementado
+## Reading the result
 
----
+### US-18 · A complete visual report
 
-### US-17 · Persistir as detecções
+> As an **analyst**, I want a visual report of the architecture and its deviations, so that I can show the result to someone who will not read JSON.
 
-> Como **pesquisador**, quero as detecções em arquivo, para acompanhar a
-> evolução dos desvios ao longo do tempo.
+A single file with no network dependency: it opens offline and can be archived next to the text citing it. The drawing is produced by the tool rather than the browser, so the same artefacts always give the same image. The graph tells the relations apart, and edges out and back between the same pair stay distinguishable.
 
-**Critérios de aceite**
-- As ocorrências são gravadas em JSON com regra, gravidade, mensagem,
-  elementos envolvidos, locais e metadados.
-- O arquivo pode ser relido pela etapa de visualização.
+**Done.**
 
-**Estado:** Implementado
+### US-19 · See the deviations over the drawing
 
----
+> As an **analyst**, I want elements with detections highlighted in the graph, so that the drawing is evidence of the finding rather than an illustration of it.
 
-## Épico 3 — Visualização
+Each rule declares which pairs make up the occurrence, and the drawing highlights those nodes and edges. The highlight is distinguishable from the orchestrator's own mark.
 
-### US-18 · Obter um relatório visual completo
+**Done.**
 
-> Como **analista**, quero um relatório visual da arquitetura e dos
-> desvios, para comunicar o resultado a quem não vai ler JSON.
+### US-20 · Isolate one relation
 
-**Critérios de aceite**
-- Arquivo único, sem dependência de rede: abre offline e pode ser
-  arquivado junto do texto que o cita.
-- O desenho é gerado na própria ferramenta, e não no navegador, de modo
-  que os mesmos artefatos produzam sempre a mesma imagem.
-- O grafo distingue visualmente as três relações.
-- Arestas de ida e de volta entre o mesmo par são distinguíveis.
-- O relatório apresenta as contagens, o grafo, as detecções com seus
-  locais, e o detalhamento de cada micro frontend.
+> As an **analyst**, I want to see one relation at a time, so that I can compare the code graph with the flow graph.
 
-**Estado:** Implementado
+Each relation can be switched on and off, and the report stays correct and readable with no script running.
+
+**Done.**
+
+### US-33 · Summarise the system for assisted authoring
+
+> As an **analyst**, I want a compact summary of the system, to feed an assistant that proposes the domains.
+
+Screens with routes, exposed and composed fragments, services called and state read, per unit. Fields irrelevant to the question — file paths, line numbers, props — stay out. The tool produces it deterministically.
+
+**Done.**
+
+## Extending the tool
+
+### US-21 · Add an anti-pattern rule
+
+> As a **maintainer**, I want to write a new rule without touching the rest of the tool, so that the catalogue grows without risking regression.
+
+A rule is a class implementing the interface, plus one line of registration. It receives the artefact model and knows nothing of the technology behind it. No change is needed in ports, use cases or the command line.
+
+**Done** — exercised by eight rules.
+
+### US-22 · Add a visualisation format
+
+> As a **maintainer**, I want to add output formats without touching the analysis.
+
+**Done.**
+
+### US-23 · Support another micro frontend technology
+
+> As a **maintainer**, I want to extend the tool to another technology without touching detection and visualisation.
+
+**Done** — the second reconstructor measured the separation: only discovery had to be written. Navigation, external calls, global state and communication start from the extracted applications and from platform primitives, and were reused unchanged.
 
 ---
 
-### US-19 · Ver os desvios sobre o desenho da arquitetura
+# Pending
 
-> Como **analista**, quero os elementos com detecção destacados no grafo,
-> para que o desenho seja evidência do achado, e não ilustração.
+### RF-25 · Report what could not be resolved
 
-**Critérios de aceite**
-- Elementos citados em alguma detecção são destacados.
-- O destaque é distinguível da marcação do orquestrador.
+> **Given** an analysis that has run
+> **then** the report states what the tool could not determine.
 
-**Estado:** Implementado — cada regra declara em `metadata.edges` quais
-pares compõem a ocorrência, e o desenho destaca nós e arestas.
+There is already plenty to report: an opaque activity function, an entrypoint that did not resolve, a screen no import reaches, a URL resolved only as a prefix. None of it reaches the reader today, so "found nothing" and "could not look" are indistinguishable — which is precisely what produced six false detections on a system whose extraction had come back empty.
 
----
+**Pending.** Without it the method's recall cannot be stated.
 
-### US-20 · Isolar uma relação no desenho
+### RF-35 · Warn when the artefacts are stale
 
-> Como **analista**, quero ver uma relação por vez, para comparar o grafo
-> de código com o grafo de fluxo.
+> **Given** a declaration changed after the last reconstruction
+> **when** detection runs over the old artefacts
+> **then** the staleness is reported.
 
-**Critérios de aceite**
-- Cada relação pode ser ligada e desligada no relatório.
-- O relatório permanece correto e legível sem execução de script.
+**Pending.** Editing `domains.yml` or `communication.yml` and running only `detect` produces a plausible, outdated result.
 
-**Estado:** Implementado
+### RF-36 · Extract communication through `customProps`
 
----
+> **Given** an orchestrator that injects state or actions into a unit
+> **then** that channel is extracted.
 
-## Épico 4 — Extensibilidade
+The keys are already read; the channel is not. It is standardised by the technology and needs no declaration.
 
-### US-21 · Acrescentar uma regra de anti-padrão
+**Pending.**
 
-> Como **mantenedor**, quero escrever uma regra nova sem alterar o
-> restante da ferramenta, para que o catálogo cresça sem risco de
-> regressão.
+### US-27 · Generate the communication declaration from prose
 
-**Critérios de aceite**
-- Uma regra é uma classe que implementa a interface e um registro.
-- A regra recebe o modelo de artefatos e não conhece a tecnologia que os
-  originou, de modo que valha para qualquer uma.
-- Nenhuma alteração é necessária em portas, casos de uso ou interface de
-  linha de comando.
+> As an **analyst**, I want to describe in prose how the system communicates and get the declaration ready, so that I need not learn the format.
 
-**Estado:** Implementado — exercitado por três regras.
+The proposal would be validated against the schema and checked against the repository before being written. Non-determinism stays confined to the setup step, whose result is reviewed and versioned; the analysis stays reproducible.
 
----
+**Pending.** A setup page exists with the interview, but what it generates for composition and routing is not yet read by any extractor.
 
-### US-22 · Acrescentar um formato de visualização
+### US-28 · Automated test suite
 
-> Como **mantenedor**, quero acrescentar formatos de saída sem alterar a
-> lógica de análise.
+> As a **maintainer**, I want tests over extraction, rules and persistence, so that I can claim the reconstruction is reproducible and change the tool without silent regression.
 
-**Critérios de aceite**
-- Um formato é uma classe que implementa a interface e um registro.
-- A seleção acontece por nome na linha de comando.
-
-**Estado:** Implementado
-
----
-
-### US-23 · Acrescentar suporte a outra tecnologia de micro frontend
-
-> Como **mantenedor**, quero estender a ferramenta a outra tecnologia sem
-> tocar nos módulos de detecção e visualização.
-
-**Critérios de aceite**
-- Um extrator é uma classe que implementa a interface e um registro.
-- O extrator traduz o vocabulário da tecnologia para o modelo neutro.
-- Os módulos de detecção e visualização permanecem inalterados.
-
-**Estado:** Parcial — a estrutura existe e é respeitada, mas só um
-extrator foi escrito. A neutralidade do modelo permanece hipótese até o
-segundo.
-
----
-
-## Backlog
-
-Funcionalidades identificadas e não construídas.
-
-### US-24 · Extrair o acesso ao estado global
-
-> Como **analista**, quero saber que fatias do estado global cada micro
-> frontend lê, porque dois que leem a mesma fatia dependem do mesmo
-> formato de dado sem se conhecerem.
-
-**Critérios de aceite**
-- As bibliotecas de estado são reconhecidas pelo import — react-redux,
-  zustand, jotai, recoil, mobx, pinia —, não por nome de variável.
-- Um seletor que monta objeto conta cada fatia que percorre.
-- Acesso em pacote compartilhado não é acoplamento entre micro
-  frontends e fica de fora.
-- Só a leitura é extraída: a escrita revela o nome da ação despachada,
-  não a fatia alterada, e misturar as duas juntaria vocabulários
-  distintos.
-
-**Estado:** Implementado
-
----
-
-### US-29 · Descobrir as chamadas a serviços externos
-
-> Como **analista**, quero saber que serviços cada micro frontend
-> consome, para enxergar o acoplamento por backend — invisível nos
-> grafos de código e de fluxo.
-
-**Critérios de aceite**
-- `fetch` e `XMLHttpRequest` são reconhecidos sem configuração, por
-  serem API da plataforma web e não de framework.
-- Clientes conhecidos são identificados pelo especificador do import,
-  incluindo instâncias criadas por fábrica como `axios.create()`.
-- O caminho é resolvido pelo mesmo avaliador parcial das rotas, com o
-  grau de certeza registrado.
-- Cada chamada registra as telas e os fragmentos que a alcançam,
-  seguindo os imports internos ao micro frontend.
-- Lista de alcance vazia é informação: a chamada está em código que
-  nenhuma tela alcança.
-
-**Estado:** Implementado
-
----
-
-### US-30 · Medir o tamanho de cada micro frontend
-
-> Como **pesquisador**, quero o tamanho de cada unidade, para
-> corroborar os achados de granularidade e comparar sistemas.
-
-**Critérios de aceite**
-- A contagem acontece durante a varredura que já existe, sem segunda
-  leitura do disco.
-- Linha de comentário é identificada pela árvore sintática, não por
-  prefixo de texto: `//` dentro de uma string não conta.
-- Linha com código e comentário ao final continua sendo linha de
-  código.
-
-**Estado:** Implementado
-
----
-
-### US-31 · Declarar os domínios de negócio
-
-> Como **analista**, quero declarar os domínios do sistema, porque
-> domínio de negócio não está no código e nenhuma análise estática o
-> determina.
-
-**Critérios de aceite**
-- A declaração fica em `.damfe/domains.yml`, versionada com o projeto.
-- Rotas e endpoints são campos separados, por serem vocabulários
-  distintos.
-- Subdomínio é registro, não divisão: suas rotas e endpoints entram no
-  domínio que o contém, e as regras operam no nível de topo.
-- O casamento é por prefixo com fronteira de segmento, e `/` casa apenas
-  o caminho exato — senão um domínio declarado com `/` engoliria o
-  sistema.
-- Os domínios resolvidos são persistidos como artefato, com os membros e
-  os micro frontends que os servem.
-
-**Estado:** Implementado
-
----
-
-### US-32 · Detectar desalinhamento entre domínio e micro frontend
-
-> Como **analista**, quero saber quando a divisão em micro frontends não
-> corresponde à divisão em domínios, porque é isso que caracteriza
-> granularidade errada.
-
-**Critérios de aceite**
-- Micro frontend servindo mais de um domínio é acusado, nomeando **quais
-  telas destoam e a que domínio pertencem**.
-- Micro frontend cobrindo parte de um domínio que outro serve mais é
-  acusado, nomeando qual o absorveria.
-- O tamanho não é condição: ele desambigua qual dos dois é o pedaço, e
-  corrobora na evidência.
-- Sem mapa declarado, as regras caem no tamanho relativo à mediana do
-  sistema e informam o critério usado.
-- Micro frontend cujas telas não caem em domínio nenhum é indeterminado,
-  e a regra se abstém.
-
-**Estado:** Implementado
-
----
-
-### US-33 · Sumarizar o sistema para autoria assistida
-
-> Como **analista**, quero uma sumarização compacta do sistema, para
-> servir de entrada a um assistente que proponha os domínios.
-
-**Critérios de aceite**
-- A saída reúne, por micro frontend, telas com rotas, fragmentos
-  expostos e compostos, serviços chamados e estado lido.
-- Campos irrelevantes à pergunta — caminho de arquivo, número de linha,
-  props — ficam de fora.
-- A sumarização é gerada pela própria ferramenta, deterministicamente.
-
-**Estado:** Implementado
-
----
-
-### US-34 · Guardar o acesso a um modelo de linguagem
-
-> Como **analista**, quero guardar uma credencial uma vez, para os passos
-> de autoria assistida, sem informá-la a cada execução.
-
-**Critérios de aceite**
-- A credencial fica no diretório do usuário, **nunca** em `.damfe/`, que
-  é versionado com o projeto analisado.
-- O arquivo é criado com permissão de leitura só para o dono, sem janela
-  em que outros possam lê-lo.
-- Variável de ambiente tem precedência sobre o arquivo.
-- A credencial nunca é exibida por inteiro.
-- Nenhum comando de análise usa essa configuração.
-
-**Estado:** Implementado
-
----
-
-### US-25 · Relatar o que não pôde ser resolvido
-
-> Como **pesquisador**, quero saber o que a análise não conseguiu
-> determinar, para poder afirmar a cobertura do método em vez de
-> apresentá-lo como completo.
-
-**Estado:** Pendente — sem isso, a recuperação do método não é
-mensurável.
-
----
-
-### US-26 · Registrar a contenção entre componentes
-
-> Como **analista**, quero que fragmentos instanciados dentro de
-> componentes auxiliares sejam atribuídos à tela que os contém, para que
-> a concentração de dependências não seja subestimada.
-
-**Estado:** Parcial — o alcance entre arquivos já existe e é usado para
-atribuir chamadas de serviço às telas (US-29). Falta aplicá-lo à
-instanciação de fragmento, que ainda liga pelo arquivo — é o que bloqueia
-a correção da US-15.
-
----
-
-### US-27 · Gerar a declaração de comunicação a partir de descrição
-
-> Como **analista**, quero descrever em texto corrido como o sistema se
-> comunica e obter a declaração pronta, para não precisar aprender o
-> formato.
-
-**Critérios de aceite previstos**
-- A proposta é validada contra o esquema e verificada contra o
-  repositório antes de ser gravada.
-- A não-determinância fica confinada ao passo de setup, cujo resultado é
-  revisado e versionado; a análise permanece reproduzível.
-
-**Estado:** Pendente — existe uma instrução para agente, sem integração
-na ferramenta.
-
----
-
-### US-28 · Suíte de testes automatizados
-
-> Como **mantenedor**, quero testes que cubram extração, regras e
-> persistência, para poder afirmar que a reconstrução é reproduzível e
-> alterar a ferramenta sem regressão silenciosa.
-
-**Estado:** Pendente — a arquitetura foi construída para permitir isso
-(portas injetadas, casos de uso sem efeito colateral), e a possibilidade
-está sem uso.
-
----
-
-### US-35 · Avisar quando os artefatos estiverem defasados
-
-> Como **analista**, quero ser avisado quando uma declaração mudou depois
-> da última reconstrução, porque hoje a detecção usa a resolução antiga
-> sem sinalizar nada.
-
-**Estado:** Pendente — editar `domains.yml` ou `communication.yml` e
-rodar só o `detect` produz resultado plausível e desatualizado.
-
----
-
-### US-36 · Extrair comunicação via `customProps`
-
-> Como **analista**, quero conhecer o estado e as ações que o
-> orquestrador injeta em cada micro frontend, porque é um canal
-> padronizado pela tecnologia e não exige declaração.
-
-**Estado:** Pendente — é um dos mecanismos usados pelo repositório de
-referência, hoje não extraído.
+**Pending.** The architecture was built to allow it — injected ports, use cases without side effects — and the possibility sits unused. Every regression found so far was found by rerunning two real repositories by hand.
