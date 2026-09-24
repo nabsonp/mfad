@@ -8,7 +8,7 @@ Hoje reconhece **single-spa**. Outras tecnologias entram como extensão,
 sem alterar os demais módulos.
 
 Nenhuma etapa da análise usa modelo de linguagem, rede ou execução do
-código analisado. Ver [ARQUITETURA.md](ARQUITETURA.md).
+código analisado. Ver [docs/architecture.md](docs/architecture.md).
 
 ## Instalação
 
@@ -130,7 +130,7 @@ variáveis `DAMFE_LLM_URL`, `DAMFE_LLM_MODEL` e `DAMFE_LLM_KEY` têm
 precedência sobre o arquivo.
 
 Nenhum comando de análise usa essa configuração: ela serve aos passos de
-autoria descritos em [skills/](skills/).
+autoria descritos em [docs/prompts/](docs/prompts/).
 
 ---
 
@@ -254,14 +254,14 @@ diferentes: `/checkout/cards` é rota de tela, `/cartao` é caminho de
 serviço.
 
 Para escrever o arquivo com apoio de um assistente, veja
-[skills/identificar-dominios.md](skills/identificar-dominios.md).
+[docs/prompts/identifying-domains.md](docs/prompts/identifying-domains.md).
 
 ---
 
 ## Regras de anti-padrão
 
 Oito, de 27 do catálogo. A triagem completa está em
-[CATALOGO.md](CATALOGO.md).
+[docs/catalogue.md](docs/catalogue.md).
 
 ### `cyclic-dependency`
 

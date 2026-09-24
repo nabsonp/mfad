@@ -1,6 +1,6 @@
 # Extraction rules — Module Federation
 
-What the Module Federation reconstructor reads from source, and under which conditions. Each rule as *given / when / then*, the same shape as [EXTRACTION-SINGLE-SPA.md](EXTRACTION-SINGLE-SPA.md).
+What the Module Federation reconstructor reads from source, and under which conditions. Each rule as *given / when / then*, the same shape as [single-spa.md](single-spa.md).
 
 Written from the implementation in `src/damfe/adapters/driven/reconstruction/modulefederation/`, and checked against a real system: [diego-coronado/microfrontend-healthcare-system](https://github.com/diego-coronado/diego-coronado-microfrontend-healthcare-system), seven Vite units.
 

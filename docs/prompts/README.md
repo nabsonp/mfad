@@ -8,7 +8,7 @@ Gemini, modelo local).
 
 | prompt | para quê |
 |---|---|
-| [estender-o-damfe.md](estender-o-damfe.md) | adaptar o damfe a um projeto: declarar como os micro frontends se comunicam, e escrever o reconstrutor quando a tecnologia ainda não for suportada |
+| [extending-damfe.md](extending-damfe.md) | adaptar o damfe a um projeto: declarar como os micro frontends se comunicam, e escrever o reconstrutor quando a tecnologia ainda não for suportada |
 
 ## Como usar
 

@@ -67,7 +67,7 @@ tecnologia não toca nos módulos 2 e 3.
 
 Para uma tecnologia nova, um prompt assistido por LLM conduz a escrita do
 reconstrutor — o código sai revisado e versionado, e a análise segue
-determinística. O prompt está em [skills/](skills/).
+determinística. O prompt está em [docs/prompts/](prompts/).
 
 ### Artefatos extraídos
 
@@ -184,7 +184,7 @@ Micro frontend que consome serviços de vários domínios.
 **8 de 27** regras implementadas do catálogo de anti-padrões de micro
 frontends. Regra nova é uma classe e uma linha de registro — mesmo
 soquete dos reconstrutores. A triagem das 27 está em
-[CATALOGO.md](CATALOGO.md).
+[catalogue.md](catalogue.md).
 
 ### Saída
 

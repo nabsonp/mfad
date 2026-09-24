@@ -4,7 +4,7 @@ Prompt de **uma chamada só**, para envio programático a um modelo. A
 entrada é a saída de `damfe visualize --format features`; a saída é o
 conteúdo de `.damfe/domains.yml`.
 
-Diferente da Parte C de [estender-o-damfe.md](estender-o-damfe.md), que
+Diferente da Parte C de [extending-damfe.md](extending-damfe.md), que
 conduz uma entrevista com uma pessoa. Este não pergunta nada: recebe os
 artefatos e responde.
 
