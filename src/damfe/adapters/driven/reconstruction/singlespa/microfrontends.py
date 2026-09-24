@@ -9,6 +9,7 @@ declaradas pelo `rootComponent`.
 from __future__ import annotations
 
 import json
+import re
 
 from pathlib import Path
 
@@ -82,6 +83,11 @@ class MicroFrontendBuilder:
                     line=line,
                 )
             )
+
+        container = self._container_of(root, source)
+
+        if container:
+            microfrontend.metadata["container"] = container
 
         root_component = self._root_component_file(root, source, imports)
 
@@ -262,6 +268,50 @@ class MicroFrontendBuilder:
 
         return lifecycles, exported
 
+    def _container_of(self, root: Node, source: bytes) -> str | None:
+        """
+        O elemento do shell em que este micro frontend é montado.
+
+        `domElementGetter` é como o single-spa deixa a aplicação
+        escolher onde aparecer. Declará-lo significa que o shell
+        reservou um lugar no layout — `#navbar-container` —, e que
+        aquilo é encaixado numa página junto de outras coisas. Quem
+        não declara recebe um `div` que o single-spa anexa ao corpo,
+        e ocupa a página sozinho.
+
+        É o sinal mais forte que existe para separar composição de
+        tela, e não depende de convenção de pasta nem de nome.
+        """
+
+        for pair in AstReader.find_all(root, "pair"):
+
+            key_node = pair.child_by_field_name("key")
+            value_node = pair.child_by_field_name("value")
+
+            if not key_node or not value_node:
+                continue
+
+            key = AstReader.strip_quotes(AstReader.text(key_node, source))
+
+            if key != "domElementGetter":
+                continue
+
+            expression = AstReader.text(value_node, source)
+
+            # getElementById("navbar-container") · querySelector("#x")
+            found = re.search(
+                r"""getElementById\(\s*["'](?P<id>[^"']+)["']"""
+                r"""|querySelector\(\s*["']#?(?P<sel>[^"']+)["']""",
+                expression,
+            )
+
+            if not found:
+                return "declarado"
+
+            return found.group("id") or found.group("sel")
+
+        return None
+
     def _root_component_file(
         self,
         root: Node,
@@ -302,21 +352,27 @@ class MicroFrontendBuilder:
         prefixo. Então ausência de `<Route>` não significa ausência de
         tela — significa uma tela só.
 
-        O discriminante é o próprio registro:
+        Dois sinais dizem que é composição, e não tela:
 
-        `activeWhen: ["/"]` casa com toda URL, então o componente
-        monta em qualquer rota e não é dono de nenhuma. Isso é
-        interface permanente — barra de navegação, rodapé —, e o que
-        ele expõe é um fragmento.
+        Contêiner declarado. `domElementGetter` apontando para um
+        elemento do shell significa que o layout reservou um lugar
+        para aquilo — ele é encaixado numa página junto de outras
+        coisas. Quem não declara recebe um `div` anexado ao corpo.
 
-        Qualquer outro prefixo monta só ali. Isso é uma tela, e a rota
-        dela é a do registro; não há expressão a resolver, porque ela
-        não foi escrita no código da tela.
+        Montagem permanente. `activeWhen: ["/"]` casa com toda URL,
+        então o componente monta em qualquer rota e não é dono de
+        nenhuma. Este sinal só vale quando há outras aplicações no
+        sistema: aplicação única registrada em `/` é a página, não
+        composição.
+
+        Sem nenhum dos dois, o componente raiz é a tela daquele
+        prefixo. A rota é a do registro; não há expressão a resolver,
+        porque ela não foi escrita no código da tela.
         """
 
         name = root_component.stem
 
-        if self._always_mounted(microfrontend.routes):
+        if self._is_fragment(microfrontend):
 
             if any(item.name == name for item in microfrontend.fragments):
                 return
@@ -339,6 +395,16 @@ class MicroFrontendBuilder:
                 file=self.context.relative(root_component),
             )
         ]
+
+    def _is_fragment(self, microfrontend: MicroFrontend) -> bool:
+        """Se o micro frontend compõe uma página em vez de ser uma."""
+
+        if microfrontend.metadata.get("container"):
+            return True
+
+        return self._always_mounted(
+            microfrontend.routes
+        ) and len(self.context.registrations) > 1
 
     @staticmethod
     def _always_mounted(routes: list[str]) -> bool:
