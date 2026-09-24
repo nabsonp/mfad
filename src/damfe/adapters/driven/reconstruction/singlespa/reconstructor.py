@@ -206,18 +206,76 @@ class SingleSpaReconstructor(Reconstructor):
         microfrontends: list[MicroFrontend],
     ) -> None:
         """
-        Marca como shell a aplicação que mora no mesmo pacote
-        que declarou os registros. É ela que orquestra as demais.
+        Acrescenta o orquestrador ao grafo, como nó de papel `shell`.
+
+        Ele não aparece em `registerApplication` — é quem chama — e
+        por isso ficava de fora, embora seja quem monta todos os
+        outros. O grafo sem ele mostra micro frontends soltos, sem
+        nada explicando como chegam à página: é a relação mais
+        importante do sistema, e era a única ausente.
+
+        Marcar como shell a aplicação que MORA no mesmo pacote do
+        orquestrador, como se fazia antes, é outra coisa e estava
+        errado: um monolito carregado por caminho relativo a partir
+        do root-config é aplicação registrada como as demais, não o
+        orquestrador.
         """
 
-        directories = {
-            context.relative(
-                context.package_dir(registration.declared_in)
+        # Um shell por orquestrador. Um repositório pode conter mais
+        # de um sistema — o de exemplo aqui contém dois —, e juntar
+        # os registros de todos num nó só inventaria um orquestrador
+        # que monta aplicações de sistemas diferentes.
+        by_package: dict[Path, list] = {}
+
+        for registration in context.registrations:
+
+            directory = context.package_dir(registration.declared_in)
+
+            by_package.setdefault(directory, []).append(registration)
+
+        known = {item.id for item in microfrontends}
+
+        shells = []
+
+        for directory, registrations in sorted(by_package.items()):
+
+            relative = context.relative(directory)
+
+            identifier = self._shell_id(directory, relative)
+
+            if identifier in known:
+                continue
+
+            shell = MicroFrontend(
+                id=identifier,
+                role="shell",
+                directory=relative,
+                entrypoint=context.relative(registrations[0].declared_in),
             )
-            for registration in context.registrations
-        }
 
-        for microfrontend in microfrontends:
+            shell.size = context.size_of(directory)
 
-            if microfrontend.directory in directories:
-                microfrontend.role = "shell"
+            # Quem ele monta. É a aresta de composição do sistema: o
+            # shell escolhe a aplicação por URL e a põe na página.
+            shell.metadata["mounts"] = sorted(
+                registration.name for registration in registrations
+            )
+
+            shells.append(shell)
+
+        microfrontends[:0] = shells
+
+    @staticmethod
+    def _shell_id(directory: Path, relative: str) -> str:
+        """O nome declarado no `package.json`, ou o diretório."""
+
+        manifest_file = directory / "package.json"
+
+        try:
+            manifest = json.loads(
+                manifest_file.read_text(encoding="utf-8")
+            )
+        except Exception:
+            return relative or "shell"
+
+        return manifest.get("name") or relative or "shell"

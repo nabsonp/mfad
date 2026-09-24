@@ -202,6 +202,8 @@ def _edges(artifacts: ArtifactSet) -> list[dict]:
             }
         )
 
+    edges.extend(_mounts(artifacts))
+
     edges.extend(_shared_endpoints(artifacts))
 
     for item in artifacts.communications:
@@ -221,6 +223,45 @@ def _edges(artifacts: ArtifactSet) -> list[dict]:
                 "detail": f"mecanismo: {item.mechanism}",
             }
         )
+
+    return edges
+
+
+def _mounts(artifacts: ArtifactSet) -> list[dict]:
+    """
+    O shell montando cada aplicação que registrou.
+
+    Sem esta aresta o grafo mostra micro frontends soltos, sem nada
+    explicando como chegam à página — e a relação que falta é a que
+    define o sistema. Um navbar montado em toda URL não é importado
+    por ninguém: quem o coloca lá é o shell, e é esta aresta, não um
+    import inventado entre pares, que diz isso.
+    """
+
+    known = {item.id for item in artifacts.microfrontends}
+
+    edges: list[dict] = []
+
+    for item in artifacts.microfrontends:
+
+        for mounted in item.metadata.get("mounts", []):
+
+            if mounted not in known:
+                continue
+
+            edges.append(
+                {
+                    "edge": edge_id(item.id, mounted, "mount"),
+                    "relation": "mount",
+                    "source": item.id,
+                    "target": mounted,
+                    "label": "registerApplication",
+                    "file": item.entrypoint or None,
+                    "line": 0,
+                    "code": None,
+                    "detail": "montado pelo orquestrador",
+                }
+            )
 
     return edges
 

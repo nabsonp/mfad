@@ -10,8 +10,8 @@
   "use strict";
 
   var DATA = JSON.parse(document.getElementById("damfe-data").textContent);
-  var RELATIONS = ["fragment_import", "navigation", "communication",
-                   "shared_endpoint"];
+  var RELATIONS = ["mount", "fragment_import", "navigation",
+                   "communication", "shared_endpoint"];
 
   var svg = document.querySelector("#stage svg");
   var stage = document.getElementById("stage");
@@ -303,13 +303,14 @@
   }
 
   function labelTitle(relation) {
-    return { fragment_import: "Composição", navigation: "Navegação",
-             communication: "Comunicação",
+    return { mount: "Montagem", fragment_import: "Composição",
+             navigation: "Navegação", communication: "Comunicação",
              shared_endpoint: "Backend compartilhado" }[relation] || relation;
   }
 
   function usedHeading(relation) {
-    return { fragment_import: "Fragmentos utilizados",
+    return { mount: "Aplicações montadas",
+             fragment_import: "Fragmentos utilizados",
              navigation: "Rotas de destino",
              communication: "Canais",
              shared_endpoint: "Endpoints em comum" }[relation] || "Itens";
@@ -335,8 +336,8 @@
   }
 
   function label(relation) {
-    return { fragment_import: "composição", navigation: "navegação",
-             communication: "comunicação",
+    return { mount: "montagem", fragment_import: "composição",
+             navigation: "navegação", communication: "comunicação",
              shared_endpoint: "backend compartilhado" }[relation] ||
            relation;
   }
