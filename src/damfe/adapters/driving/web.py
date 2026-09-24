@@ -176,6 +176,16 @@ def _chat(state, payload) -> dict:
 
         except urllib.error.HTTPError as error:
 
+            # 404 aqui é modelo inexistente, não rota errada: o
+            # caminho é fixo e já foi montado. Identificador de modelo
+            # envelhece — provedor aposenta e renomeia —, e "404" sem
+            # explicação manda procurar no lugar errado.
+            if error.code == 404:
+                raise ApplicationError(
+                    f"The provider does not know the model "
+                    f"'{llm.model}'. Pick another in step 1."
+                ) from error
+
             if error.code == 429 and attempt < 3:
                 time.sleep(4 * (attempt + 1))
                 continue
@@ -388,10 +398,10 @@ MODELS = (
     ("openai/gpt-5-mini", True),
     ("google/gemini-2.5-pro", True),
     ("google/gemini-2.5-flash", True),
-    ("deepseek/deepseek-v4-flash-0731:free", False),
+    ("nvidia/nemotron-3-super-120b-a12b:free", False),
     ("qwen/qwen3.8-27b:free", False),
     ("nvidia/nemotron-3.5-lightning:free", False),
-    ("inclusionai/ling-3.0-flash-vl:free", False),
+    ("nex-agi/nex-n2.5-pro:free", False),
 )
 
 #: O padrão quando não há nada configurado.
