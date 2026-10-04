@@ -82,6 +82,8 @@ class CommunicationExtractor:
         self.context = context
         self.spec = spec
 
+        self.microfrontends = microfrontends
+
         self.ownership = Ownership(context.repository, microfrontends)
 
         self.known = {item.id for item in microfrontends}
@@ -105,6 +107,10 @@ class CommunicationExtractor:
                 )
             )
 
+        # Declarado pela própria tecnologia: o orquestrador diz, no
+        # registro, o que injeta em cada aplicação.
+        communications.extend(self._custom_props())
+
         # Nível 3: o que o usuário declarou.
         for mechanism in self.spec.mechanisms:
 
@@ -120,6 +126,88 @@ class CommunicationExtractor:
             communications,
             key=lambda item: (item.source, item.target, item.channel),
         )
+
+    # ------------------------------------------------------------------
+    # customProps — declarado pelo registro
+    # ------------------------------------------------------------------
+
+    def _custom_props(self) -> list[Communication]:
+        """
+        `registerApplication({ name, customProps: { … } })`.
+
+        É o canal recomendado pelo single-spa e o único que não
+        precisa ser pareado: o registro nomeia as DUAS pontas de uma
+        vez. Quem injeta é o orquestrador, quem recebe é a aplicação
+        nomeada ali, e cada chave é um canal.
+
+        Por isso a aresta é dirigida. As demais nascem de duas pontas
+        que se encontram por um nome de canal e podem ser simétricas;
+        esta tem origem e destino escritos na declaração.
+        """
+
+        orchestrators = [
+            item.id
+            for item in self.microfrontends
+            if item.role == "shell"
+        ]
+
+        if not orchestrators:
+            return []
+
+        found: list[Communication] = []
+
+        for item in self.microfrontends:
+
+            keys = item.metadata.get("custom_props") or {}
+
+            if not keys:
+                continue
+
+            source_id = self._injector(item.id, orchestrators)
+
+            if not source_id or source_id == item.id:
+                continue
+
+            location = SourceLocation(
+                file=self._registration_file(item.id),
+                line=0,
+                code=f"customProps: {{ {', '.join(sorted(keys))} }}",
+            )
+
+            for key in sorted(keys):
+
+                found.append(
+                    Communication(
+                        source=source_id,
+                        target=item.id,
+                        mechanism="customProps",
+                        channel=key,
+                        produced_at=[location],
+                        consumed_at=[],
+                        directed=True,
+                    )
+                )
+
+        return found
+
+    def _injector(self, target: str, orchestrators: list[str]) -> str | None:
+        """O orquestrador que monta esta aplicação."""
+
+        for item in self.microfrontends:
+
+            if item.id in orchestrators and target in item.mounts:
+                return item.id
+
+        return orchestrators[0] if len(orchestrators) == 1 else None
+
+    def _registration_file(self, target: str) -> str:
+
+        for registration in self.context.registrations:
+
+            if registration.name == target:
+                return self.context.relative(registration.declared_in)
+
+        return ""
 
     # ------------------------------------------------------------------
     # Níveis 1 e 2 — sem configuração
@@ -148,10 +236,19 @@ class CommunicationExtractor:
 
             buses = self._buses(root, source)
 
+            #: nome local -> módulo de origem, para reconhecer o
+            #: Subject compartilhado pelo import e não pelo nome.
+            imported = {
+                record.local_name: record.module
+                for record in ImportTable.records(root, source)
+            }
+
             for node in AstReader.find_all(root, "call_expression"):
 
-                found = self._platform(node, source) or self._bus(
-                    node, source, buses
+                found = (
+                    self._platform(node, source)
+                    or self._bus(node, source, buses)
+                    or self._subject(node, source, imported)
                 )
 
                 if not found:
@@ -172,6 +269,20 @@ class CommunicationExtractor:
                 target = produced if side == "produce" else consumed
 
                 target.setdefault(mechanism, []).append(endpoint)
+
+            for channel, call in self._message_listeners(root, source):
+
+                consumed.setdefault("postMessage", []).append(
+                    Endpoint(
+                        microfrontend=owner,
+                        channel=channel,
+                        file=self.context.relative(file_path),
+                        line=call.start_point.row + 1,
+                        code=" ".join(
+                            AstReader.text(call, source).split()
+                        )[:160],
+                    )
+                )
 
         return produced, consumed
 
@@ -211,7 +322,24 @@ class CommunicationExtractor:
 
             return "CustomEvent", channel, "consume"
 
+        storage = self._storage(function, source, name, arguments)
+
+        if storage:
+            return storage
+
         if name == libraries.POST_MESSAGE:
+
+            # Duas APIs com o mesmo nome. `BroadcastChannel` recebe
+            # só o payload, porque o canal está no construtor; o
+            # `postMessage` entre janelas recebe payload e origem, e
+            # aí o canal está dentro do payload.
+            if len(arguments) >= 2:
+
+                channel = self._message_type(arguments[0], source)
+
+                return (
+                    ("postMessage", channel, "produce") if channel else None
+                )
 
             channel = self._value(arguments[0], source)
 
@@ -222,6 +350,173 @@ class CommunicationExtractor:
             )
 
         return None
+
+    def _message_type(self, node: Node, source: bytes) -> str | None:
+        """
+        O campo que faz as vezes de canal em `postMessage({…}, origem)`.
+
+        Convenção, não API: a plataforma não define nome de canal
+        aqui, e o ecossistema resolveu isso com um campo `type` no
+        payload. Payload que não seja literal de objeto, ou sem
+        nenhum dos campos conhecidos, não produz canal — é melhor não
+        registrar do que inventar um.
+        """
+
+        if node.type != "object":
+            return None
+
+        fields = {}
+
+        for pair in node.named_children:
+
+            if pair.type != "pair":
+                continue
+
+            key = pair.child_by_field_name("key")
+            value = pair.child_by_field_name("value")
+
+            if not key or not value or value.type != "string":
+                continue
+
+            fields[AstReader.strip_quotes(AstReader.text(key, source))] = (
+                AstReader.strip_quotes(AstReader.text(value, source))
+            )
+
+        for candidate in libraries.MESSAGE_TYPE_FIELDS:
+
+            if candidate in fields:
+                return fields[candidate]
+
+        return None
+
+    def _message_listeners(
+        self,
+        root: Node,
+        source: bytes,
+    ) -> list[tuple[str, Node]]:
+        """
+        Os canais que um `addEventListener("message", handler)` trata.
+
+        O ouvinte é um só para todos os canais, então o que distingue
+        um do outro são as comparações dentro do tratador —
+        `event.data.type === "cart:updated"`. Procuram-se os literais
+        comparados a um campo da convenção, e só dentro do tratador:
+        fora dele, qualquer string viraria canal.
+        """
+
+        found: list[tuple[str, Node]] = []
+
+        for call in AstReader.find_all(root, "call_expression"):
+
+            function = call.child_by_field_name("function")
+
+            if not function:
+                continue
+
+            if AstReader.text(function, source).rpartition(".")[2] != (
+                libraries.LISTEN
+            ):
+                continue
+
+            arguments = self._call_arguments(call)
+
+            if len(arguments) < 2:
+                continue
+
+            if self._value(arguments[0], source) != libraries.MESSAGE_EVENT:
+                continue
+
+            for channel in self._compared_literals(arguments[1], source):
+                found.append((channel, call))
+
+        return found
+
+    @staticmethod
+    def _compared_literals(handler: Node, source: bytes) -> list[str]:
+        """Literais comparados a um campo de tipo dentro do tratador."""
+
+        found = []
+
+        for node in AstReader.find_all(handler, "binary_expression"):
+
+            left = node.child_by_field_name("left")
+            right = node.child_by_field_name("right")
+
+            if not left or not right:
+                continue
+
+            for a, b in ((left, right), (right, left)):
+
+                if b.type != "string":
+                    continue
+
+                field = AstReader.text(a, source).rpartition(".")[2]
+
+                if field in libraries.MESSAGE_TYPE_FIELDS:
+                    found.append(
+                        AstReader.strip_quotes(AstReader.text(b, source))
+                    )
+
+        return found
+
+    def _storage(
+        self,
+        function: Node,
+        source: bytes,
+        name: str,
+        arguments: list[Node],
+    ) -> tuple[str, str, str] | None:
+        """
+        `localStorage.setItem(chave, …)` e `getItem(chave)`.
+
+        O receptor precisa ser o próprio `localStorage` ou
+        `sessionStorage`: um `cache.getItem("x")` qualquer não é
+        armazenamento compartilhado, e casar só pelo nome do método
+        transformaria toda classe com `getItem` num canal.
+
+        A chave é o canal. Dois micro frontends que tocam a mesma
+        chave estão acoplados pelo formato do valor, sem que contrato
+        algum tenha sido declarado.
+        """
+
+        if name not in libraries.STORAGE_WRITE + libraries.STORAGE_READ:
+            return None
+
+        if function.type != "member_expression":
+            return None
+
+        receiver = function.child_by_field_name("object")
+
+        if not receiver:
+            return None
+
+        # Aceita `localStorage` e `window.localStorage`.
+        kind = AstReader.text(receiver, source).rpartition(".")[2]
+
+        if kind not in libraries.STORAGES:
+            return None
+
+        if not arguments:
+            return None
+
+        # Só literal, nunca o nome do identificador.
+        #
+        # A chave aqui é o contrato: duas unidades se acoplam por
+        # escreverem e lerem a MESMA string. Cair no nome da variável
+        # pareia qualquer par de arquivos que, por coincidência,
+        # chame a sua de `storageKey` — foi o que aconteceu com dois
+        # theme providers copiados, que nada tinham entre si.
+        #
+        # O preço é perder a chave montada em variável. Vale: inventar
+        # acoplamento é pior do que não achar um.
+        channel = self._literal(arguments[0], source)
+
+        if not channel:
+            return None
+
+        side = "produce" if name in libraries.STORAGE_WRITE else "consume"
+
+        return kind, channel, side
 
     def _event_channel(self, node: Node, source: bytes) -> str | None:
         """O canal de `new CustomEvent(canal, ...)`."""
@@ -323,6 +618,73 @@ class CommunicationExtractor:
         channel = self._value(arguments[index], source)
 
         return (bus.module, channel, side) if channel else None
+
+    def _subject(
+        self,
+        node: Node,
+        source: bytes,
+        imported: dict[str, str],
+    ) -> tuple[str, str, str] | None:
+        """
+        `cart$.next(v)` e `cart$.subscribe(fn)` sobre símbolo importado.
+
+        O canal é a identidade do símbolo — módulo mais nome —, não
+        uma string. Duas unidades que importam o mesmo `cart$` do
+        mesmo módulo estão nas duas pontas do mesmo canal, e é isso
+        que as pareia.
+
+        A raiz da expressão precisa estar na tabela de imports. Sem
+        essa exigência, `this.http.get(url).subscribe(...)` viraria
+        comunicação e um projeto Angular inteiro viraria ruído.
+        """
+
+        function = node.child_by_field_name("function")
+
+        if not function or function.type != "member_expression":
+            return None
+
+        method = function.child_by_field_name("property")
+
+        if not method:
+            return None
+
+        verb = AstReader.text(method, source)
+
+        if verb in libraries.RX_PUBLISH:
+            side = "produce"
+        elif verb in libraries.RX_SUBSCRIBE:
+            side = "consume"
+        else:
+            return None
+
+        receiver = function.child_by_field_name("object")
+
+        if not receiver or receiver.type not in {
+            "identifier",
+            "member_expression",
+        }:
+            return None
+
+        path = AstReader.text(receiver, source)
+
+        root_name = path.split(".")[0]
+
+        module = imported.get(root_name)
+
+        if not module or module in libraries.RX_INTERNAL:
+            return None
+
+        return "rxjs-subject", f"{module}#{path}", side
+
+    def _literal(self, node: Node, source: bytes) -> str | None:
+        """O valor quando ele é literal ou constante resolvível, e só."""
+
+        if node.type == "string":
+            return AstReader.strip_quotes(AstReader.text(node, source))
+
+        value = self.evaluator.evaluate(node, source)
+
+        return value.url if value else None
 
     def _value(self, node: Node, source: bytes) -> str | None:
         """Resolve o canal: literal, constante, ou o texto da expressão."""

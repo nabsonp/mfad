@@ -70,14 +70,31 @@ The call site reveals the action's name, not the slice it changes; finding the s
 
 ## 4. Communication
 
-Three tiers, all producing the same artefact. Producer and consumer are paired by **channel name**, which is the contract between the two ends, not by the shape of the call.
+Four tiers, all producing the same artefact. Producer and consumer are paired by **channel name**, which is the contract between the two ends, not by the shape of the call — except in tier 0, where the declaration names both ends itself.
+
+> **Tier 0 — declared by the technology.**
+> **Given** an orchestrator that registers an application with `customProps`
+> **then** one directed channel per key is recorded, from the orchestrator to that application.
+
+This is the only channel that needs no pairing: the registration names **both** ends at once. Who injects is the orchestrator, who receives is the application named there, and each key is a channel. The edge is therefore directed, unlike the ones born of two ends meeting over a channel name, which can be symmetric.
 
 > **Tier 1 — platform primitives.**
 > **Given** the source files of a micro frontend
-> **when** one of them has `dispatchEvent(new CustomEvent(channel))` with `addEventListener`, or `BroadcastChannel`, or `postMessage`
+> **when** one of them has `dispatchEvent(new CustomEvent(channel))` with `addEventListener`, or `BroadcastChannel`, or `postMessage`, or `localStorage`/`sessionStorage` under the same key
 > **then** communication is recorded.
 
 These are browser APIs: they hold in any project, with no configuration.
+
+**Web Storage.** `setItem(key, …)` produces, `getItem(key)` consumes, and the key is the channel — two units touching the same key are coupled by the format of the value, with no contract declared anywhere. The receiver must be `localStorage` or `sessionStorage` itself: matching on the method name alone would turn every class with a `getItem` into a channel. The key must be a **literal** or a constant that resolves; a key held in a variable yields nothing. That costs recall and buys precision, and the trade was paid for — falling back to the variable's name paired two copies of the same theme provider that had nothing to do with each other, each with a parameter called `storageKey`.
+
+**Cross-window `postMessage`.** Distinguished from `BroadcastChannel` by arity: the latter takes the payload alone, because its channel is in the constructor; the former takes payload and target origin, and then the channel travels **inside** the payload. That is convention, not API — the platform defines no channel name here — so the channel is read from a `type`, `action`, `event` or `name` field of an object literal, and nothing is recorded when the payload is not a literal. On the consuming side the single `addEventListener("message", …)` handles every channel, so what separates them are the comparisons inside the handler — `event.data.type === "cart:updated"` — and only literals compared against one of those fields, inside that handler, count.
+
+> **Tier 1b — shared RxJS subject.**
+> **Given** a symbol imported from a module
+> **when** it receives `.next(…)` or `.subscribe(…)`
+> **then** communication is recorded on the channel `module#symbol`.
+
+The canonical channel between Angular micro frontends, and the one case where the channel is not a string but the identity of a symbol: two units importing the same `cart$` from the same module are the two ends of one channel. The receiver has to be bound by an import — without that requirement `this.http.get(url).subscribe(…)` becomes communication and an entire Angular project turns to noise. Imports from `rxjs` itself are excluded: those are the library, not a channel.
 
 > **Tier 2 — known buses.**
 > **Given** a source file importing `mitt`, `eventemitter3`, `tiny-emitter` or `pubsub-js`

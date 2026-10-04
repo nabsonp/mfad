@@ -33,6 +33,42 @@ BROADCAST_CHANNEL = "BroadcastChannel"
 
 POST_MESSAGE = "postMessage"
 
+#: `localStorage.setItem(chave, ...)` e `getItem(chave)`.
+#:
+#: Dois micro frontends que tocam a mesma chave estão acoplados pelo
+#: formato do valor, e ninguém declarou esse contrato em lugar
+#: nenhum. É canal como qualquer outro, com a chave fazendo o papel
+#: do nome.
+STORAGES = ("localStorage", "sessionStorage")
+
+STORAGE_WRITE = ("setItem", "removeItem")
+
+STORAGE_READ = ("getItem",)
+
+#: `subject.next(v)` e `subject.subscribe(fn)` sobre um Subject
+#: IMPORTADO de um módulo compartilhado.
+#:
+#: É o canal canônico entre micro frontends Angular. O receptor
+#: precisa vir de um import: `this.http.get(...).subscribe(...)` é
+#: requisição HTTP, não canal, e casar pelo nome do método
+#: transformaria metade de um projeto Angular em comunicação.
+RX_PUBLISH = ("next",)
+
+RX_SUBSCRIBE = ("subscribe",)
+
+#: Módulos cujos exports são a própria biblioteca, não um canal.
+RX_INTERNAL = ("rxjs", "rxjs/operators")
+
+#: `alvo.postMessage({ type: "x" }, origem)` entre janelas.
+#:
+#: Diferente do `BroadcastChannel`, que leva o canal no construtor:
+#: aqui o canal viaja DENTRO do payload, por convenção. Estes são os
+#: nomes de campo que a convenção usa, em ordem de preferência.
+MESSAGE_TYPE_FIELDS = ("type", "action", "event", "name")
+
+#: O evento que entrega a mensagem do outro lado.
+MESSAGE_EVENT = "message"
+
 
 # ----------------------------------------------------------------------
 # Nível 2 — barramentos de eventos conhecidos
