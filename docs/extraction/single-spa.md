@@ -214,13 +214,28 @@ An always-on `activeWhen` (`/`) is **not** used as a signal: two applications ca
 
 ---
 
-## 4. Beyond composition
+## 4. Communication through `customProps`
 
-Navigation, external calls, global state and communication do not depend on how the system is composed, and are described in [common.md](common.md).
+> **Given** a registration carrying `customProps`, and the orchestrator that declares it
+> **then** one communication is recorded per key, from the orchestrator to the registered application, on the channel named by the key, directed.
+
+This is the channel single-spa itself recommends, and the only one in the tool that needs no pairing: the registration names **both** ends at once. Who injects is the orchestrator, who receives is the application named right there, and each key is a channel. Every other mechanism is born of two ends that have to meet over a channel name and may turn out symmetric; this one has source and target written into the declaration, so the edge is directed by construction — which is what lets `cyclic-dependency`, which counts only directed edges, read it.
+
+The keys were already extracted into `metadata.custom_props` (§1.1); what was missing was emitting the edge. On nabstore it yields seven: the orchestrator injecting the redux actions — `addProductToCartAction`, `loginAction`, `selectEnderecoAction` — into the applications that use them.
+
+Only the orchestrator's side is read. What the application does with the prop it receives is not traced, so there is no `consumed_at`: the declaration proves the injection, never the use. An application that is handed `onLogout` and never calls it produces the same edge as one that calls it on every screen.
+
+When a repository holds more than one orchestrator, the edge comes from the one that **mounts** that application (§1.5). With a single orchestrator and no `mounts` match, it is attributed to that one; with several and no match, nothing is recorded rather than guessing.
 
 ---
 
-## 5. Known limits
+## 5. Beyond composition
+
+Navigation, external calls, global state and the remaining communication mechanisms — platform primitives, Web Storage, shared RxJS subjects, cross-window `postMessage`, known buses and the declared spec — do not depend on how the system is composed, and are described in [common.md](common.md).
+
+---
+
+## 6. Known limits
 
 | | |
 |---|---|
@@ -231,6 +246,7 @@ Everything here is either undecidable from source or a deliberate choice, not wo
 | Activity functions of unknown shape | flagged `opaque` and mined for literals — see §1.1. A function can compute its route from anything, so there is no shape list that closes this |
 | `constructRoutes(variable)` | resolving it means evaluating the module — see §1.3 |
 | `customProps` values that are not literals | assembled at runtime; the key is kept, the value cannot be — see §1.1 |
+| Use of an injected `customProps` | only the orchestrator's side is read, so the edge proves the injection and never the use — see §4 |
 | Containers assembled at runtime | `getElementById(someVariable)` names an element only the running page knows — see §2.2 |
 | State writes | a deliberate exclusion, not a gap. The call site names the action, never the slice — see [common.md](common.md) |
 | Coverage | the report does not say what was left unresolved (RF-25) |
