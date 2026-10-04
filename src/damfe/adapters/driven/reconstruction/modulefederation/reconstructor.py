@@ -21,7 +21,7 @@ from damfe.domain import (
     ApiCall,
     Communication,
     CommunicationSpec,
-    FragmentImport,
+    Composition,
     MicroFrontend,
     Navigation,
     StateAccess,
@@ -44,7 +44,7 @@ from damfe.adapters.driven.reconstruction.modulefederation import config
 from damfe.adapters.driven.reconstruction.modulefederation.microfrontends import (
     FederatedBuilder,
 )
-from damfe.adapters.driven.reconstruction.modulefederation.fragment_imports import (
+from damfe.adapters.driven.reconstruction.modulefederation.compositions import (
     RemoteImportExtractor,
 )
 
@@ -107,11 +107,11 @@ class ModuleFederationReconstructor(Reconstructor):
 
         return [item for item in found if self._in_scope(item.id)]
 
-    def fragment_imports(
+    def compositions(
         self,
         repository: Path,
         microfrontends: list[MicroFrontend],
-    ) -> list[FragmentImport]:
+    ) -> list[Composition]:
 
         return RemoteImportExtractor(
             self._context(repository),

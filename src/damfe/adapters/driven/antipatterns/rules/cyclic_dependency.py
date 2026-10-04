@@ -31,9 +31,9 @@ class Relation:
     edges: Callable[[MicroFrontendArchitecture], Iterable]
 
 
-def _fragment_import_edges(architecture: MicroFrontendArchitecture):
+def _composition_edges(architecture: MicroFrontendArchitecture):
 
-    for item in architecture.fragment_imports:
+    for item in architecture.compositions:
         yield item.consumer, item.provider, item.fragment, [
             item.imported_at
         ]
@@ -71,13 +71,13 @@ def _communication_edges(architecture: MicroFrontendArchitecture):
 
 RELATIONS = (
     Relation(
-        key="fragment_import",
+        key="composition",
         label="importação de fragmento",
         explanation=(
             "acoplamento de build: as partes não podem ser "
             "construídas nem implantadas separadamente"
         ),
-        edges=_fragment_import_edges,
+        edges=_composition_edges,
     ),
     Relation(
         key="communication",

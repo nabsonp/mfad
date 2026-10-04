@@ -17,8 +17,8 @@ from tree_sitter import Node
 
 from damfe.domain import (
     MicroFrontend,
-    FragmentImport,
-    RenderSite,
+    Composition,
+    RenderLocation,
     SourceLocation,
 )
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
@@ -29,7 +29,7 @@ from damfe.adapters.driven.reconstruction.singlespa.reachability import (
 )
 
 
-class FragmentImportExtractor:
+class CompositionExtractor:
 
     def __init__(
         self,
@@ -55,9 +55,9 @@ class FragmentImportExtractor:
             if microfrontend.directory
         }
 
-    def extract(self) -> list[FragmentImport]:
+    def extract(self) -> list[Composition]:
 
-        found: list[FragmentImport] = []
+        found: list[Composition] = []
 
         self.containers = self._containers()
 
@@ -129,7 +129,7 @@ class FragmentImportExtractor:
         file_path: Path,
         root: Node,
         source: bytes,
-    ) -> list[FragmentImport]:
+    ) -> list[Composition]:
 
         records = [
             record
@@ -148,7 +148,7 @@ class FragmentImportExtractor:
         relative = self.context.relative(file_path)
 
         return [
-            FragmentImport(
+            Composition(
                 consumer=consumer,
                 provider=record.module,
                 fragment=record.imported_name,
@@ -182,11 +182,11 @@ class FragmentImportExtractor:
         root: Node,
         source: bytes,
         file_path: Path,
-    ) -> dict[str, list[RenderSite]]:
+    ) -> dict[str, list[RenderLocation]]:
 
         relative = self.context.relative(file_path)
 
-        sites: dict[str, list[RenderSite]] = {}
+        sites: dict[str, list[RenderLocation]] = {}
 
         for element, opening in jsx.elements(root):
 
@@ -196,7 +196,7 @@ class FragmentImportExtractor:
                 continue
 
             sites.setdefault(tag, []).append(
-                RenderSite(
+                RenderLocation(
                     file=relative,
                     line=element.start_point.row + 1,
                     props=jsx.prop_names(opening, source),
@@ -209,7 +209,7 @@ class FragmentImportExtractor:
 
                 for name in self._parcel_config(opening, source):
                     sites.setdefault(name, []).append(
-                        RenderSite(
+                        RenderLocation(
                             file=relative,
                             line=element.start_point.row + 1,
                             props=jsx.prop_names(opening, source),
@@ -235,8 +235,8 @@ class FragmentImportExtractor:
         root: Node,
         source: bytes,
         relative: str,
-        sites: dict[str, list[RenderSite]],
-    ) -> dict[str, list[RenderSite]]:
+        sites: dict[str, list[RenderLocation]],
+    ) -> dict[str, list[RenderLocation]]:
         """
         Montagem manual de parcel: o outro jeito de compor.
 
@@ -256,7 +256,7 @@ class FragmentImportExtractor:
 
         MOUNTS = {"mountRootParcel", "mountParcel"}
 
-        found: dict[str, list[RenderSite]] = {}
+        found: dict[str, list[RenderLocation]] = {}
 
         for call in AstReader.find_all(root, "call_expression"):
 
@@ -287,7 +287,7 @@ class FragmentImportExtractor:
                 continue
 
             found.setdefault(config, list(sites.get(config, []))).append(
-                RenderSite(
+                RenderLocation(
                     file=relative,
                     line=call.start_point.row + 1,
                     props=[],

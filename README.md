@@ -85,7 +85,7 @@ Cada etapa roda sozinha e imprime no terminal, sem gravar:
 
 ```bash
 damfe microfrontends <repo>     # inventário: rotas, telas, fragmentos, tamanho
-damfe fragment-imports <repo>   # quem usa componente de quem
+damfe compositions <repo>        # quem usa componente de quem
 damfe navigations <repo>        # quem leva o usuário para onde
 damfe api-calls <repo>          # quem chama qual serviço externo
 damfe global-state <repo>       # quem lê qual fatia do estado global
@@ -131,7 +131,7 @@ damfe setup-communication <repo>   # gera .damfe/communication.yml
 |---|---|
 | `manifest.json` | o envelope: versão do esquema, procedência e índice |
 | `microfrontends.json` | os nós: rotas, papel, telas, fragmentos, tamanho |
-| `fragment_imports.json` | consumo de componente entre micro frontends |
+| `compositions.json` | consumo de componente entre micro frontends |
 | `navigations.json` | navegação do usuário entre micro frontends |
 | `communications.json` | troca de mensagens |
 | `api_calls.json` | chamadas a serviços externos, com as telas que as alcançam |

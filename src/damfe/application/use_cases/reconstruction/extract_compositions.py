@@ -6,11 +6,11 @@ from pathlib import Path
 
 from damfe.application.errors import RepositoryNotFound
 from damfe.application.ports import Reconstructor, UseCase
-from damfe.application.results import FragmentImportsResult
+from damfe.application.results import CompositionsResult
 from damfe.domain import MicroFrontend
 
 
-class ExtractFragmentImportsUseCase(UseCase[FragmentImportsResult]):
+class ExtractCompositionsUseCase(UseCase[CompositionsResult]):
 
     def __init__(
         self,
@@ -24,7 +24,7 @@ class ExtractFragmentImportsUseCase(UseCase[FragmentImportsResult]):
         # Quando já foram extraídas, não se extrai de novo.
         self.microfrontends = microfrontends
 
-    def execute(self) -> FragmentImportsResult:
+    def execute(self) -> CompositionsResult:
 
         if not self.repository_path.exists():
             raise RepositoryNotFound(self.repository_path)
@@ -36,8 +36,8 @@ class ExtractFragmentImportsUseCase(UseCase[FragmentImportsResult]):
                 self.repository_path
             )
 
-        return FragmentImportsResult(
-            fragment_imports=self.reconstructor.fragment_imports(
+        return CompositionsResult(
+            compositions=self.reconstructor.compositions(
                 self.repository_path,
                 microfrontends,
             )

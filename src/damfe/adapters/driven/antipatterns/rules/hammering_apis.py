@@ -17,15 +17,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
-
-
-@dataclass
-class Endpoint:
-
-    path: str
-    callers: dict[str, list[SourceLocation]] = field(default_factory=dict)
-    methods: set[str] = field(default_factory=set)
+from damfe.domain import (
+    AntiPattern,
+    AntiPatternDetection,
+    Endpoint,
+    MicroFrontendArchitecture,
+    SourceLocation,
+)
 
 
 class HammeringApis(Rule):
@@ -49,34 +47,19 @@ class HammeringApis(Rule):
 
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        endpoints = self._endpoints(architecture)
-
         return [
-            self._detection(endpoint)
-            for endpoint in endpoints
-            if len(endpoint.callers) >= self.min_callers
+            self._detection(endpoint, architecture)
+            for endpoint in architecture.endpoints
+            if len(endpoint.microfrontends) >= self.min_callers
         ]
 
-    @staticmethod
-    def _endpoints(architecture: MicroFrontendArchitecture) -> list[Endpoint]:
+    def _detection(
+        self,
+        endpoint: Endpoint,
+        architecture: MicroFrontendArchitecture,
+    ) -> AntiPatternDetection:
 
-        grouped: dict[str, Endpoint] = {}
-
-        for call in architecture.api_calls:
-
-            endpoint = grouped.setdefault(call.path, Endpoint(path=call.path))
-
-            endpoint.methods.add(call.method)
-
-            endpoint.callers.setdefault(call.microfrontend, []).append(
-                call.at
-            )
-
-        return [grouped[path] for path in sorted(grouped)]
-
-    def _detection(self, endpoint: Endpoint) -> AntiPatternDetection:
-
-        callers = sorted(endpoint.callers)
+        callers = sorted(endpoint.microfrontends)
 
         return AntiPatternDetection(
             anti_pattern=self.name,
@@ -93,10 +76,13 @@ class HammeringApis(Rule):
                 + ", ".join(self._short(caller) for caller in callers)
             ),
             subjects=callers,
+            # As localizações vêm das chamadas, não do endpoint:
+            # ele é o nó externo, e quem registra onde a chamada
+            # acontece é o `ApiCall`.
             locations=[
-                location
-                for caller in callers
-                for location in endpoint.callers[caller]
+                call.at
+                for call in architecture.api_calls
+                if call.path == endpoint.path
             ],
             metadata={
                 "relation": "shared_endpoint",

@@ -11,15 +11,15 @@ from damfe.domain import (
     MicroFrontend,
     Communication,
     CommunicationSpec,
-    FragmentImport,
+    Composition,
     Navigation,
     StateAccess,
 )
 from damfe.adapters.driven.reconstruction.ast import AstReader, SourceTree
 from damfe.adapters.driven.reconstruction.singlespa.microfrontends import MicroFrontendBuilder
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
-from damfe.adapters.driven.reconstruction.singlespa.fragment_imports import (
-    FragmentImportExtractor,
+from damfe.adapters.driven.reconstruction.singlespa.compositions import (
+    CompositionExtractor,
 )
 from damfe.adapters.driven.reconstruction.singlespa.api_calls import (
     ApiCallExtractor,
@@ -114,13 +114,13 @@ class SingleSpaReconstructor(Reconstructor):
 
         return found
 
-    def fragment_imports(
+    def compositions(
         self,
         repository: Path,
         microfrontends: list[MicroFrontend],
-    ) -> list[FragmentImport]:
+    ) -> list[Composition]:
 
-        return FragmentImportExtractor(
+        return CompositionExtractor(
             self._context(repository),
             microfrontends,
         ).extract()

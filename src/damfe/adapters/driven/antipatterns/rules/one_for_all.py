@@ -103,7 +103,7 @@ class OneForAll(Rule):
         edges = (
             [
                 (item.consumer, item.provider)
-                for item in architecture.fragment_imports
+                for item in architecture.compositions
             ]
             + [
                 (item.source, item.target)

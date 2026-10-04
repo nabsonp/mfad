@@ -176,7 +176,7 @@ section.block {
    aplicação. Cinza e fina para não competir com as relações entre
    pares, que são o que se procura ao ler o grafo. */
 .edge.mount { stroke: var(--mount); stroke-width: 1.6; }
-.edge.fragment_import { stroke: var(--fragment); }
+.edge.composition { stroke: var(--fragment); }
 .edge.navigation { stroke: var(--navigation); stroke-dasharray: 8 4; }
 .edge.communication { stroke: var(--communication); stroke-dasharray: 2 3; }
 .edge.shared_endpoint {

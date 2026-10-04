@@ -25,7 +25,7 @@ from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 RELATION_LABELS = {
-    "fragment_import": "composição",
+    "composition": "composição",
     "navigation": "navegação",
     "communication": "comunicação",
 }
@@ -96,7 +96,7 @@ class HtmlRenderer(Renderer):
             (len(architecture.microfrontends), "micro frontends", False),
             (len(architecture.screens), "telas", False),
             (len(architecture.fragments), "fragmentos", False),
-            (len(architecture.fragment_imports), "composições", False),
+            (len(architecture.compositions), "composições", False),
             (len(architecture.navigations), "navegações", False),
             (len(architecture.communications), "comunicações", False),
             (len(architecture.api_calls), "chamadas externas", False),
@@ -169,7 +169,7 @@ class HtmlRenderer(Renderer):
     def _markers() -> str:
 
         colors = {
-            "fragment_import": "#1d4ed8",
+            "composition": "#1d4ed8",
             "navigation": "#059669",
             "communication": "#be123c",
         }
@@ -201,7 +201,7 @@ class HtmlRenderer(Renderer):
             grouped.setdefault(key, []).append(edge["label"] or "")
 
         bows = {
-            "fragment_import": 0.16,
+            "composition": 0.16,
             "navigation": 0.26,
             "communication": 0.36,
             payload.DERIVED: 0.46,
@@ -294,7 +294,7 @@ class HtmlRenderer(Renderer):
             f'style="border-bottom-color:{color}"></span>{label}</span>'
             for key, label, color in (
                 ("mount", "montagem", "#6b7280"),
-                ("fragment_import", "composição", "#1d4ed8"),
+                ("composition", "composição", "#1d4ed8"),
                 ("navigation", "navegação", "#059669"),
                 ("communication", "comunicação", "#be123c"),
                 (payload.DERIVED, "backend compartilhado", "#b45309"),
@@ -403,7 +403,7 @@ class HtmlRenderer(Renderer):
             # O que passa pela aresta muda com a relação: fragmento
             # na composição, rota na navegação, canal na comunicação.
             through = {
-                "fragment_import": "fragmentos",
+                "composition": "fragmentos",
                 "navigation": "rotas",
                 "communication": "canais",
             }.get(metadata.get("relation"), "itens")

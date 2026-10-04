@@ -16,7 +16,7 @@ classDiagram
         <<root>>
         +str project
         +list~MicroFrontend~ microfrontends
-        +list~FragmentImport~ fragment_imports
+        +list~Composition~ compositions
         +list~Navigation~ navigations
         +list~Communication~ communications
         +list~ApiCall~ api_calls
@@ -69,17 +69,17 @@ classDiagram
         +int code_lines
     }
 
-    class FragmentImport {
+    class Composition {
         <<relationship>>
         +str consumer
         +str provider
         +str fragment
         +str local_name
         +SourceLocation imported_at
-        +list~RenderSite~ renders
+        +list~RenderLocation~ renders
     }
 
-    class RenderSite {
+    class RenderLocation {
         <<value>>
         +str file
         +int line
@@ -193,7 +193,7 @@ classDiagram
     }
 
     MicroFrontendArchitecture *-- MicroFrontend
-    MicroFrontendArchitecture *-- FragmentImport
+    MicroFrontendArchitecture *-- Composition
     MicroFrontendArchitecture *-- Navigation
     MicroFrontendArchitecture *-- Communication
     MicroFrontendArchitecture *-- ApiCall
@@ -204,8 +204,8 @@ classDiagram
     MicroFrontend *-- Screen
     MicroFrontend *-- CodeSize
 
-    FragmentImport *-- SourceLocation : imported_at
-    FragmentImport *-- RenderSite
+    Composition *-- SourceLocation : imported_at
+    Composition *-- RenderLocation
     Navigation *-- SourceLocation : at
     Communication *-- SourceLocation : produced_at / consumed_at
     ApiCall *-- SourceLocation : at
@@ -219,12 +219,12 @@ classDiagram
 
     Screen ..> MicroFrontend : microfrontend
     Fragment ..> MicroFrontend : microfrontend
-    FragmentImport ..> MicroFrontend : consumer / provider
+    Composition ..> MicroFrontend : consumer / provider
     Navigation ..> MicroFrontend : source / target
     Communication ..> MicroFrontend : source / target
     ApiCall ..> MicroFrontend : microfrontend
     ApiCall ..> Screen : screens
     ApiCall ..> Fragment : fragments
     StateAccess ..> MicroFrontend : microfrontend
-    RenderSite ..> Screen : screens
+    RenderLocation ..> Screen : screens
     AntiPatternDetection ..> MicroFrontend : subjects

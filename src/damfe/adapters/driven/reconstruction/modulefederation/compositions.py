@@ -19,9 +19,9 @@ from pathlib import Path
 from tree_sitter import Node
 
 from damfe.domain import (
-    FragmentImport,
+    Composition,
     MicroFrontend,
-    RenderSite,
+    RenderLocation,
     SourceLocation,
 )
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
@@ -68,11 +68,11 @@ class RemoteImportExtractor:
 
         self.containers: dict[str, list[str]] = {}
 
-    def extract(self) -> list[FragmentImport]:
+    def extract(self) -> list[Composition]:
 
         self.containers = self._containers()
 
-        found: list[FragmentImport] = []
+        found: list[Composition] = []
 
         for file_path in self.context.tree.source_files():
 
@@ -123,7 +123,7 @@ class RemoteImportExtractor:
         file_path: Path,
         root: Node,
         source: bytes,
-    ) -> list[FragmentImport]:
+    ) -> list[Composition]:
 
         consumer = self._owner_of(file_path)
 
@@ -149,7 +149,7 @@ class RemoteImportExtractor:
                 continue
 
             found.append(
-                FragmentImport(
+                Composition(
                     consumer=consumer,
                     provider=provider,
                     fragment=f"./{fragment}",
@@ -206,11 +206,11 @@ class RemoteImportExtractor:
         root: Node,
         source: bytes,
         file_path: Path,
-    ) -> dict[str, list[RenderSite]]:
+    ) -> dict[str, list[RenderLocation]]:
 
         relative = self.context.relative(file_path)
 
-        sites: dict[str, list[RenderSite]] = {}
+        sites: dict[str, list[RenderLocation]] = {}
 
         for element, opening in jsx.elements(root):
 
@@ -220,7 +220,7 @@ class RemoteImportExtractor:
                 continue
 
             sites.setdefault(tag, []).append(
-                RenderSite(
+                RenderLocation(
                     file=relative,
                     line=element.start_point.row + 1,
                     props=jsx.prop_names(opening, source),

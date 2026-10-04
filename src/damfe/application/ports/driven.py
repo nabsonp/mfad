@@ -20,7 +20,7 @@ from damfe.domain import (
     CommunicationSpec,
     AntiPattern,
     AntiPatternDetection,
-    FragmentImport,
+    Composition,
     Navigation,
     SourceRepository,
     StateAccess,
@@ -54,11 +54,11 @@ class Reconstructor(ABC):
         """As unidades de implantação e o que cada uma contém."""
 
     @abstractmethod
-    def fragment_imports(
+    def compositions(
         self,
         repository: Path,
         microfrontends: list[MicroFrontend],
-    ) -> list[FragmentImport]:
+    ) -> list[Composition]:
         """
         O consumo de fragmentos através das fronteiras.
 

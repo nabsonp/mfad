@@ -7,8 +7,8 @@ from damfe.application.use_cases.reconstruction.extract_api_calls import (
 from damfe.application.use_cases.reconstruction.extract_communications import (
     ExtractCommunicationsUseCase,
 )
-from damfe.application.use_cases.reconstruction.extract_fragment_imports import (
-    ExtractFragmentImportsUseCase,
+from damfe.application.use_cases.reconstruction.extract_compositions import (
+    ExtractCompositionsUseCase,
 )
 from damfe.application.use_cases.reconstruction.extract_navigations import (
     ExtractNavigationsUseCase,
@@ -27,7 +27,7 @@ __all__ = [
     "ExtractApiCallsUseCase",
     "ExtractMicroFrontendsUseCase",
     "ExtractCommunicationsUseCase",
-    "ExtractFragmentImportsUseCase",
+    "ExtractCompositionsUseCase",
     "ExtractNavigationsUseCase",
     "ExtractStateAccessesUseCase",
     "ReconstructUseCase",

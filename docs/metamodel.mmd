@@ -3,21 +3,52 @@
 %% RECORTE das classes de src/damfe/domain/ — todas existem no código,
 %% com os campos que elas têm de fato. Ficam de fora as peças do próprio
 %% damfe, que continuam no código e não são conceitos da arquitetura
-%% analisada: MicroFrontendArchitecture (o agregado), Provenance e
-%% SourceRepository (procedência da execução), CommunicationSpec,
-%% Mechanism e ChannelOperation (configuração do extrator).
+%% analisada: Provenance e SourceRepository (procedência da execução),
+%% CommunicationSpec, Mechanism e ChannelOperation (configuração do
+%% extrator). Por isso o campo `provenance` do agregado não aparece.
 %%
-%% Losango cheio: composição.
+%% Losango cheio: composição. A cardinalidade do lado do losango é
+%% sempre 1: um value object pertence a um dono só.
 %%
-%% Nenhuma entidade aponta para outra por ponteiro. Campo `str` com
-%% nome de entidade guarda o IDENTIFICADOR dela — `Screen.microfrontend`
-%% é "@org/mfe-checkout", `AntiPatternDetection.subjects` é uma lista de
-%% ids. É o que permite serializar cada coleção num arquivo independente
-%% e recarregar sem reconstruir grafo de objetos.
+%% A cor vem do estereótipo, anotado em cada classe com `:::`. Os
+%% estereótipos continuam escritos, para o diagrama sobreviver em
+%% preto e branco.
+%%
+%% Nenhuma associação é ponteiro: o campo guarda o IDENTIFICADOR do
+%% outro lado — `Screen.microfrontend` é "@org/mfe-checkout". É o que
+%% permite serializar cada coleção num arquivo independente e recarregar
+%% sem reconstruir grafo de objetos.
+%%
+%% Ficam fora do desenho as referências secundárias, que são contexto e
+%% não estrutura: `ApiCall.screens`, `ApiCall.fragments` e
+%% `RenderLocation.screens` guardam ids de tela e de fragmento.
 classDiagram
     direction TB
 
-    class MicroFrontend {
+    classDef root fill:#cfe3d4,stroke:#2d6a4f,color:#10291c
+    classDef entity fill:#dce8f7,stroke:#36618e,color:#14263d
+    classDef relationship fill:#fae3cd,stroke:#9c5f1c,color:#3d2206
+    classDef access fill:#d8ece2,stroke:#2f6b50,color:#12301f
+    classDef value fill:#ebe7f0,stroke:#6f5f8a,color:#271f33
+    classDef external fill:#f3ecd8,stroke:#8a7430,color:#332c0f
+    classDef output fill:#f7dede,stroke:#9c3a3a,color:#3d1414
+
+    class MicroFrontendArchitecture:::root {
+        <<root>>
+        +str project
+        +list~MicroFrontend~ microfrontends
+        +list~Composition~ compositions
+        +list~Navigation~ navigations
+        +list~Communication~ communications
+        +list~ApiCall~ api_calls
+        +list~StateAccess~ state_accesses
+        +microfrontend(id) MicroFrontend
+        +fragments() list~Fragment~
+        +screens() list~Screen~
+        +endpoints() list~Endpoint~
+    }
+
+    class MicroFrontend:::entity {
         <<entity>>
         +str id
         +str directory
@@ -30,7 +61,7 @@ classDiagram
         +CodeSize size
         +dict metadata
     }
-    class Screen {
+    class Screen:::entity {
         <<entity>>
         +str component
         +str microfrontend
@@ -41,7 +72,7 @@ classDiagram
         +bool reachable
         +id() str
     }
-    class Fragment {
+    class Fragment:::entity {
         <<entity>>
         +str name
         +str microfrontend
@@ -50,16 +81,16 @@ classDiagram
         +id() str
     }
 
-    class FragmentImport {
+    class Composition:::relationship {
         <<relationship>>
         +str consumer
         +str provider
         +str fragment
         +str local_name
         +SourceLocation imported_at
-        +list~RenderSite~ renders
+        +list~RenderLocation~ renders
     }
-    class Navigation {
+    class Navigation:::relationship {
         <<relationship>>
         +str source
         +str target
@@ -68,7 +99,7 @@ classDiagram
         +str match
         +SourceLocation at
     }
-    class Communication {
+    class Communication:::relationship {
         <<relationship>>
         +str source
         +str target
@@ -79,7 +110,7 @@ classDiagram
         +bool directed
     }
 
-    class ApiCall {
+    class ApiCall:::access {
         <<access>>
         +str microfrontend
         +str method
@@ -90,7 +121,7 @@ classDiagram
         +list~str~ screens
         +list~str~ fragments
     }
-    class StateAccess {
+    class StateAccess:::access {
         <<access>>
         +str microfrontend
         +str library
@@ -98,19 +129,26 @@ classDiagram
         +SourceLocation at
     }
 
-    class CodeSize {
+    class Endpoint:::external {
+        <<external>>
+        +str path
+        +list~str~ methods
+        +list~str~ microfrontends
+    }
+
+    class CodeSize:::value {
         <<value>>
         +int files
         +int lines
         +int code_lines
     }
-    class SourceLocation {
+    class SourceLocation:::value {
         <<value>>
         +str file
         +int line
         +str code
     }
-    class RenderSite {
+    class RenderLocation:::value {
         <<value>>
         +str file
         +int line
@@ -118,7 +156,7 @@ classDiagram
         +list~str~ screens
     }
 
-    class AntiPattern {
+    class AntiPattern:::entity {
         <<entity>>
         +str name
         +str description
@@ -126,7 +164,7 @@ classDiagram
         +str reference
     }
 
-    class AntiPatternDetection {
+    class AntiPatternDetection:::output {
         <<output>>
         +str anti_pattern
         +str message
@@ -137,16 +175,28 @@ classDiagram
         +dict metadata
     }
 
-    MicroFrontend *-- Screen
-    MicroFrontend *-- Fragment
-    MicroFrontend *-- CodeSize
-    FragmentImport *-- SourceLocation : imported_at
-    FragmentImport *-- RenderSite
-    Navigation *-- SourceLocation : at
-    Communication *-- SourceLocation : produced_at / consumed_at
-    ApiCall *-- SourceLocation : at
-    StateAccess *-- SourceLocation : at
-    AntiPatternDetection *-- SourceLocation
-    AntiPatternDetection ..> AntiPattern : anti_pattern
+    MicroFrontendArchitecture "1" *-- "2..*" MicroFrontend : reúne
+    MicroFrontendArchitecture "1" ..> "0..*" Endpoint : deriva das chamadas
 
-    StateAccess ..> Communication : deriva aresta não dirigida
+    MicroFrontend "1" *-- "0..*" Screen : serve
+    MicroFrontend "1" *-- "0..*" Fragment : expõe
+    MicroFrontend "1" *-- "1" CodeSize
+
+    Composition "0..*" --> "2" MicroFrontend : consumidor / provedor
+    Navigation "0..*" --> "2" MicroFrontend : origem / destino
+    Communication "0..*" --> "2" MicroFrontend : origem / destino
+    ApiCall "0..*" --> "1" MicroFrontend : chamador
+    ApiCall "0..*" --> "1" Endpoint : alvo
+    StateAccess "0..*" --> "1" MicroFrontend
+    AntiPatternDetection "0..*" --> "1..*" MicroFrontend : sujeitos
+
+    Composition "1" *-- "1" SourceLocation : importado em
+    Composition "1" *-- "0..*" RenderLocation : instanciado em
+    Navigation "1" *-- "1" SourceLocation
+    Communication "1" *-- "0..*" SourceLocation : produz / consome
+    ApiCall "1" *-- "1" SourceLocation
+    StateAccess "1" *-- "1" SourceLocation
+    AntiPatternDetection "1" *-- "0..*" SourceLocation
+
+    AntiPatternDetection "0..*" ..> "1" AntiPattern : instancia
+    StateAccess "2..*" ..> "0..*" Communication : deriva aresta não dirigida

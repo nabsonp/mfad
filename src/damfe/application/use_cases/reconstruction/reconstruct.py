@@ -20,8 +20,8 @@ from damfe.application.results import ReconstructionResult
 from damfe.application.use_cases.reconstruction.extract_microfrontends import (
     ExtractMicroFrontendsUseCase,
 )
-from damfe.application.use_cases.reconstruction.extract_fragment_imports import (
-    ExtractFragmentImportsUseCase,
+from damfe.application.use_cases.reconstruction.extract_compositions import (
+    ExtractCompositionsUseCase,
 )
 from damfe.application.use_cases.reconstruction.extract_api_calls import (
     ExtractApiCallsUseCase,
@@ -46,7 +46,7 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         repository_path: Path,
         destination: Path | None,
         extract_microfrontends: ExtractMicroFrontendsUseCase,
-        extract_fragment_imports: ExtractFragmentImportsUseCase,
+        extract_compositions: ExtractCompositionsUseCase,
         extract_navigations: ExtractNavigationsUseCase,
         extract_communications: ExtractCommunicationsUseCase,
         extract_api_calls: ExtractApiCallsUseCase,
@@ -58,7 +58,7 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         self.repository_path = repository_path
         self.destination = destination
         self.extract_microfrontends = extract_microfrontends
-        self.extract_fragment_imports = extract_fragment_imports
+        self.extract_compositions = extract_compositions
         self.extract_navigations = extract_navigations
         self.extract_communications = extract_communications
         self.extract_api_calls = extract_api_calls
@@ -71,10 +71,10 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
 
         microfrontends = self.extract_microfrontends.execute().microfrontends
 
-        self.extract_fragment_imports.microfrontends = microfrontends
+        self.extract_compositions.microfrontends = microfrontends
 
-        fragment_imports = (
-            self.extract_fragment_imports.execute().fragment_imports
+        compositions = (
+            self.extract_compositions.execute().compositions
         )
 
         self.extract_navigations.microfrontends = microfrontends
@@ -108,7 +108,7 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
             project=self.repository_path.resolve().name,
             provenance=self._provenance(),
             microfrontends=microfrontends,
-            fragment_imports=fragment_imports,
+            compositions=compositions,
             navigations=navigations,
             communications=communications,
             api_calls=api_calls,

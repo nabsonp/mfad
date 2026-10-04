@@ -90,7 +90,7 @@ class HubLikeDependency(Rule):
 
         hosts: dict[str, Host] = {}
 
-        for item in architecture.fragment_imports:
+        for item in architecture.compositions:
 
             for render in item.renders:
 

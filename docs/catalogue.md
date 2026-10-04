@@ -21,7 +21,7 @@ A coluna *Entrada* de cada regra se refere a estes:
 | `MicroFrontend` | id, diretório, entrypoint, rotas, papel, telas, fragmentos, tamanho |
 | `Screen` | componente, rota, arquivo, linha |
 | `Fragment` | nome, arquivo, linha |
-| `FragmentImport` | consumidor, provedor, fragmento, local do import, locais de instanciação, props |
+| `Composition` | consumidor, provedor, fragmento, local do import, locais de instanciação, props |
 | `Navigation` | origem, destino, expressão, URL resolvida, confiança |
 | `Communication` | origem, destino, mecanismo, canal, locais dos dois lados |
 | `ApiCall` | micro frontend, método, caminho, cliente |
@@ -47,7 +47,7 @@ uma.
 
 | | |
 |---|---|
-| **Entrada** | `FragmentImport`, `Navigation`, `Communication` |
+| **Entrada** | `Composition`, `Navigation`, `Communication` |
 | **Detecção** | Monta um grafo dirigido por relação, separadamente, e enumera os ciclos elementares de cada um. Teto de 200 ciclos, porque a enumeração cresce com a quantidade de ciclos, não com o tamanho do grafo. |
 | **Saída** | Uma ocorrência por ciclo. `dimension` diz qual relação o produziu; `chain` traz a sequência ordenada; `through` lista o que passa por cada aresta — fragmentos, rotas ou canais conforme a relação. |
 
@@ -60,7 +60,7 @@ build; ciclo de navegação costuma ser fluxo legítimo do produto.
 
 | | |
 |---|---|
-| **Entrada** | `MicroFrontend.screens`, `FragmentImport.renders` |
+| **Entrada** | `MicroFrontend.screens`, `Composition.renders` |
 | **Detecção** | Agrupa as instanciações de fragmento por tela, usando as telas que o sítio de renderização registra. Acusa quando a tela instancia `min_fragments` fragmentos. Padrão 5. |
 | **Saída** | Uma ocorrência por tela. Metadados: tela, provedores, fragmentos instanciados. |
 
@@ -106,7 +106,7 @@ prática existe e quem participa.
 
 | | |
 |---|---|
-| **Entrada** | `FragmentImport`, `Navigation`, `Communication` |
+| **Entrada** | `Composition`, `Navigation`, `Communication` |
 | **Detecção** | Conta vizinhos distintos de cada MFE, somadas as relações, e acusa quem alcança `ratio` dos demais. Exclui o orquestrador do cálculo e se abstém abaixo de `min_microfrontends`. Padrões 0,9 e 5. |
 | **Saída** | Uma ocorrência por MFE. Metadados: cobertura, vizinhos, e a separação entre de quem depende e por quem é dependido. |
 
@@ -174,7 +174,7 @@ Implementar as duas só se a distinção for defendida no texto.
 
 | | |
 |---|---|
-| **Entrada** | `Communication`, `FragmentImport` |
+| **Entrada** | `Communication`, `Composition` |
 | **Detecção** | Busca cliques de três ou mais nós — conjuntos em que todos se comunicam com todos. `networkx.find_cliques` resolve. |
 | **Saída** | Uma ocorrência por clique. Metadados: os MFEs do nó e os canais ou fragmentos que os ligam. |
 
@@ -183,7 +183,7 @@ Implementar as duas só se a distinção for defendida no texto.
 
 | | |
 |---|---|
-| **Entrada** | `MicroFrontend.role`, `Communication`, `FragmentImport`, `Navigation` |
+| **Entrada** | `MicroFrontend.role`, `Communication`, `Composition`, `Navigation` |
 | **Detecção** | O papel `shell` já identifica a hospedeira. Acusa par com aresta nos dois sentidos envolvendo o shell, em qualquer relação. |
 | **Saída** | Uma ocorrência por par. Metadados: as relações em cada sentido. |
 
@@ -324,7 +324,7 @@ não como fato observado.
 | | |
 |---|---|
 | **Extração nova** | Identificação do monólito e da direção do embutimento |
-| **Entrada** | a extração acima + `FragmentImport` |
+| **Entrada** | a extração acima + `Composition` |
 | **Detecção** | MFE cujo fragmento é instanciado de volta dentro do legado. |
 | **Saída** | Uma ocorrência por fragmento reembutido. |
 

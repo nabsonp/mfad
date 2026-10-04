@@ -46,7 +46,7 @@ from damfe.application.use_cases import (
     DetectUseCase,
     ExtractMicroFrontendsUseCase,
     ExtractCommunicationsUseCase,
-    ExtractFragmentImportsUseCase,
+    ExtractCompositionsUseCase,
     ExtractNavigationsUseCase,
     ExtractStateAccessesUseCase,
     ReconstructUseCase,
@@ -137,13 +137,13 @@ class Container:
             reconstructor=reconstructor,
         )
 
-    def extract_fragment_imports(
+    def extract_compositions(
         self,
         repository_path: Path,
         reconstructor: Reconstructor,
-    ) -> ExtractFragmentImportsUseCase:
+    ) -> ExtractCompositionsUseCase:
 
-        return ExtractFragmentImportsUseCase(
+        return ExtractCompositionsUseCase(
             repository_path=repository_path,
             reconstructor=reconstructor,
         )
@@ -219,7 +219,7 @@ class Container:
                 repository_path,
                 reconstructor,
             ),
-            extract_fragment_imports=self.extract_fragment_imports(
+            extract_compositions=self.extract_compositions(
                 repository_path,
                 reconstructor,
             ),

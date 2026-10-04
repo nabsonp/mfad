@@ -63,7 +63,7 @@ class FeaturesRenderer(Renderer):
 
         hosted: dict[str, list[str]] = {}
 
-        for item in architecture.fragment_imports:
+        for item in architecture.compositions:
 
             for render in item.renders:
 
@@ -170,7 +170,7 @@ class FeaturesRenderer(Renderer):
 
         rows = [
             ("composição", item.consumer, item.provider, item.fragment)
-            for item in architecture.fragment_imports
+            for item in architecture.compositions
         ] + [
             ("navegação", item.source, item.target, item.resolved_url or "")
             for item in architecture.navigations

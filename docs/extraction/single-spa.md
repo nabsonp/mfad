@@ -136,7 +136,7 @@ Both `domElementGetter` and the direct `domElement` accepted by the framework ad
 
 > **Given** the fragment catalogue and the source files of a micro frontend
 > **when** one of those files imports, from another micro frontend's package, a name present in the catalogue
-> **then** a `FragmentImport` is recorded between the two.
+> **then** a `Composition` is recorded between the two.
 
 The catalogue is what buys precision here: without it there is no way to tell a fragment from any other export of the same package, nor to recognise a JSX instantiation without falling back on naming conventions.
 

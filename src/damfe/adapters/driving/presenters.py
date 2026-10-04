@@ -18,7 +18,7 @@ from damfe.application.results import (
     CommunicationSetupResult,
     CommunicationsResult,
     DetectionResult,
-    FragmentImportsResult,
+    CompositionsResult,
     NavigationsResult,
     ReconstructionResult,
     VisualizationResult,
@@ -73,16 +73,16 @@ def _application(microfrontend: MicroFrontend, write: Writer) -> None:
     write("")
 
 
-def fragment_imports(
-    result: FragmentImportsResult,
+def compositions(
+    result: CompositionsResult,
     write: Writer,
 ) -> None:
 
     write("")
-    write(f"{len(result.fragment_imports)} imports entre micro frontends")
+    write(f"{len(result.compositions)} imports entre micro frontends")
     write("")
 
-    for item in result.fragment_imports:
+    for item in result.compositions:
 
         write(f"{item.consumer} → {item.provider} : {item.fragment}")
 
@@ -251,7 +251,7 @@ def reconstruction(result: ReconstructionResult, write: Writer) -> None:
         f"{len(architecture.microfrontends)} micro frontends, "
         f"{len(architecture.fragments)} fragmentos, "
         f"{len(architecture.screens)} telas, "
-        f"{len(architecture.fragment_imports)} imports e "
+        f"{len(architecture.compositions)} imports e "
         f"{len(architecture.navigations)} navegações e "
         f"{len(architecture.communications)} comunicações entre micro "
         f"frontends · {len(architecture.api_calls)} chamadas externas · "

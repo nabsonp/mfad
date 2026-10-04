@@ -31,7 +31,7 @@ class SourceLocation:
 
 
 @dataclass
-class RenderSite:
+class RenderLocation:
     """Onde um fragmento é de fato instanciado na interface."""
 
     file: str
@@ -144,7 +144,7 @@ class MicroFrontend:
 
 
 @dataclass
-class FragmentImport:
+class Composition:
     """
     Aresta: uma aplicação consome um fragmento de outra.
 
@@ -157,7 +157,7 @@ class FragmentImport:
     fragment: str
     local_name: str
     imported_at: SourceLocation
-    renders: list[RenderSite] = field(default_factory=list)
+    renders: list[RenderLocation] = field(default_factory=list)
 
 
 @dataclass
@@ -187,6 +187,29 @@ class ApiCall:
     at: SourceLocation
     screens: list[str] = field(default_factory=list)
     fragments: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Endpoint:
+    """
+    Um serviço externo consumido pelo sistema.
+
+    É o único nó do modelo que está FORA da fronteira: ninguém o
+    implanta, ninguém o versiona junto, e mesmo assim dois micro
+    frontends que o chamam estão acoplados pelo contrato dele. Sem
+    ele, esse acoplamento não tinha onde morar — `ApiCall` guardava
+    o caminho como texto, e o "mesmo endpoint" do `hammering-apis`
+    não era uma coisa, era uma coincidência de string.
+
+    Derivado das chamadas, não extraído: o caminho é a identidade,
+    e os métodos são os verbos vistos sobre ele.
+    """
+
+    path: str
+    methods: list[str] = field(default_factory=list)
+
+    #: quem o chama, por identificador
+    microfrontends: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -240,7 +263,7 @@ class MicroFrontendArchitecture:
     #: versionado, e caminho de máquina sujaria o diff.
     project: str = ""
     microfrontends: list[MicroFrontend] = field(default_factory=list)
-    fragment_imports: list[FragmentImport] = field(default_factory=list)
+    compositions: list[Composition] = field(default_factory=list)
     navigations: list[Navigation] = field(default_factory=list)
     communications: list["Communication"] = field(default_factory=list)
     api_calls: list[ApiCall] = field(default_factory=list)
@@ -267,6 +290,29 @@ class MicroFrontendArchitecture:
             for microfrontend in self.microfrontends
             for fragment in microfrontend.fragments
         ]
+
+    @property
+    def endpoints(self) -> list["Endpoint"]:
+        """
+        Os serviços externos, agrupados pelas chamadas.
+
+        Derivado, como `fragments` e `screens`: não é coleção
+        gravada, é a leitura das chamadas por caminho.
+        """
+
+        grouped: dict[str, Endpoint] = {}
+
+        for call in self.api_calls:
+
+            endpoint = grouped.setdefault(call.path, Endpoint(path=call.path))
+
+            if call.method not in endpoint.methods:
+                endpoint.methods.append(call.method)
+
+            if call.microfrontend not in endpoint.microfrontends:
+                endpoint.microfrontends.append(call.microfrontend)
+
+        return [grouped[path] for path in sorted(grouped)]
 
     @property
     def screens(self) -> list[Screen]:

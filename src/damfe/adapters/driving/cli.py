@@ -26,7 +26,7 @@ from damfe.composition import Container
 #: ajuda do programa listar onze entradas para um fluxo de três passos.
 EXTRACTIONS = {
     "microfrontends": "_applications",
-    "fragment-imports": "_fragment_imports",
+    "compositions": "_compositions",
     "navigations": "_navigations",
     "api-calls": "_api_calls",
     "global-state": "_global_state",
@@ -156,7 +156,7 @@ def main(argv: list[str] | None = None) -> int:
 
     extractors = {
         "microfrontends": _applications,
-        "fragment-imports": _fragment_imports,
+        "compositions": _compositions,
         "navigations": _navigations,
         "api-calls": _api_calls,
         "global-state": _global_state,
@@ -246,19 +246,19 @@ def _applications(container, arguments, write) -> int:
     return 0
 
 
-def _fragment_imports(container, arguments, write) -> int:
+def _compositions(container, arguments, write) -> int:
 
     reconstructor = _reconstructor(container, arguments, write)
 
     if not reconstructor:
         return 1
 
-    result = container.extract_fragment_imports(
+    result = container.extract_compositions(
         repository_path=arguments.repository,
         reconstructor=reconstructor,
     ).execute()
 
-    presenters.fragment_imports(result, write)
+    presenters.compositions(result, write)
 
     return 0
 

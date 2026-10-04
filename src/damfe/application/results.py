@@ -16,7 +16,7 @@ from damfe.domain import (
     Communication,
     CommunicationSpec,
     AntiPatternDetection,
-    FragmentImport,
+    Composition,
     Navigation,
     StateAccess,
 )
@@ -28,8 +28,8 @@ class MicroFrontendsResult:
 
 
 @dataclass
-class FragmentImportsResult:
-    fragment_imports: list[FragmentImport]
+class CompositionsResult:
+    compositions: list[Composition]
 
 
 @dataclass

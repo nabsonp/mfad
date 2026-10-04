@@ -185,7 +185,7 @@ e visualização numa passada. O encadeamento — `detect` lê o que
 da ferramenta, não decisão do usuário.
 
 **Seis subcomandos viraram `reconstruct --only`.** `microfrontends`,
-`fragment-imports`, `navigations`, `api-calls`, `global-state` e
+`compositions`, `navigations`, `api-calls`, `global-state` e
 `communications` eram recorte do mesmo processo exposto como comandos
 distintos, e faziam a ajuda listar onze entradas para um fluxo de três
 passos. De 11 comandos para 6.

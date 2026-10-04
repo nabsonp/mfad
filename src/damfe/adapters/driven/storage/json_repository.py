@@ -23,9 +23,9 @@ from damfe.domain import (
     MicroFrontendArchitecture,
     Fragment,
     Provenance,
-    FragmentImport,
+    Composition,
     Navigation,
-    RenderSite,
+    RenderLocation,
     Screen,
     SourceLocation,
     SourceRepository,
@@ -36,7 +36,7 @@ from damfe.application.ports import ArtifactRepository
 
 
 MICROFRONTENDS = "microfrontends.json"
-FRAGMENT_IMPORTS = "fragment_imports.json"
+COMPOSITIONS = "compositions.json"
 NAVIGATIONS = "navigations.json"
 COMMUNICATIONS = "communications.json"
 API_CALLS = "api_calls.json"
@@ -61,7 +61,7 @@ class JsonArtifactRepository(ArtifactRepository):
 
         colecoes = [
             (MICROFRONTENDS, architecture.microfrontends),
-            (FRAGMENT_IMPORTS, architecture.fragment_imports),
+            (COMPOSITIONS, architecture.compositions),
             (NAVIGATIONS, architecture.navigations),
             (COMMUNICATIONS, architecture.communications),
             (API_CALLS, architecture.api_calls),
@@ -127,9 +127,9 @@ class JsonArtifactRepository(ArtifactRepository):
                 _load(MicroFrontend, item)
                 for item in self._read(source / MICROFRONTENDS) or []
             ],
-            fragment_imports=[
-                _load(FragmentImport, item)
-                for item in self._read(source / FRAGMENT_IMPORTS) or []
+            compositions=[
+                _load(Composition, item)
+                for item in self._read(source / COMPOSITIONS) or []
             ],
             navigations=[
                 _load(Navigation, item)
@@ -229,7 +229,7 @@ def _dump(value: Any) -> Any:
 
 #: Campos que guardam outra dataclass, POR TIPO — e não por nome de
 #: campo. O mesmo nome significa coisas diferentes em entidades
-#: diferentes: `MicroFrontend.screens` são telas, `RenderSite.screens`
+#: diferentes: `MicroFrontend.screens` são telas, `RenderLocation.screens`
 #: são identificadores de tela. Um mapa global confundiria os dois.
 _NESTED: dict[type, dict[str, type]] = {
     MicroFrontend: {
@@ -237,9 +237,9 @@ _NESTED: dict[type, dict[str, type]] = {
         "screens": Screen,
         "size": CodeSize,
     },
-    FragmentImport: {
+    Composition: {
         "imported_at": SourceLocation,
-        "renders": RenderSite,
+        "renders": RenderLocation,
     },
     Navigation: {"at": SourceLocation},
     Communication: {

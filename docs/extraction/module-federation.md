@@ -78,7 +78,7 @@ A module shaped like that is a catalogue of parts rather than a part, which is t
 
 > **Given** the fragment catalogue and a source file
 > **when** it imports from `remote/Exposed`, where `remote` names a unit and `Exposed` is one of its exposed paths without the leading `./`
-> **then** a `FragmentImport` is recorded between the two.
+> **then** a `Composition` is recorded between the two.
 
 Both ends are declared here: the publisher says `exposes`, the consumer says `remotes`, and the import only matches when the two declarations meet.
 

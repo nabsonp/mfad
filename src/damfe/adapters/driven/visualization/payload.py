@@ -16,7 +16,7 @@ from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 #: Perspectivas do grafo. A ordem é a das abas na página.
 RELATIONS = (
-    ("fragment_import", "Composição"),
+    ("composition", "Composição"),
     ("navigation", "Navegação"),
     ("communication", "Comunicação"),
     ("shared_endpoint", "Backend"),
@@ -83,7 +83,7 @@ def _degrees(architecture: MicroFrontendArchitecture) -> dict[str, dict[str, int
     incoming: dict[str, set[str]] = {}
 
     pairs = (
-        [(item.consumer, item.provider) for item in architecture.fragment_imports]
+        [(item.consumer, item.provider) for item in architecture.compositions]
         + [(item.source, item.target) for item in architecture.navigations]
         + [(item.source, item.target) for item in architecture.communications]
     )
@@ -166,7 +166,7 @@ def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
 
     edges: list[dict] = []
 
-    for item in architecture.fragment_imports:
+    for item in architecture.compositions:
 
         renders = [
             {
@@ -180,8 +180,8 @@ def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
 
         edges.append(
             {
-                "edge": edge_id(item.consumer, item.provider, "fragment_import"),
-                "relation": "fragment_import",
+                "edge": edge_id(item.consumer, item.provider, "composition"),
+                "relation": "composition",
                 "source": item.consumer,
                 "target": item.provider,
                 "label": item.fragment,
