@@ -115,15 +115,6 @@ An empty reachability list is information: the call sits in code no screen reach
 
 **Done.**
 
-### RF-31 · Declared business domains
-
-> **Given** a domain map declared in the analysed repository
-> **then** each domain resolves to its routes, its endpoints, its screens and the units that serve it.
-
-Business domains are not in the code and no static analysis determines them, which is why they are declared. A subdomain is a record, not a division: it folds into the domain containing it, and rules operate at the top level, so the granularity chosen by whoever declares does not change the verdict.
-
-**Done.**
-
 ### RF-11 · Technology recognition
 
 > **Given** a repository
@@ -220,35 +211,23 @@ One occurrence, not one per slice: what matters is whether the practice exists a
 
 ### RF-19 · Mega frontend
 
-> **Given** the screens and the declared domain map
-> **when** a unit's screens fall into **more than one** domain
-> **then** it is reported, naming **which screens differ and where they would go**.
+> **Given** the screens, the fragments and the size of each unit
+> **when** a unit's screens **and** lines of code both sit above **twice** the system median, with the orchestrator left out of the comparison
+> **then** it is reported, with its counts and the medians it was compared against.
 
-A count does not say what to do; a screen name and a destination do. Without a declared map the rule falls back to size — **twice** the system median — and says which criterion it used. A unit whose screens fall in no domain is undetermined and the rule abstains, as it does when the median is zero: zero means nothing was measured, not that everything is small.
+With no declared map of business capabilities there is no way to state *which* responsibilities a unit accumulates, so what is measured is the observable consequence: it grew far beyond its peers. Both measures are required together — many screens and little code is a menu, much code and one screen is a library. The rule abstains when the median is zero: zero means nothing was measured, not that everything is small.
 
 **Done.**
 
 ### RF-20 · Nano frontend
 
-> **Given** the screens, the fragments and the declared domain map
-> **when** a unit's screens all sit in a domain that another unit **dominates**
-> **then** it is reported, naming the domain and who would absorb it.
+> **Given** the screens, the fragments and the size of each unit
+> **when** a unit's screens plus fragments sit below **0.4×** the system median, with the orchestrator left out of the comparison
+> **then** it is reported, with its counts and the medians it was compared against.
 
-The problem is not being small: it is not being a unit of a domain. A micro frontend with a single screen is legitimate when that screen is the domain. Without a map the fallback is **0.4×** the median, with the same abstentions as above.
-
-**Done.**
-
-### RF-21 · Access to different domains
-
-> **Given** the external service calls and the declared domain map
-> **when** a unit's calls fall into **two or more** domains
-> **then** it is reported with the domains consumed.
-
-Distinct from the mega frontend, and the difference changes the remedy: that one looks at what a unit **serves** — its screens; this one at what it **depends on** — its calls. A unit may serve one domain and consume three, and then the problem is API federation.
+Screens and fragments are summed because both are ways of delivering interface: a unit with no screen that publishes five fragments is not nano. An indication rather than a verdict — a small micro frontend is legitimate when it is a whole capability on its own, and the rule cannot tell that case apart, which is why the output carries what it compared against.
 
 **Done.**
-
----
 
 # Part 2 · User stories
 
@@ -274,7 +253,7 @@ Recognises the technology, extracts every collection and writes one JSON file pe
 
 ### US-03 · `damfe detect`
 
-> As an **analyst**, I want to run the rules over artefacts I already have, so that I can change a threshold or a domain map without reading the code again.
+> As an **analyst**, I want to run the rules over artefacts I already have, so that I can change a threshold without reading the code again.
 
 Reads the artefacts, applies every registered rule or those named with `--rule`, prints each occurrence with the elements involved and the places in the code, and writes `detections.json` with `--out`.
 
@@ -284,25 +263,7 @@ Reads the artefacts, applies every registered rule or those named with `--rule`,
 
 > As an **analyst**, I want the report on its own, so that I can regenerate it after editing a declaration without redoing the extraction.
 
-Writes `architecture.html` into the artefacts directory. `--detections` overlays the occurrences on the drawing; without it the report shows the architecture alone. `--format features` prints a Markdown summary of the system to standard output instead, which is the input the domain-mapping prompt expects. `--out` chooses another destination.
-
-**Done.**
-
-### US-05 · `damfe setup`
-
-> As an **analyst**, I want a page that asks what the tool cannot infer and shows me straight away what my answers produced, so that I can tell a wrong declaration from a right one.
-
-Serves a page on `127.0.0.1` and opens the browser. Three steps: the model credential, four fields describing how the system discovers, composes, routes and communicates, and a run whose counts are shown on the same screen. The agent's declaration is written to `.damfe/` and read back immediately, so invalid YAML fails at once.
-
-Runs in the directory of one system. Pointed at a folder holding several, it reads them as one.
-
-**Partial** — the interview produces `discovery`, `composition` and `routing` sections that no extractor reads yet. Only `mechanisms` takes effect.
-
-### US-06 · `damfe setup-llm`
-
-> As an **analyst**, I want to store a credential once, so that the authoring steps stop asking for it.
-
-Takes `--key`, `--model` and `--url`, and writes them to the user's config directory — **never** to `.damfe/`, which is versioned with the analysed project. The file is created readable only by its owner, with no window in which others could read it. An environment variable takes precedence over the file. The credential is never printed in full, and no analysis command reads it.
+Writes `architecture.html` into the artefacts directory. `--detections` overlays the occurrences on the drawing; without it the report shows the architecture alone. `--format features` prints a Markdown summary of the system to standard output instead. `--out` chooses another destination.
 
 **Done.**
 
@@ -341,7 +302,7 @@ There is already plenty to report: an opaque activity function, an entrypoint th
 > **when** detection runs over the old artefacts
 > **then** the staleness is reported.
 
-**Pending.** Editing `domains.yml` or `communication.yml` and running only `detect` produces a plausible, outdated result. Cheap now that RF-37 records `sources[].commit`: comparing it against the current HEAD covers the code; the declarations still need their own marker.
+**Pending.** Editing `communication.yml` and running only `detect` produces a plausible, outdated result. Cheap now that RF-37 records `sources[].commit`: comparing it against the current HEAD covers the code; the declarations still need their own marker.
 
 ### RF-36 · Extract communication through `customProps`
 
@@ -351,14 +312,6 @@ There is already plenty to report: an opaque activity function, an entrypoint th
 The keys are already read; the channel is not. It is standardised by the technology and needs no declaration.
 
 **Pending.**
-
-### US-09 · Generate the communication declaration from prose
-
-> As an **analyst**, I want to describe in prose how the system works and get the declaration ready, so that I need not learn the format.
-
-This is `damfe setup` finished: the proposal validated against the schema and checked against the repository before being written, and the sections for discovery, composition and routing actually read by an extractor. Non-determinism stays confined to the setup step, whose result is reviewed and versioned; the analysis stays reproducible.
-
-**Pending.** A setup page exists with the interview, but what it generates for composition and routing is not yet read by any extractor.
 
 ### RF-28 · Automated test suite
 

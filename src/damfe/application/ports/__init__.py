@@ -3,7 +3,6 @@ from damfe.application.ports.driven import (
     Reconstructor,
     Renderer,
     Rule,
-    SettingsRepository,
     SourceProbe,
     SpecRepository,
 )
@@ -14,7 +13,6 @@ __all__ = [
     "Reconstructor",
     "Renderer",
     "Rule",
-    "SettingsRepository",
     "SourceProbe",
     "SpecRepository",
     "UseCase",

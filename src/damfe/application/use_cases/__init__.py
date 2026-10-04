@@ -14,10 +14,8 @@ from damfe.application.use_cases.reconstruction import (
     ExtractNavigationsUseCase,
     ExtractStateAccessesUseCase,
     ReconstructUseCase,
-    ResolveDomainsUseCase,
     SetupCommunicationUseCase,
 )
-from damfe.application.use_cases.settings import SetupLlmUseCase
 from damfe.application.use_cases.visualization import VisualizeUseCase
 
 __all__ = [
@@ -29,8 +27,6 @@ __all__ = [
     "ExtractNavigationsUseCase",
     "ExtractStateAccessesUseCase",
     "ReconstructUseCase",
-    "ResolveDomainsUseCase",
-    "SetupLlmUseCase",
     "SetupCommunicationUseCase",
     "VisualizeUseCase",
 ]

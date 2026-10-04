@@ -12,7 +12,6 @@ classDiagram
         +list~Communication~ communications
         +list~ApiCall~ api_calls
         +list~StateAccess~ state_accesses
-        +list~Domain~ domains
         +Provenance provenance
         +microfrontend(id) MicroFrontend
         +fragments() list~Fragment~
@@ -110,15 +109,6 @@ classDiagram
         +SourceLocation at
     }
 
-    class Domain {
-        +str name
-        +list~str~ routes
-        +list~str~ endpoints
-        +list~str~ subdomains
-        +list~str~ screens
-        +list~str~ api_calls
-        +list~str~ microfrontends
-    }
 
     class SourceLocation {
         +str file
@@ -170,18 +160,7 @@ classDiagram
         +int channel_argument
     }
 
-    class DomainMap {
-        +list~DomainDeclaration~ declarations
-        +of_route(url) str
-        +of_endpoint(path) str
-    }
 
-    class DomainDeclaration {
-        +str name
-        +list~str~ routes
-        +list~str~ endpoints
-        +list~str~ subdomains
-    }
 
     %% ---- composição
     MicroFrontendArchitecture *-- MicroFrontend
@@ -190,7 +169,6 @@ classDiagram
     MicroFrontendArchitecture *-- Communication
     MicroFrontendArchitecture *-- ApiCall
     MicroFrontendArchitecture *-- StateAccess
-    MicroFrontendArchitecture *-- Domain
     MicroFrontendArchitecture *-- Provenance
 
     MicroFrontend *-- Fragment
@@ -208,7 +186,6 @@ classDiagram
 
     CommunicationSpec *-- Mechanism
     Mechanism *-- ChannelOperation : produce / consume
-    DomainMap *-- DomainDeclaration
 
     %% ---- referência por identificador
     Screen ..> MicroFrontend : microfrontend
@@ -218,7 +195,5 @@ classDiagram
     Communication ..> MicroFrontend : source / target
     ApiCall ..> MicroFrontend : microfrontend
     StateAccess ..> MicroFrontend : microfrontend
-    Domain ..> MicroFrontend : microfrontends
-    Domain ..> Screen : screens
     RenderSite ..> Screen : screens
     AntiPatternDetection ..> MicroFrontend : subjects

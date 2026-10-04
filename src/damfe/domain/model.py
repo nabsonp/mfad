@@ -19,7 +19,6 @@ from damfe.domain.provenance import Provenance
 
 if TYPE_CHECKING:
     from damfe.domain.communication import Communication
-    from damfe.domain.domains import Domain
 
 
 @dataclass
@@ -246,7 +245,6 @@ class MicroFrontendArchitecture:
     communications: list["Communication"] = field(default_factory=list)
     api_calls: list[ApiCall] = field(default_factory=list)
     state_accesses: list[StateAccess] = field(default_factory=list)
-    domains: list["Domain"] = field(default_factory=list)
 
     #: De onde isto veio: versão do esquema, versão da ferramenta,
     #: extrator usado e a revisão de cada repositório lido.

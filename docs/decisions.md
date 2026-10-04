@@ -307,14 +307,30 @@ A variável acompanhou: `artifacts` virou `architecture` em todo lugar onde segu
 
 ---
 
+## 12. A v0: sem IA e sem domínio
+
+**Nada de modelo de linguagem, em etapa nenhuma.** Saíram o `damfe setup` com a página web, o `damfe setup-llm`, o repositório de credenciais em `~/.config/damfe/` e os prompts de autoria. O determinismo deixa de ser uma propriedade defendida por convenção e passa a ser estrutural: não há caminho no código que chame um modelo.
+
+**O domínio de negócio saiu inteiro.** Foram embora `Domain`, `DomainMap`, `DomainDeclaration`, o `.damfe/domains.yml`, o `domains.json` e a resolução que os cruzava com os artefatos. Era a única entrada que exigia conhecimento externo ao repositório, e sustentá-la custava uma etapa de autoria inteira.
+
+**`access-to-different-domains` foi removida.** Era a única regra que dependia só do mapa e, sem ele, devolvia vazio. Restam sete das oito.
+
+**`mega-frontend` e `nano-frontend` passam a ser contagem pura** — telas, fragmentos e linhas contra a mediana do sistema, com o orquestrador fora da comparação. As duas já tinham esse modo como alternativa quando faltava o mapa; agora é o único. O que se perde é poder dizer QUAIS responsabilidades a unidade acumula; o que resta é a consequência observável, e a saída carrega as medianas para quem lê poder discordar.
+
+O mega exige telas **e** linhas acima do limiar, não qualquer uma: muitas telas com pouco código é um menu, muito código com uma tela é uma biblioteca. O nano soma telas e fragmentos, porque as duas formas de entregar interface contam.
+
+**Efeito medido:** o nabstore passou de 3 para 4 ocorrências. A nova é `nano-frontend` no `monolito`, com 1 tela contra mediana de 3 — correta pela regra nova, e antes suprimida pelo modo por domínio.
+
+**O `.damfe/communication.yml` fica.** É declaração determinística, escrita e revisada à mão, e o `setup-communication` que gera o template não usa modelo nenhum.
+
+---
+
 ## Pendências conhecidas
 
 | | |
 |---|---|
 | RF-25 | relatar cobertura e o que não foi resolvido |
 | RF-35 | avisar quando os artefatos estão obsoletos — barato agora: basta comparar `sources[].commit` do manifesto com o HEAD atual |
-| RF-36 | extrair comunicação via `customProps` |
-| US-27 | spec de comunicação gerada por LLM, integrada |
 | US-28 | suíte de testes automatizados |
 | — | `hub-like-dependency` conta aresta simétrica em dobro |
 | — | apresentação conta estado global duas vezes (aresta e acesso) |

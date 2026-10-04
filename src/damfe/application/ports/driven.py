@@ -12,14 +12,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-from damfe.application.settings import LlmSettings
 from damfe.domain import (
     ApiCall,
     MicroFrontend,
     MicroFrontendArchitecture,
     Communication,
     CommunicationSpec,
-    DomainMap,
     AntiPatternDetection,
     FragmentImport,
     Navigation,
@@ -168,28 +166,6 @@ class SpecRepository(ABC):
         spec: CommunicationSpec,
         destination: Path,
     ) -> Path:
-        ...
-
-    @abstractmethod
-    def load_domains(self, source: Path) -> DomainMap:
-        ...
-
-
-class SettingsRepository(ABC):
-    """
-    Credenciais e endereço do modelo de linguagem.
-
-    Separada do `SpecRepository` porque o que ela guarda é do
-    USUÁRIO, não do projeto: uma chave num arquivo versionado com o
-    repositório seria commitada junto.
-    """
-
-    @abstractmethod
-    def load_llm(self) -> LlmSettings:
-        ...
-
-    @abstractmethod
-    def save_llm(self, settings: LlmSettings) -> Path:
         ...
 
 

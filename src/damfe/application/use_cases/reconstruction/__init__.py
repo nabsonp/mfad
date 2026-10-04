@@ -19,9 +19,6 @@ from damfe.application.use_cases.reconstruction.reconstruct import (
 from damfe.application.use_cases.reconstruction.extract_state_accesses import (
     ExtractStateAccessesUseCase,
 )
-from damfe.application.use_cases.reconstruction.resolve_domains import (
-    ResolveDomainsUseCase,
-)
 from damfe.application.use_cases.reconstruction.setup_communication import (
     SetupCommunicationUseCase,
 )
@@ -34,6 +31,5 @@ __all__ = [
     "ExtractNavigationsUseCase",
     "ExtractStateAccessesUseCase",
     "ReconstructUseCase",
-    "ResolveDomainsUseCase",
     "SetupCommunicationUseCase",
 ]

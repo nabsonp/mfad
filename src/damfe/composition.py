@@ -13,7 +13,6 @@ from pathlib import Path
 
 from damfe.adapters.driven import antipatterns, reconstruction, visualization
 from damfe.adapters.driven.antipatterns.rules import (
-    AccessToDifferentDomains,
     CyclicDependency,
     GlobalStateCommunication,
     HammeringApis,
@@ -32,7 +31,6 @@ from damfe.adapters.driven.provenance import GitSourceProbe
 from damfe.adapters.driven.visualization.features import FeaturesRenderer
 from damfe.adapters.driven.visualization.html import HtmlRenderer
 from damfe.adapters.driven.storage import (
-    FileSettingsRepository,
     JsonArtifactRepository,
     YamlSpecRepository,
 )
@@ -40,7 +38,6 @@ from damfe.application.ports import (
     ArtifactRepository,
     Reconstructor,
     Rule,
-    SettingsRepository,
     SourceProbe,
     SpecRepository,
 )
@@ -53,8 +50,6 @@ from damfe.application.use_cases import (
     ExtractNavigationsUseCase,
     ExtractStateAccessesUseCase,
     ReconstructUseCase,
-    ResolveDomainsUseCase,
-    SetupLlmUseCase,
     SetupCommunicationUseCase,
     VisualizeUseCase,
 )
@@ -69,7 +64,6 @@ def bootstrap() -> None:
     reconstruction.register(SingleSpaReconstructor())
     reconstruction.register(ModuleFederationReconstructor())
 
-    antipatterns.register(AccessToDifferentDomains())
     antipatterns.register(CyclicDependency())
     antipatterns.register(GlobalStateCommunication())
     antipatterns.register(HammeringApis())
@@ -92,8 +86,6 @@ class Container:
         self.repository: ArtifactRepository = JsonArtifactRepository()
 
         self.specs: SpecRepository = YamlSpecRepository()
-
-        self.settings: SettingsRepository = FileSettingsRepository()
 
         self.probe: SourceProbe = GitSourceProbe()
 
@@ -203,30 +195,6 @@ class Container:
             specs=self.specs,
         )
 
-    def resolve_domains(
-        self,
-        spec_path: Path,
-    ) -> ResolveDomainsUseCase:
-
-        return ResolveDomainsUseCase(
-            spec_path=spec_path,
-            specs=self.specs,
-        )
-
-    def setup_llm(
-        self,
-        endpoint: str | None = None,
-        model: str | None = None,
-        key: str | None = None,
-    ) -> SetupLlmUseCase:
-
-        return SetupLlmUseCase(
-            settings=self.settings,
-            endpoint=endpoint,
-            model=model,
-            key=key,
-        )
-
     def setup_communication(
         self,
         destination: Path,
@@ -272,7 +240,6 @@ class Container:
                 repository_path,
                 reconstructor,
             ),
-            resolve_domains=self.resolve_domains(repository_path),
             repository=self.repository,
             probe=self.probe,
             reconstructor_name=reconstructor.name,

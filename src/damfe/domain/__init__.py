@@ -13,11 +13,6 @@ from damfe.domain.communication import (
     Mechanism,
 )
 from damfe.domain.detection import AntiPatternDetection
-from damfe.domain.domains import (
-    Domain,
-    DomainDeclaration,
-    DomainMap,
-)
 from damfe.domain.provenance import (
     Provenance,
     SCHEMA_VERSION,
@@ -45,9 +40,6 @@ __all__ = [
     "Communication",
     "CodeSize",
     "CommunicationSpec",
-    "Domain",
-    "DomainDeclaration",
-    "DomainMap",
     "MicroFrontendArchitecture",
     "AntiPatternDetection",
     "Fragment",

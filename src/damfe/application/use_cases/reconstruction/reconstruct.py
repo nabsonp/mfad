@@ -32,9 +32,6 @@ from damfe.application.use_cases.reconstruction.extract_communications import (
 from damfe.application.use_cases.reconstruction.extract_navigations import (
     ExtractNavigationsUseCase,
 )
-from damfe.application.use_cases.reconstruction.resolve_domains import (
-    ResolveDomainsUseCase,
-)
 from damfe.application.use_cases.reconstruction.extract_state_accesses import (
     ExtractStateAccessesUseCase,
 )
@@ -54,7 +51,6 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         extract_communications: ExtractCommunicationsUseCase,
         extract_api_calls: ExtractApiCallsUseCase,
         extract_state_accesses: ExtractStateAccessesUseCase,
-        resolve_domains: ResolveDomainsUseCase,
         repository: ArtifactRepository,
         probe: SourceProbe,
         reconstructor_name: str = "",
@@ -67,7 +63,6 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         self.extract_communications = extract_communications
         self.extract_api_calls = extract_api_calls
         self.extract_state_accesses = extract_state_accesses
-        self.resolve_domains = resolve_domains
         self.repository = repository
         self.probe = probe
         self.reconstructor_name = reconstructor_name
@@ -120,11 +115,6 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
             state_accesses=state_accesses,
         )
 
-        # Os domínios são resolvidos por último: dependem de tudo
-        # que foi extraído antes.
-        self.resolve_domains.architecture = architecture
-
-        architecture.domains = self.resolve_domains.execute().domains
 
         written = (
             self.repository.save(architecture, self.destination)

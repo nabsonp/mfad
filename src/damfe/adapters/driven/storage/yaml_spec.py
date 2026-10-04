@@ -17,8 +17,6 @@ from damfe.application.ports import SpecRepository
 from damfe.domain import (
     ChannelOperation,
     CommunicationSpec,
-    DomainDeclaration,
-    DomainMap,
     Mechanism,
 )
 
@@ -29,7 +27,6 @@ from damfe.domain import (
 SETUP_DIRECTORY = ".damfe"
 
 COMMUNICATION = "communication.yml"
-DOMAINS = "domains.yml"
 
 TEMPLATE = """\
 # Como as aplicações deste sistema conversam entre si.
@@ -104,53 +101,6 @@ class YamlSpecRepository(SpecRepository):
         )
 
         return path
-
-    def load_domains(self, source: Path) -> DomainMap:
-        """
-        Lê o mapa declarado.
-
-        Subdomínio é achatado no domínio que o contém: suas rotas e
-        endpoints entram no pai, e só o nome fica registrado. É isso
-        que faz a granularidade escolhida por quem declara não mudar
-        o veredito das regras.
-        """
-
-        path = self._path(source, DOMAINS)
-
-        if not path.is_file():
-            return DomainMap()
-
-        payload = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-
-        return DomainMap(
-            declarations=[
-                self._declaration(name, body or {})
-                for name, body in (payload.get("domains") or {}).items()
-            ]
-        )
-
-    @classmethod
-    def _declaration(cls, name: str, body: dict) -> DomainDeclaration:
-
-        routes = list(body.get("rotas") or body.get("routes") or [])
-        endpoints = list(body.get("endpoints") or [])
-        subdomains: list[str] = []
-
-        for child, inner in (body.get("subdominios") or {}).items():
-
-            inner = inner or {}
-
-            subdomains.append(child)
-
-            routes.extend(inner.get("rotas") or inner.get("routes") or [])
-            endpoints.extend(inner.get("endpoints") or [])
-
-        return DomainDeclaration(
-            name=name,
-            routes=routes,
-            endpoints=endpoints,
-            subdomains=subdomains,
-        )
 
     # ------------------------------------------------------------------
 

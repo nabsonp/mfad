@@ -17,7 +17,6 @@ from typing import Any
 from damfe.domain.detection import AntiPatternDetection
 from damfe.domain import (
     ApiCall,
-    Domain,
     CodeSize,
     Communication,
     MicroFrontend,
@@ -43,7 +42,6 @@ COMMUNICATIONS = "communications.json"
 API_CALLS = "api_calls.json"
 MANIFEST = "manifest.json"
 STATE_ACCESSES = "state_accesses.json"
-DOMAINS = "domains.json"
 DETECTIONS = "detections.json"
 
 
@@ -68,7 +66,6 @@ class JsonArtifactRepository(ArtifactRepository):
             (COMMUNICATIONS, architecture.communications),
             (API_CALLS, architecture.api_calls),
             (STATE_ACCESSES, architecture.state_accesses),
-            (DOMAINS, architecture.domains),
         ]
 
         return [
@@ -149,10 +146,6 @@ class JsonArtifactRepository(ArtifactRepository):
             state_accesses=[
                 _load(StateAccess, item)
                 for item in self._read(source / STATE_ACCESSES) or []
-            ],
-            domains=[
-                _load(Domain, item)
-                for item in self._read(source / DOMAINS) or []
             ],
         )
 
@@ -236,8 +229,8 @@ def _dump(value: Any) -> Any:
 
 #: Campos que guardam outra dataclass, POR TIPO — e não por nome de
 #: campo. O mesmo nome significa coisas diferentes em entidades
-#: diferentes: `MicroFrontend.screens` são telas, `Domain.screens` são
-#: identificadores de tela. Um mapa global confundiria os dois.
+#: diferentes: `MicroFrontend.screens` são telas, `RenderSite.screens`
+#: são identificadores de tela. Um mapa global confundiria os dois.
 _NESTED: dict[type, dict[str, type]] = {
     MicroFrontend: {
         "fragments": Fragment,

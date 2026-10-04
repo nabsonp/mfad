@@ -1,28 +1,19 @@
 """
-Micro frontend que é pedaço de um domínio, não uma unidade dele.
+Micro frontend pequeno demais perto dos seus pares.
 
-O catálogo descreve "poucas telas ou fragmentos" e atribui a causa
-a confundir micro frontend com componente de interface. O problema
-não é ser pequeno: é **não ser uma unidade de domínio**. Um micro
-frontend com uma tela só é legítimo quando aquela tela é o domínio.
+O catálogo descreve a fragmentação excessiva: a unidade é tão
+pequena que não se sustenta como unidade de implantação, e o custo
+de tê-la separada supera o ganho.
 
-Por isso o critério é o desalinhamento: todas as telas num domínio
-que outro micro frontend também serve, e serve mais. O tamanho não
-é condição — é o que **desambigua a direção**, dizendo qual dos
-dois é o pedaço e qual é o dono. Divisão equilibrada não é Nano
-Frontend; é um domínio mal repartido, que é outro achado.
-
-Sem mapa de domínios a regra cai no tamanho relativo, declarando
-que o fez.
+A medida é relativa, em telas e fragmentos. Um micro frontend
+pequeno pode ser perfeitamente legítimo — é o caso de um que
+constitui sozinho uma capacidade inteira —, então isto é indício e
+não veredito, e a saída diz contra o que a unidade foi comparada.
 """
 
 from __future__ import annotations
 
-from damfe.adapters.driven.antipatterns.alignment import (
-    Sizes,
-    alignments,
-    peers,
-)
+from damfe.adapters.driven.antipatterns.alignment import Sizes, peers
 from damfe.application.ports import Rule
 from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
@@ -32,107 +23,20 @@ class NanoFrontend(Rule):
     name = "nano-frontend"
 
     description = (
-        "Micro frontend que cobre parte de um domínio servido por "
-        "outro, em vez de constituir uma unidade de domínio."
+        "Micro frontend pequeno demais para se sustentar como "
+        "unidade de implantação."
     )
 
-    def __init__(self, size_factor: float = 0.4, dominance: float = 2.0):
+    def __init__(self, size_factor: float = 0.4):
 
-        #: Fração da mediana abaixo da qual um micro frontend é
-        #: acusado no modo sem mapa.
+        #: Que fração da mediana do sistema a unidade precisa estar
+        #: abaixo para ser acusada.
         self.size_factor = size_factor
 
-        #: Quantas vezes mais telas o dono precisa ter no domínio
-        #: para que o outro seja considerado pedaço, e não metade.
-        self.dominance = dominance
-
-    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
-
-        if architecture.domains:
-            return self._by_domain(architecture)
-
-        return self._by_size(architecture)
-
-    # ------------------------------------------------------------------
-
-    def _by_domain(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
-
-        spread = alignments(architecture)
-
-        found: list[AntiPatternDetection] = []
-
-        for microfrontend in peers(architecture):
-
-            entry = spread[microfrontend.id]
-
-            # Serve mais de um domínio, ou nenhum determinável:
-            # nos dois casos esta regra não tem o que dizer.
-            if not entry.determined or len(entry.screens) != 1:
-                continue
-
-            domain = entry.dominant
-
-            mine = entry.screens[domain]
-
-            owner, theirs = self._owner(spread, domain, microfrontend.id)
-
-            if not owner or theirs < mine * self.dominance:
-                continue
-
-            found.append(
-                AntiPatternDetection(
-                    rule=self.name,
-                    dimension="domínio",
-                    explanation=(
-                        "Este micro frontend cobre parte de um domínio "
-                        "que outro já serve, e em menor extensão. Não "
-                        "é uma unidade de domínio, é um recorte dele — "
-                        "e o custo de mantê-lo separado não é pago por "
-                        "uma fronteira de negócio."
-                    ),
-                    message=(
-                        f"{self._short(microfrontend.id)} serve "
-                        f"{mine} de {mine + theirs} telas do domínio "
-                        f"{domain}; {self._short(owner)} serve as "
-                        f"outras {theirs}."
-                    ),
-                    subjects=[microfrontend.id, owner],
-                    metadata={
-                        "criterio": "mapa de domínios",
-                        "dominio": domain,
-                        "telas_proprias": mine,
-                        "dono": owner,
-                        "telas_do_dono": theirs,
-                        "tamanho": {
-                            "telas": len(microfrontend.screens),
-                            "fragmentos": len(microfrontend.fragments),
-                            "linhas": microfrontend.size.code_lines,
-                        },
-                    },
-                )
-            )
-
-        return found
-
-    @staticmethod
-    def _owner(spread: dict, domain: str, exclude: str):
-        """Quem mais serve este domínio, além do acusado."""
-
-        best, count = None, 0
-
-        for identifier, entry in spread.items():
-
-            if identifier == exclude:
-                continue
-
-            serves = entry.screens.get(domain, 0)
-
-            if serves > count:
-                best, count = identifier, serves
-
-        return best, count
-
-    def _by_size(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
+    def check(
+        self,
+        architecture: MicroFrontendArchitecture,
+    ) -> list[AntiPatternDetection]:
 
         candidates = peers(architecture)
 
@@ -146,11 +50,14 @@ class NanoFrontend(Rule):
 
         for microfrontend in candidates:
 
-            telas = len(microfrontend.screens)
-            fragmentos = len(microfrontend.fragments)
-            linhas = microfrontend.size.code_lines
+            screens = len(microfrontend.screens)
+            fragments = len(microfrontend.fragments)
+            code_lines = microfrontend.size.code_lines
 
-            if telas + fragmentos > (
+            # Telas e fragmentos somados, porque as duas formas de
+            # entregar interface contam: uma unidade sem tela que
+            # publica cinco fragmentos não é nano.
+            if screens + fragments > (
                 sizes.screens + sizes.fragments
             ) * self.size_factor:
                 continue
@@ -160,28 +67,28 @@ class NanoFrontend(Rule):
                     rule=self.name,
                     dimension="tamanho",
                     explanation=(
-                        "Sem mapa de domínios, a regra usa o tamanho "
-                        "relativo como indício. É proxy mais fraco: um "
+                        "Tamanho relativo é indício, não prova: um "
                         "micro frontend pequeno é legítimo quando "
-                        "constitui um domínio inteiro. Declare os "
-                        "domínios em .damfe/domains.yml para uma "
-                        "detecção melhor fundamentada."
+                        "constitui sozinho uma capacidade inteira. A "
+                        "comparação é contra a mediana do próprio "
+                        "sistema, e vai na saída para quem lê poder "
+                        "discordar."
                     ),
                     message=(
-                        f"{self._short(microfrontend.id)} tem {telas} "
-                        f"telas e {fragmentos} fragmentos, abaixo de "
-                        f"{self.size_factor:g}× a mediana do sistema "
-                        f"({sizes.screens:g} telas, "
+                        f"{self._short(microfrontend.id)} tem "
+                        f"{screens} telas e {fragments} fragmentos, "
+                        f"abaixo de {self.size_factor:g}× a mediana "
+                        f"do sistema ({sizes.screens:g} telas, "
                         f"{sizes.fragments:g} fragmentos)."
                     ),
                     subjects=[microfrontend.id],
                     metadata={
-                        "criterio": "tamanho relativo",
-                        "telas": telas,
-                        "fragmentos": fragmentos,
-                        "linhas": linhas,
+                        "telas": screens,
+                        "fragmentos": fragments,
+                        "linhas": code_lines,
                         "mediana_telas": sizes.screens,
                         "mediana_fragmentos": sizes.fragments,
+                        "fator": self.size_factor,
                     },
                 )
             )

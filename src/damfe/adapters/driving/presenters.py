@@ -13,7 +13,6 @@ from typing import Callable
 
 from damfe.application.results import (
     ApiCallsResult,
-    LlmSetupResult,
     StateAccessesResult,
     MicroFrontendsResult,
     CommunicationSetupResult,
@@ -241,33 +240,6 @@ def state_accesses(result: StateAccessesResult, write: Writer) -> None:
         write(f"    lido por {len(readers)}: {names}")
 
     write("")
-
-
-def llm_setup(result: LlmSetupResult, write: Writer) -> None:
-
-    settings = result.settings
-
-    write("")
-    write(f"  endereço  {settings.endpoint}")
-    write(f"  modelo    {settings.model or '— não definido'}")
-    write(f"  chave     {settings.masked_key}")
-    write("")
-
-    if result.written:
-        write(f"Gravado em {result.written} com permissão 600.")
-        write(
-            "A chave fica no seu diretório de usuário, nunca no "
-            "repositório analisado."
-        )
-    else:
-        write("Nada alterado. Informe --key, --model ou --url para gravar.")
-
-    if not settings.model:
-        write("")
-        write(
-            "Defina um modelo para usar: "
-            "damfe setup-llm --model <nome>"
-        )
 
 
 def reconstruction(result: ReconstructionResult, write: Writer) -> None:

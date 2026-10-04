@@ -26,7 +26,6 @@ A coluna *Entrada* de cada regra se refere a estes:
 | `Communication` | origem, destino, mecanismo, canal, locais dos dois lados |
 | `ApiCall` | micro frontend, método, caminho, cliente |
 | `StateAccess` | micro frontend, biblioteca, caminho da fatia lida |
-| `Domain` | nome, rotas, endpoints, subdomínios, telas, chamadas, micro frontends |
 
 Toda detecção devolve um `AntiPatternDetection`, com regra, dimensão,
 explicação, mensagem, elementos envolvidos, locais no código e metadados
@@ -123,55 +122,34 @@ normal, não o desvio.
 
 | | |
 |---|---|
-| **Entrada** | `Domain`, `MicroFrontend.screens` — ou `.size` sem mapa |
-| **Detecção** | Telas do micro frontend caindo em mais de um domínio de topo. Sem mapa, tamanho acima de `size_factor` vezes a mediana. |
-| **Saída** | Uma ocorrência por micro frontend, nomeando o domínio dominante e **quais telas destoam, com o domínio de cada uma**. |
+| **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
+| **Detecção** | Telas **e** linhas acima de `size_factor` vezes a mediana do sistema, com o orquestrador fora da comparação. |
+| **Saída** | Uma ocorrência por micro frontend, com as três contagens e as medianas contra as quais foi comparado. |
 
-A saída nomeia as telas em vez de contar domínios porque uma contagem não
-diz o que fazer. `dimension` informa o critério usado: `domínio` ou
-`tamanho`.
+Sem mapa de domínios não há como afirmar QUAIS responsabilidades a
+unidade acumula, então a v0 mede a consequência observável: ela cresceu
+muito acima dos pares. É indício, não prova — um micro frontend grande e
+coeso não é Mega Frontend —, e por isso a saída carrega as medianas, para
+quem lê poder discordar.
+
+As duas medidas são exigidas juntas. Muitas telas e pouco código é um
+menu; muito código e uma tela é uma biblioteca.
 
 ## [Nano Frontend](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Nano%20Frontend)
 > Um MFE criado com apenas algumas telas ou fragmentos.
 
 | | |
 |---|---|
-| **Entrada** | `Domain`, `MicroFrontend.screens` — ou `.size` sem mapa |
-| **Detecção** | Todas as telas num único domínio que **outro** micro frontend também serve, e serve `dominance` vezes mais. Sem mapa, tamanho abaixo de `size_factor` vezes a mediana. |
-| **Saída** | Uma ocorrência por micro frontend, nomeando qual absorveria e em que proporção. |
+| **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
+| **Detecção** | Telas somadas a fragmentos abaixo de `size_factor` vezes a mediana do sistema, com o orquestrador fora da comparação. |
+| **Saída** | Uma ocorrência por micro frontend, com as contagens e as medianas contra as quais foi comparado. |
 
-O problema não é ser pequeno, é **não ser uma unidade de domínio** — um
-micro frontend com uma tela é legítimo quando aquela tela é o domínio. O
-tamanho não é condição: é o que desambigua qual dos dois é o pedaço.
-Divisão equilibrada não é Nano Frontend, é um domínio mal repartido.
+Telas e fragmentos somados porque as duas formas de entregar interface
+contam: uma unidade sem tela que publica cinco fragmentos não é nano.
 
-## [Access to different domains](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Access%20to%20different%20domains)
-> Um MFE acessa diretamente APIs de vários domínios de negócio.
-
-| | |
-|---|---|
-| **Entrada** | `Domain`, `ApiCall` |
-| **Detecção** | Chamadas do micro frontend caindo em `min_domains` ou mais domínios. |
-| **Saída** | Uma ocorrência por micro frontend, com os domínios consumidos e os endpoints de cada um. |
-
-Distinto do `Mega Frontend`, e a diferença define o remédio: o Mega olha
-o que o micro frontend **serve** — suas telas —, e a decomposição é a
-saída; este olha de que ele **depende** — suas chamadas —, e a federação
-de API é a saída.
-
-**Depende do mapa de domínios.** Sem ele devolve vazio, porque qualquer
-aproximação por prefixo de caminho seria arbitrária — dois proxies
-observáveis existem e discordam entre si no repositório de referência:
-base URL distinta daria zero detecções, prefixo de caminho daria duas.
-
----
-
-# B — viável com os artefatos atuais
-
-Nenhuma extração nova. Falta escrever a regra e, em alguns casos, decidir
-um limiar.
-
-
+Indício, não veredito. Um micro frontend pequeno é legítimo quando
+constitui sozinho uma capacidade inteira, e a regra não sabe distinguir
+esse caso — por isso a saída diz contra o que a unidade foi comparada.
 
 ## [Micro Frontends Greedy](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Micro%20Frontends%20Greedy)
 > Explosão no número de MFEs.
@@ -401,7 +379,7 @@ sintomas correlatos, mas não a causa.
 # Resumo para o escopo
 
 **Cobertura atual:** 8 de 27. A categoria Intra-frontend está quase
-fechada: falta `Micro Frontends Greedy`, que usa o mesmo mapa de domínios
+fechada: falta `Micro Frontends Greedy`
 das duas já implementadas.
 
 **Alcance sem extração nova:** 13 de 27 — quase metade do catálogo.
@@ -410,9 +388,9 @@ das duas já implementadas.
 versões por MFE — habilita quatro regras de uma vez e abre a categoria
 *Development*, hoje sem cobertura.
 
-**Menor esforço restante:** `Micro Frontends Greedy` não precisa de nada
-novo. É a leitura no nível do sistema do mesmo cruzamento que
-`nano-frontend` faz por unidade: mais micro frontends que domínios.
+**Menor esforço restante:** `Micro Frontends Greedy` é a leitura no
+nível do sistema do que `nano-frontend` faz por unidade. Depende de uma
+noção de capacidade de negócio, que a v0 não tem.
 
 **Teto realista:** 24 de 27. Três são sobre pessoas e processo, e
 declarar isso explicitamente é resultado: delimita o que análise estática
@@ -432,7 +410,6 @@ possível; publicá-las sem declarar a operacionalização, não.
 
 | regra | o que o catálogo descreve | o que se consegue observar |
 |---|---|---|
-| `Access to different domains` | domínio de negócio | prefixo de caminho ou base URL |
 | `Chatty Micro Frontends` | frequência de execução | pontos de publicação no código |
 | `Golden Hammer` | tecnologia inadequada à necessidade | homogeneidade tecnológica |
 

@@ -16,7 +16,6 @@ from damfe import __version__
 from damfe.adapters.driven.storage import SETUP_DIRECTORY
 from damfe.adapters.driving import presenters
 from damfe.application.errors import ApplicationError
-from damfe.application.settings import DEFAULT_ENDPOINT
 from damfe.composition import Container
 
 
@@ -99,42 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--rule", action="append")
     analyze.add_argument("--format", default="html")
 
-    # ------------------------------------------------------------ setup
-    setup_page = subparsers.add_parser(
-        "setup",
-        help="Abre a página de configuração no navegador.",
-    )
-    # O setup roda de dentro da pasta que contém os repositórios;
-    # exigir o caminho seria pedir o diretório atual por extenso.
-    setup_page.add_argument(
-        "repository",
-        type=Path,
-        nargs="?",
-        default=Path("."),
-    )
-    setup_page.add_argument(
-        "--port",
-        type=int,
-        default=0,
-        help="porta. Por padrão, uma livre escolhida pelo sistema",
-    )
-    setup_page.add_argument(
-        "--no-browser",
-        action="store_true",
-        help="não abrir o navegador, só servir",
-    )
-
-    llm = subparsers.add_parser(
-        "setup-llm",
-        help="Guarda o acesso a um modelo de linguagem.",
-    )
-    llm.add_argument("--key", help="credencial do serviço")
-    llm.add_argument("--model", help="identificador do modelo")
-    llm.add_argument(
-        "--url",
-        help=f"endereço compatível com OpenAI. Padrão: {DEFAULT_ENDPOINT}",
-    )
-
+    # --------------------------------------------- setup-communication
     setup = subparsers.add_parser(
         "setup-communication",
         help="Declara como os micro frontends se comunicam.",
@@ -205,9 +169,7 @@ def main(argv: list[str] | None = None) -> int:
         handler = {
             "reconstruct": _reconstruct,
             "analyze": _analyze,
-            "setup": _setup,
             "setup-communication": _setup_communication,
-            "setup-llm": _setup_llm,
             "detect": _detect,
             "visualize": _visualize,
         }[arguments.command]
@@ -381,19 +343,6 @@ def _setup_communication(container, arguments, write) -> int:
     return 0
 
 
-def _setup_llm(container, arguments, write) -> int:
-
-    result = container.setup_llm(
-        endpoint=arguments.url,
-        model=arguments.model,
-        key=arguments.key,
-    ).execute()
-
-    presenters.llm_setup(result, write)
-
-    return 0
-
-
 def _detect(container, arguments, write) -> int:
 
     result = container.detect(
@@ -425,19 +374,6 @@ def _destination(arguments) -> Path | None:
         return arguments.artifacts / "architecture.html"
 
     return None
-
-
-def _setup(container, arguments, write) -> int:
-
-    from damfe.adapters.driving import web
-
-    return web.serve(
-        container=container,
-        repository=arguments.repository,
-        port=arguments.port,
-        open_browser=not arguments.no_browser,
-        write=write,
-    )
 
 
 def _analyze(container, arguments, write) -> int:

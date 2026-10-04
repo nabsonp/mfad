@@ -115,22 +115,13 @@ damfe visualize [artifacts] [--format FORMATO] [--detections ARQUIVO] [--out ARQ
 | formato | saída |
 |---|---|
 | `html` | relatório único, autocontido, sem CDN |
-| `features` | sumarização em Markdown, entrada para definir domínios |
+| `features` | sumarização em Markdown do sistema |
 
-### `setup-communication` · `setup-llm`
+### `setup-communication`
 
 ```bash
-damfe setup-communication <repo>       # gera .damfe/communication.yml
-damfe setup-llm --key ... --model ...  # guarda acesso a um modelo
+damfe setup-communication <repo>   # gera .damfe/communication.yml
 ```
-
-O `setup-llm` grava em `~/.config/damfe/config.json` com permissão 600 —
-**nunca** em `.damfe/`, que é versionado com o projeto analisado. As
-variáveis `DAMFE_LLM_URL`, `DAMFE_LLM_MODEL` e `DAMFE_LLM_KEY` têm
-precedência sobre o arquivo.
-
-Nenhum comando de análise usa essa configuração: ela serve aos passos de
-autoria descritos em [docs/prompts/](docs/prompts/).
 
 ---
 
@@ -145,7 +136,6 @@ autoria descritos em [docs/prompts/](docs/prompts/).
 | `communications.json` | troca de mensagens |
 | `api_calls.json` | chamadas a serviços externos, com as telas que as alcançam |
 | `state_accesses.json` | leituras do estado global |
-| `domains.json` | domínios de negócio com seus membros resolvidos |
 | `detections.json` | gravado pelo `detect` |
 
 Todas as coleções são gravadas a cada execução, inclusive as vazias —
@@ -234,8 +224,6 @@ caminho explicitamente, enquanto a escrita revela apenas o nome da ação.
 `BroadcastChannel`), barramentos conhecidos por import, e o mecanismo
 declarado pelo usuário.
 
-**Domínios** vêm de `.damfe/domains.yml`, resolvido contra os artefatos.
-
 ---
 
 ## Declarações por projeto
@@ -268,47 +256,11 @@ Produtor e consumidor são pareados pelo **valor do canal**.
 > Zero comunicações com declaração preenchida quase sempre significa
 > `module` que não bate com o especificador real do import.
 
-### `.damfe/domains.yml`
-
-Domínio de negócio não está no código — é conhecimento externo ao
-repositório. Sem esta declaração, as regras de granularidade caem no
-tamanho relativo e declaram que o fizeram.
-
-```yaml
-domains:
-  pedidos:
-    rotas: ["/checkout"]
-    endpoints: ["/compras"]
-    subdominios:
-      carrinho:
-        rotas: ["/checkout/cart"]
-      pagamento:
-        rotas: ["/checkout/cards"]
-        endpoints: ["/cartao"]
-
-  catalogo:
-    rotas: ["/products"]
-    endpoints: ["/produtos"]
-```
-
-**Subdomínio é registro, não divisão.** Suas rotas e endpoints entram no
-domínio que o contém, e as regras operam no nível de topo. Isso faz a
-granularidade escolhida por quem declara não mudar o veredito: chamar
-`carrinho` e `pagamento` de subdomínios de `pedidos` ou de domínios
-irmãos daria resultados opostos sem essa regra.
-
-`rotas` e `endpoints` são campos separados porque são vocabulários
-diferentes: `/checkout/cards` é rota de tela, `/cartao` é caminho de
-serviço.
-
-Para escrever o arquivo com apoio de um assistente, veja
-[docs/prompts/identifying-domains.md](docs/prompts/identifying-domains.md).
-
 ---
 
 ## Regras de anti-padrão
 
-Oito, de 27 do catálogo. A triagem completa está em
+Sete, de 27 do catálogo. A triagem completa está em
 [docs/catalogue.md](docs/catalogue.md).
 
 ### `cyclic-dependency`
@@ -345,27 +297,16 @@ binária**: o sistema usa estado como canal ou não usa.
 
 ### `mega-frontend`
 
-Micro frontend que serve mais de um domínio. A saída nomeia **quais
-telas destoam e para onde iriam** — uma contagem não diz o que fazer.
+Micro frontend cujas telas **e** linhas de código ficam acima de `2×` a
+mediana do sistema. Indica concentração de responsabilidades, mas não
+prova: uma unidade grande e coesa não é um Mega Frontend.
 
 ### `nano-frontend`
 
-Micro frontend que cobre parte de um domínio servido por outro. O
-problema não é ser pequeno: é não ser uma unidade de domínio. O tamanho
-não é condição — é o que desambigua qual dos dois é o pedaço.
-
-### `access-to-different-domains`
-
-Micro frontend que consome serviços de vários domínios. Distinto do
-`mega-frontend`: aquele olha o que ele **serve**, este de que ele
-**depende**.
-
-### Sem mapa de domínios
-
-`mega-frontend` e `nano-frontend` caem no tamanho relativo à mediana do
-sistema, e o campo `dimension` da ocorrência passa a dizer `tamanho` em
-vez de `domínio`. `access-to-different-domains` não tem alternativa e
-devolve vazio.
+Micro frontend cujas telas somadas aos fragmentos ficam abaixo de
+`0.4×` a mediana do sistema. Indica fragmentação excessiva, mas não
+prova: uma unidade pequena é legítima quando constitui sozinha uma
+capacidade inteira.
 
 ### Sem escala de severidade
 
@@ -406,8 +347,8 @@ diferentes no mesmo caminho parecem iguais.
 endpoint só, e a unidade real é a operação.
 
 **Mudar uma declaração exige refazer o `reconstruct`.** Editar
-`domains.yml` ou `communication.yml` e rodar só o `detect` usa a
-resolução anterior, sem aviso.
+`communication.yml` e rodar só o `detect` usa a resolução anterior, sem
+aviso.
 
 **Versões do tree-sitter estão fixadas numa faixa fechada.** O núcleo e
 os bindings de linguagem compartilham uma ABI, e misturar famílias

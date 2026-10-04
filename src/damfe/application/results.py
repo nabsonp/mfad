@@ -9,10 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from damfe.application.settings import LlmSettings
 from damfe.domain import (
     ApiCall,
-    Domain,
     MicroFrontend,
     MicroFrontendArchitecture,
     Communication,
@@ -57,12 +55,6 @@ class StateAccessesResult:
 
 
 @dataclass
-class DomainsResult:
-    domains: list[Domain]
-    declared: bool
-
-
-@dataclass
 class NavigationsResult:
     navigations: list[Navigation]
 
@@ -78,12 +70,6 @@ class DetectionResult:
     detections: list[AntiPatternDetection]
     rules_applied: int
     written: Path | None = None
-
-
-@dataclass
-class LlmSetupResult:
-    settings: LlmSettings
-    written: Path | None
 
 
 @dataclass
