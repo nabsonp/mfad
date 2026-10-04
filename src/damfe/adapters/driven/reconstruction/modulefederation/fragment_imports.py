@@ -30,6 +30,7 @@ from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.singlespa.reachability import (
     Reachability,
 )
+from damfe.adapters.driven.reconstruction.modulefederation import specifiers
 
 
 class RemoteImportExtractor:
@@ -156,8 +157,8 @@ class RemoteImportExtractor:
 
         return found
 
+    @staticmethod
     def _dynamic(
-        self,
         root: Node,
         source: bytes,
     ) -> list[tuple[str, str, int, str]]:
@@ -169,90 +170,14 @@ class RemoteImportExtractor:
         hora, e o framework exige uma fronteira preguiçosa para isso.
         Ler só o import estático encontra as bibliotecas compartilhadas
         e perde exatamente as páginas — o consumo que define o sistema.
-
-        O nome local vem da declaração que envolve a chamada, que é
-        por onde o componente é referenciado depois.
         """
 
-        found = []
-
-        for call in AstReader.find_all(root, "call_expression"):
-
-            function = call.child_by_field_name("function")
-
-            if not function or AstReader.text(function, source) != "import":
-                continue
-
-            arguments = call.child_by_field_name("arguments")
-
-            if not arguments:
-                continue
-
-            literals = [
-                child
-                for child in arguments.named_children
-                if child.type == "string"
-            ]
-
-            if not literals:
-                continue
-
-            module = AstReader.strip_quotes(
-                AstReader.text(literals[0], source)
-            )
-
-            found.append(
-                (
-                    module,
-                    self._binding(call, source) or module.split("/")[-1],
-                    call.start_point.row + 1,
-                    AstReader.text(call, source).strip(),
-                )
-            )
-
-        return found
-
-    @staticmethod
-    def _binding(node: Node, source: bytes) -> str | None:
-        """O nome declarado que envolve a chamada, se houver."""
-
-        current = node.parent
-
-        while current is not None:
-
-            if current.type == "variable_declarator":
-
-                name = current.child_by_field_name("name")
-
-                return AstReader.text(name, source) if name else None
-
-            if current.type in ("statement_block", "program"):
-                return None
-
-            current = current.parent
-
-        return None
+        return specifiers.dynamic_imports(root, source)
 
     def _split(self, module: str) -> tuple[str | None, str]:
-        """
-        `app1/Botao` → (`app1`, `Botao`), quando as duas pontas batem.
+        """`app1/Botao` → (`app1`, `Botao`), quando as duas pontas batem."""
 
-        Casa o prefixo mais longo primeiro, porque o nome da unidade
-        pode conter barra — `@org/app1/Botao` é a unidade `@org/app1`
-        publicando `./Botao`.
-        """
-
-        parts = module.split("/")
-
-        for cut in range(len(parts) - 1, 0, -1):
-
-            candidate = "/".join(parts[:cut])
-            rest = "/".join(parts[cut:])
-
-            if rest in self.catalog.get(candidate, set()):
-                return candidate, rest
-
-        return None, ""
+        return specifiers.split(module, self.catalog)
 
     def _owner_of(self, file_path: Path) -> str:
 

@@ -30,9 +30,13 @@ Module Federation has no orchestrator: no file registers the system's units. Eac
 > **when** a federation config contains a call to `ModuleFederationPlugin`, `withModuleFederation`, `NxModuleFederationPlugin`, `federation` or `moduleFederationPlugin`, carrying an object with a `name`
 > **then** that object declares a micro frontend, identified by `name`.
 
-The search is for the configuration object, not for the plugin. The same declaration ships under four wrappers — webpack's plugin, `@originjs/vite-plugin-federation`, Rspack's, and Nx's `withModuleFederation` — and they all receive the same shape. Matching plugin names would miss the wrappers, which is how an entire Nx project reads as having no federation at all.
+Two things follow from how this is matched.
 
-Both `new ModuleFederationPlugin({…})` and `withModuleFederation({…})` are recognised: the first is a `new_expression` in the tree and the second a `call_expression`. Looking for only one returns nothing across a whole webpack project.
+**The detection is the call in the config, never the dependency in `package.json`.** Package names age and differ for the same thing: the healthcare system uses `@originjs/vite-plugin-federation`, pagopa uses `@module-federation/vite`, and webpack ships the plugin built in with no package at all. Both Vite packages are nonetheless called as `federation({…})`, so the call matches where a dependency list would not.
+
+**Five call names are accepted, because the configuration object is handed to a different function in each toolchain.** The object — `name`, `exposes`, `remotes`, `shared` — is identical across them; only the receiver changes: `new ModuleFederationPlugin({…})` in webpack, `federation({…})` in Vite, `withModuleFederation(config)` in Nx. Matching only `ModuleFederationPlugin` is how an entire Nx or Vite project reads as having no federation at all.
+
+The two forms are also different nodes in the tree: `new ModuleFederationPlugin({…})` is a `new_expression` and `federation({…})` a `call_expression`. Looking for only one returns nothing across a whole webpack project.
 
 ### 2.2 · The package behind a unit
 
@@ -122,12 +126,19 @@ Exact match first, because falling back to reachability in a routing file would 
 
 Pointing at the router makes every screen reach everything the router imports, and fragment-to-screen attribution turns to noise: each screen inherits the dependencies of all the others.
 
+> **Given** a route whose component is the local name of a module imported from a remote — `const Pharmacy = lazy(() => import("hs-pharmacy/Pharmacy"))`
+> **then** the screen belongs to the **provider**, not to the unit whose router declares the route, and its file is the module the provider exposes.
+
+The route lives in the host's router and the screen belongs to whoever publishes it. Keeping both with the host produced a shell owning every business route while the remotes owned none — the opposite of what the system does. On the healthcare system it was the difference between `home` holding all eight screens and the five remote pages going back to `hs-pharmacy`, `hs-billing`, `hs-laboratory`, `hs-appointments` and `hs-patient-records`, each with its own route.
+
+This is also what makes navigation resolvable: with no owner for `/pharmacy`, a link to it resolves to nobody. The same run went from 0 to 10 navigations between units.
+
 ### 4.2 · Routes of a unit
 
 > **Given** a unit's screens
 > **then** its routes are the routes of those screens.
 
-Module Federation resolves remote code loading and says nothing about URLs, so there is no route to read from the declaration. A unit with no router has no routes, and that is correct: it answers no URL.
+Module Federation resolves remote code loading and says nothing about URLs, so there is no route to read from the declaration. A unit with no router, and whose modules no router routes to, has no routes — and that is correct: it answers no URL. In the healthcare system `hs-comp-library` is the only one left without routes, which is the right answer for a component library.
 
 ---
 
@@ -145,4 +156,4 @@ Navigation, external calls, global state and communication do not depend on how 
 | `remotes` URLs | the remote's address is usually an environment variable, so only the alias is read, never where it points |
 | Shared dependencies | `shared` is recorded as names, with versions and options ignored |
 | Runtime API | `import("remote/x")` built from a variable, and the low-level `__webpack_init_sharing__` / `loadRemote` path, are not recognised |
-| Route ownership | with no `activeWhen`, ownership comes from screens; a unit with no router contributes nothing to it |
+| Route ownership | with no `activeWhen`, ownership comes from screens — either the unit's own router or a host routing to a module it exposes. A system whose units are mounted outside JavaScript (nginx, a non-React shell, an imperative `loadRemote`) has no `<Route>` to read and no routes |

@@ -28,7 +28,10 @@ from damfe.domain import Fragment, MicroFrontend, Screen
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
-from damfe.adapters.driven.reconstruction.modulefederation import config
+from damfe.adapters.driven.reconstruction.modulefederation import (
+    config,
+    specifiers,
+)
 
 
 class FederatedBuilder:
@@ -36,6 +39,18 @@ class FederatedBuilder:
     def __init__(self, context: ScanContext, federations: list):
         self.context = context
         self.federations = federations
+
+        #: unidade -> caminhos publicados, sem o "./"
+        self.catalog = {
+            federation.name: {
+                path.lstrip("./") for path in federation.exposes
+            }
+            for federation in federations
+        }
+
+        self.by_name = {
+            federation.name: federation for federation in federations
+        }
 
     def build(self) -> list[MicroFrontend]:
 
@@ -51,7 +66,48 @@ class FederatedBuilder:
 
             found.append(self._one(federation, consumed))
 
+        self._reattribute(found)
+
         return found
+
+    def _reattribute(self, microfrontends: list[MicroFrontend]) -> None:
+        """
+        Devolve ao provedor a tela que o shell só rotela.
+
+        `<Route path="/pharmacy" element={<Pharmacy/>}/>` com
+        `Pharmacy` vindo de `import("hs-pharmacy/Pharmacy")` declara
+        uma rota do shell para uma tela que é do remoto. A rota existe
+        no roteador de quem hospeda; a tela é de quem publica.
+
+        Deixar as duas com o hospedeiro dava um shell dono de todas as
+        rotas de negócio e remotos sem rota nenhuma — o oposto do que
+        o sistema faz. `_screens` já marca o provedor em
+        `screen.microfrontend`; aqui as telas são movidas.
+        """
+
+        index = {item.id: item for item in microfrontends}
+
+        for item in microfrontends:
+
+            keep = []
+
+            for screen in item.screens:
+
+                target = index.get(screen.microfrontend)
+
+                if target is None or target is item:
+                    keep.append(screen)
+                    continue
+
+                target.screens.append(screen)
+
+            item.screens = keep
+
+        for item in microfrontends:
+
+            item.routes = sorted(
+                {screen.route for screen in item.screens if screen.route}
+            )
 
     def _one(self, federation, consumed: set[str]) -> MicroFrontend:
 
@@ -118,6 +174,56 @@ class FederatedBuilder:
         )
 
         return microfrontend
+
+    def _remote_names(self, root, source) -> dict[str, tuple[str, str]]:
+        """
+        Nome local -> (unidade publicadora, caminho publicado).
+
+        Cobre as duas formas de atravessar a fronteira: o import
+        estático e o `import()` dinâmico, que é como um host carrega
+        página remota.
+        """
+
+        records = [
+            (record.module, record.local_name)
+            for record in ImportTable.records(root, source)
+        ] + [
+            (module, local_name)
+            for module, local_name, _, _ in specifiers.dynamic_imports(
+                root, source
+            )
+        ]
+
+        found = {}
+
+        for module, local_name in records:
+
+            provider, exposed = specifiers.split(module, self.catalog)
+
+            if provider:
+                found[local_name] = (provider, exposed)
+
+        return found
+
+    def _exposed_file(self, provider: str, exposed: str) -> str | None:
+        """O arquivo interno que o provedor publica sob esse caminho."""
+
+        federation = self.by_name.get(provider)
+
+        if not federation:
+            return None
+
+        target = (
+            federation.exposes.get(f"./{exposed}")
+            or federation.exposes.get(exposed)
+        )
+
+        if not target:
+            return None
+
+        return self._resolve(
+            self.context.package_dir(federation.declared_in), target
+        )
 
     def _resolve(self, directory: Path, target: str) -> str | None:
         """O arquivo interno que um `exposes` aponta."""
@@ -211,6 +317,11 @@ class FederatedBuilder:
 
             imports = ImportTable(root, source, file_path)
 
+            # Nome local -> unidade que o publica, para as duas formas
+            # de atravessar a fronteira: `import X from "remote/X"` e
+            # `const X = lazy(() => import("remote/X"))`.
+            remote_of = self._remote_names(root, source)
+
             for element, opening in jsx.elements(root):
 
                 if jsx.tag_name(opening, source) != "Route":
@@ -236,24 +347,34 @@ class FederatedBuilder:
 
                 seen.add(key)
 
-                # O arquivo da tela é o do COMPONENTE, não o do
-                # roteador. Apontar para o roteador faz toda tela
-                # alcançar tudo que ele importa, e a atribuição de
-                # fragmento a tela vira ruído: cada tela recebe as
-                # dependências de todas as outras.
-                target = imports.file_for(component)
+                provider, exposed = remote_of.get(component, (None, ""))
+
+                if provider:
+                    # A tela é de quem publica o módulo, mesmo que a
+                    # rota esteja declarada no roteador de quem hospeda.
+                    file = self._exposed_file(provider, exposed)
+
+                else:
+                    # O arquivo da tela é o do COMPONENTE, não o do
+                    # roteador. Apontar para o roteador faz toda tela
+                    # alcançar tudo que ele importa, e a atribuição de
+                    # fragmento a tela vira ruído: cada tela recebe as
+                    # dependências de todas as outras.
+                    target = imports.file_for(component)
+
+                    file = (
+                        self.context.relative(target)
+                        if target
+                        else self.context.relative(file_path)
+                    )
 
                 found.append(
                     Screen(
                         component=component,
-                        microfrontend=owner,
+                        microfrontend=provider or owner,
                         route=route,
                         route_expression=attributes.get("path", ""),
-                        file=(
-                            self.context.relative(target)
-                            if target
-                            else self.context.relative(file_path)
-                        ),
+                        file=file,
                         line=element.start_point.row + 1,
                     )
                 )
