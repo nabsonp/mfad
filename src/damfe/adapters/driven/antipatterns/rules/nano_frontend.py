@@ -15,16 +15,19 @@ from __future__ import annotations
 
 from damfe.adapters.driven.antipatterns.alignment import Sizes, peers
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
+from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture
 
 
 class NanoFrontend(Rule):
 
-    name = "nano-frontend"
-
-    description = (
-        "Micro frontend pequeno demais para se sustentar como "
-        "unidade de implantação."
+    anti_pattern = AntiPattern(
+        name="nano-frontend",
+        description=(
+            "Micro frontend pequeno demais para se sustentar como "
+            "unidade de implantação."
+        ),
+        category="Intra-frontend",
+        reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Nano%20Frontend",
     )
 
     def __init__(self, size_factor: float = 0.4):
@@ -64,7 +67,7 @@ class NanoFrontend(Rule):
 
             found.append(
                 AntiPatternDetection(
-                    rule=self.name,
+                    anti_pattern=self.name,
                     dimension="tamanho",
                     explanation=(
                         "Tamanho relativo é indício, não prova: um "

@@ -18,7 +18,7 @@ from typing import Callable, Iterable
 import networkx as nx
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
+from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
 
 
 @dataclass(frozen=True)
@@ -103,11 +103,14 @@ RELATIONS = (
 
 class CyclicDependency(Rule):
 
-    name = "cyclic-dependency"
-
-    description = (
-        "Micro frontends que dependem uns dos outros em ciclo, "
-        "por importação de fragmento, comunicação ou navegação."
+    anti_pattern = AntiPattern(
+        name="cyclic-dependency",
+        description=(
+            "Micro frontends que dependem uns dos outros em ciclo, "
+            "por importação de fragmento, comunicação ou navegação."
+        ),
+        category="Inter-frontend",
+        reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Cyclic%20Dependency",
     )
 
     #: Enumerar ciclos elementares custa proporcional à QUANTIDADE
@@ -181,7 +184,7 @@ class CyclicDependency(Rule):
             edges.append([node, target])
 
         return AntiPatternDetection(
-            rule=self.name,
+            anti_pattern=self.name,
             dimension=relation.label,
             explanation=relation.explanation,
             message=(

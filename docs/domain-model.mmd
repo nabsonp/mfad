@@ -1,10 +1,19 @@
-%% Modelo de domínio do DAMFE — gerado a partir de src/damfe/domain/
+%% Metamodelo do DAMFE v0 — gerado de src/damfe/domain/
+%%
+%% root          o agregado, raiz de tudo que a reconstrução produz
+%% entity        tem identidade e é referenciada de fora por ela
+%% relationship  relação reificada entre unidades, sem identidade
+%% value         só existe como parte de outra coisa, comparada por valor
+%% input         declaração do usuário, lida e não gerada
+%% output        produzido por outro módulo, gravado à parte
+%%
 %% Losango cheio: composição. Tracejado: referência por IDENTIFICADOR,
 %% nunca por ponteiro de objeto.
 classDiagram
     direction TB
 
     class MicroFrontendArchitecture {
+        <<root>>
         +str project
         +list~MicroFrontend~ microfrontends
         +list~FragmentImport~ fragment_imports
@@ -19,6 +28,7 @@ classDiagram
     }
 
     class MicroFrontend {
+        <<entity>>
         +str id
         +str directory
         +str entrypoint
@@ -32,6 +42,7 @@ classDiagram
     }
 
     class Fragment {
+        <<entity>>
         +str name
         +str microfrontend
         +str file
@@ -40,6 +51,7 @@ classDiagram
     }
 
     class Screen {
+        <<entity>>
         +str component
         +str microfrontend
         +str route
@@ -51,12 +63,14 @@ classDiagram
     }
 
     class CodeSize {
+        <<value>>
         +int files
         +int lines
         +int code_lines
     }
 
     class FragmentImport {
+        <<relationship>>
         +str consumer
         +str provider
         +str fragment
@@ -66,6 +80,7 @@ classDiagram
     }
 
     class RenderSite {
+        <<value>>
         +str file
         +int line
         +list~str~ props
@@ -73,6 +88,7 @@ classDiagram
     }
 
     class Navigation {
+        <<relationship>>
         +str source
         +str target
         +str expression
@@ -82,6 +98,7 @@ classDiagram
     }
 
     class Communication {
+        <<relationship>>
         +str source
         +str target
         +str mechanism
@@ -92,6 +109,7 @@ classDiagram
     }
 
     class ApiCall {
+        <<relationship>>
         +str microfrontend
         +str method
         +str path
@@ -103,20 +121,22 @@ classDiagram
     }
 
     class StateAccess {
+        <<relationship>>
         +str microfrontend
         +str library
         +str path
         +SourceLocation at
     }
 
-
     class SourceLocation {
+        <<value>>
         +str file
         +int line
         +str code
     }
 
     class Provenance {
+        <<value>>
         +str schema
         +str tool
         +str generated_at
@@ -126,14 +146,24 @@ classDiagram
     }
 
     class SourceRepository {
+        <<value>>
         +str path
         +str remote
         +str commit
         +bool dirty
     }
 
+    class AntiPattern {
+        <<entity>>
+        +str name
+        +str description
+        +str category
+        +str reference
+    }
+
     class AntiPatternDetection {
-        +str rule
+        <<output>>
+        +str anti_pattern
         +str message
         +str dimension
         +str explanation
@@ -142,12 +172,13 @@ classDiagram
         +dict metadata
     }
 
-    %% ---- entrada declarada pelo usuário, não artefato
     class CommunicationSpec {
+        <<input>>
         +list~Mechanism~ mechanisms
     }
 
     class Mechanism {
+        <<input>>
         +str name
         +str kind
         +ChannelOperation produce
@@ -155,14 +186,12 @@ classDiagram
     }
 
     class ChannelOperation {
+        <<value>>
         +str module
         +str export
         +int channel_argument
     }
 
-
-
-    %% ---- composição
     MicroFrontendArchitecture *-- MicroFrontend
     MicroFrontendArchitecture *-- FragmentImport
     MicroFrontendArchitecture *-- Navigation
@@ -182,18 +211,20 @@ classDiagram
     ApiCall *-- SourceLocation : at
     StateAccess *-- SourceLocation : at
     AntiPatternDetection *-- SourceLocation
+    AntiPatternDetection ..> AntiPattern : anti_pattern
     Provenance *-- SourceRepository
 
     CommunicationSpec *-- Mechanism
     Mechanism *-- ChannelOperation : produce / consume
 
-    %% ---- referência por identificador
     Screen ..> MicroFrontend : microfrontend
     Fragment ..> MicroFrontend : microfrontend
     FragmentImport ..> MicroFrontend : consumer / provider
     Navigation ..> MicroFrontend : source / target
     Communication ..> MicroFrontend : source / target
     ApiCall ..> MicroFrontend : microfrontend
+    ApiCall ..> Screen : screens
+    ApiCall ..> Fragment : fragments
     StateAccess ..> MicroFrontend : microfrontend
     RenderSite ..> Screen : screens
     AntiPatternDetection ..> MicroFrontend : subjects

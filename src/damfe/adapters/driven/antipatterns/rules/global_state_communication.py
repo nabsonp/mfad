@@ -16,16 +16,19 @@ quem participa dela.
 from __future__ import annotations
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
+from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture
 
 
 class GlobalStateCommunication(Rule):
 
-    name = "global-state-communication"
-
-    description = (
-        "Estado global lido por mais de um micro frontend, "
-        "funcionando como canal de comunicação não declarado."
+    anti_pattern = AntiPattern(
+        name="global-state-communication",
+        description=(
+            "Estado global lido por mais de um micro frontend, "
+            "funcionando como canal de comunicação não declarado."
+        ),
+        category="Inter-frontend",
+        reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Global%20state%20communication",
     )
 
     def __init__(self, min_microfrontends: int = 2):
@@ -53,7 +56,7 @@ class GlobalStateCommunication(Rule):
 
         return [
             AntiPatternDetection(
-                rule=self.name,
+                anti_pattern=self.name,
                 dimension="estado global",
                 explanation=(
                     "Mais de um micro frontend lê a mesma fatia do "

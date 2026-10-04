@@ -1,0 +1,152 @@
+%% Metamodelo de arquitetura micro frontend.
+%%
+%% RECORTE das classes de src/damfe/domain/ — todas existem no código,
+%% com os campos que elas têm de fato. Ficam de fora as peças do próprio
+%% damfe, que continuam no código e não são conceitos da arquitetura
+%% analisada: MicroFrontendArchitecture (o agregado), Provenance e
+%% SourceRepository (procedência da execução), CommunicationSpec,
+%% Mechanism e ChannelOperation (configuração do extrator).
+%%
+%% Losango cheio: composição.
+%%
+%% Nenhuma entidade aponta para outra por ponteiro. Campo `str` com
+%% nome de entidade guarda o IDENTIFICADOR dela — `Screen.microfrontend`
+%% é "@org/mfe-checkout", `AntiPatternDetection.subjects` é uma lista de
+%% ids. É o que permite serializar cada coleção num arquivo independente
+%% e recarregar sem reconstruir grafo de objetos.
+classDiagram
+    direction TB
+
+    class MicroFrontend {
+        <<entity>>
+        +str id
+        +str directory
+        +str entrypoint
+        +list~str~ routes
+        +str role
+        +list~str~ mounts
+        +list~Fragment~ fragments
+        +list~Screen~ screens
+        +CodeSize size
+        +dict metadata
+    }
+    class Screen {
+        <<entity>>
+        +str component
+        +str microfrontend
+        +str route
+        +str route_expression
+        +str file
+        +int line
+        +bool reachable
+        +id() str
+    }
+    class Fragment {
+        <<entity>>
+        +str name
+        +str microfrontend
+        +str file
+        +int line
+        +id() str
+    }
+
+    class FragmentImport {
+        <<relationship>>
+        +str consumer
+        +str provider
+        +str fragment
+        +str local_name
+        +SourceLocation imported_at
+        +list~RenderSite~ renders
+    }
+    class Navigation {
+        <<relationship>>
+        +str source
+        +str target
+        +str expression
+        +str resolved_url
+        +str match
+        +SourceLocation at
+    }
+    class Communication {
+        <<relationship>>
+        +str source
+        +str target
+        +str mechanism
+        +str channel
+        +list~SourceLocation~ produced_at
+        +list~SourceLocation~ consumed_at
+        +bool directed
+    }
+
+    class ApiCall {
+        <<access>>
+        +str microfrontend
+        +str method
+        +str path
+        +str match
+        +str client
+        +SourceLocation at
+        +list~str~ screens
+        +list~str~ fragments
+    }
+    class StateAccess {
+        <<access>>
+        +str microfrontend
+        +str library
+        +str path
+        +SourceLocation at
+    }
+
+    class CodeSize {
+        <<value>>
+        +int files
+        +int lines
+        +int code_lines
+    }
+    class SourceLocation {
+        <<value>>
+        +str file
+        +int line
+        +str code
+    }
+    class RenderSite {
+        <<value>>
+        +str file
+        +int line
+        +list~str~ props
+        +list~str~ screens
+    }
+
+    class AntiPattern {
+        <<entity>>
+        +str name
+        +str description
+        +str category
+        +str reference
+    }
+
+    class AntiPatternDetection {
+        <<output>>
+        +str anti_pattern
+        +str message
+        +str dimension
+        +str explanation
+        +list~str~ subjects
+        +list~SourceLocation~ locations
+        +dict metadata
+    }
+
+    MicroFrontend *-- Screen
+    MicroFrontend *-- Fragment
+    MicroFrontend *-- CodeSize
+    FragmentImport *-- SourceLocation : imported_at
+    FragmentImport *-- RenderSite
+    Navigation *-- SourceLocation : at
+    Communication *-- SourceLocation : produced_at / consumed_at
+    ApiCall *-- SourceLocation : at
+    StateAccess *-- SourceLocation : at
+    AntiPatternDetection *-- SourceLocation
+    AntiPatternDetection ..> AntiPattern : anti_pattern
+
+    StateAccess ..> Communication : deriva aresta não dirigida

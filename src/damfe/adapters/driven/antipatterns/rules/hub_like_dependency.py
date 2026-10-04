@@ -17,7 +17,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
+from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
 
 
 @dataclass
@@ -33,11 +33,14 @@ class Host:
 
 class HubLikeDependency(Rule):
 
-    name = "hub-like-dependency"
-
-    description = (
-        "Tela que instancia muitos fragmentos, concentrando "
-        "dependências num só ponto."
+    anti_pattern = AntiPattern(
+        name="hub-like-dependency",
+        description=(
+            "Tela que instancia muitos fragmentos, concentrando "
+            "dependências num só ponto."
+        ),
+        category="Inter-frontend",
+        reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hub-like%20Dependency",
     )
 
     def __init__(self, min_fragments: int = 5):
@@ -119,7 +122,7 @@ class HubLikeDependency(Rule):
         providers = sorted(host.providers)
 
         return AntiPatternDetection(
-            rule=self.name,
+            anti_pattern=self.name,
             dimension="composição",
             explanation=(
                 "A tela instancia muitos fragmentos, concentrando "

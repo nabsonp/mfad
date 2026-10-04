@@ -26,8 +26,14 @@ A coluna *Entrada* de cada regra se refere a estes:
 | `Communication` | origem, destino, mecanismo, canal, locais dos dois lados |
 | `ApiCall` | micro frontend, método, caminho, cliente |
 | `StateAccess` | micro frontend, biblioteca, caminho da fatia lida |
+| `AntiPattern` | nome, descrição, categoria e referência de uma entrada deste catálogo |
 
-Toda detecção devolve um `AntiPatternDetection`, com regra, dimensão,
+O anti-padrão e a ocorrência dele são entidades distintas. `AntiPattern`
+é a entrada deste catálogo — existe tenha ou não sido encontrada em
+algum sistema; a `Rule` é como procurá-la nos artefatos, e uma mesma
+entrada admite mais de uma operacionalização.
+
+Toda detecção devolve um `AntiPatternDetection`, com o anti-padrão, dimensão,
 explicação, mensagem, elementos envolvidos, locais no código e metadados
 próprios da regra. A coluna *Saída* descreve o que é específico de cada
 uma.

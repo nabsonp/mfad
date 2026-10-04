@@ -1,10 +1,39 @@
-"""O resultado de uma regra — neutro como o resto do modelo."""
+"""O anti-padrão do catálogo e as ocorrências dele — neutros como o resto."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from damfe.domain.model import SourceLocation
+
+
+@dataclass(frozen=True)
+class AntiPattern:
+    """
+    Uma entrada do catálogo de anti-padrões.
+
+    Existe independentemente de qualquer análise: `cyclic-dependency`
+    é um anti-padrão descrito na literatura, tenha ou não sido
+    encontrado em algum sistema. É O QUÊ.
+
+    Distinto da `Rule`, que é o COMO — a porta que sabe procurá-lo
+    nos artefatos. Uma mesma entrada do catálogo poderia ter mais de
+    uma operacionalização, e nenhuma delas muda o que o anti-padrão é.
+
+    E distinto da `AntiPatternDetection`, que é uma ocorrência: este
+    é o tipo, aquela é a instância.
+    """
+
+    #: identificador estável, ex.: "cyclic-dependency"
+    name: str
+
+    description: str
+
+    #: a categoria do catálogo de origem
+    category: str = ""
+
+    #: onde o anti-padrão está descrito
+    reference: str = ""
 
 
 @dataclass
@@ -23,9 +52,12 @@ class AntiPatternDetection:
     `subjects` guarda os identificadores envolvidos, e `metadata` o
     que é próprio de cada regra, para que a apresentação represente
     cada anti-padrão sem conhecê-lo.
+
+    `anti_pattern` é o NOME da entrada do catálogo, não o objeto —
+    como toda referência neste modelo.
     """
 
-    rule: str
+    anti_pattern: str
     message: str
     dimension: str = ""
     explanation: str = ""

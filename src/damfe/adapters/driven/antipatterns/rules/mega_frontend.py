@@ -17,16 +17,19 @@ from __future__ import annotations
 
 from damfe.adapters.driven.antipatterns.alignment import Sizes, peers
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
+from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture
 
 
 class MegaFrontend(Rule):
 
-    name = "mega-frontend"
-
-    description = (
-        "Micro frontend muito maior que seus pares, concentrando "
-        "responsabilidades que deveriam estar separadas."
+    anti_pattern = AntiPattern(
+        name="mega-frontend",
+        description=(
+            "Micro frontend muito maior que seus pares, concentrando "
+            "responsabilidades que deveriam estar separadas."
+        ),
+        category="Intra-frontend",
+        reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Mega%20Frontend",
     )
 
     def __init__(self, size_factor: float = 2.0):
@@ -68,7 +71,7 @@ class MegaFrontend(Rule):
 
             found.append(
                 AntiPatternDetection(
-                    rule=self.name,
+                    anti_pattern=self.name,
                     dimension="tamanho",
                     explanation=(
                         "Tamanho relativo é indício, não prova: um "

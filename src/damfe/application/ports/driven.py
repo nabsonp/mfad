@@ -18,6 +18,7 @@ from damfe.domain import (
     MicroFrontendArchitecture,
     Communication,
     CommunicationSpec,
+    AntiPattern,
     AntiPatternDetection,
     FragmentImport,
     Navigation,
@@ -112,17 +113,27 @@ class SourceProbe(ABC):
 
 class Rule(ABC):
     """
-    Uma regra de detecção de anti-padrão.
+    Como procurar um anti-padrão nos artefatos.
 
-    Opera somente sobre o modelo de domínio — por isso a
-    detecção é agnóstica à tecnologia de origem.
+    A regra é o COMO; o `AntiPattern` que ela declara é o QUÊ. São
+    separados porque uma mesma entrada do catálogo admite mais de
+    uma operacionalização, e trocar de operacionalização não muda o
+    que o anti-padrão é.
+
+    Opera somente sobre o modelo de domínio — por isso a detecção é
+    agnóstica à tecnologia de origem.
     """
 
-    #: identificador estável, ex.: "cyclic-dependency"
-    name: str = ""
+    #: a entrada do catálogo que esta regra procura
+    anti_pattern: AntiPattern
 
-    #: descrição curta
-    description: str = ""
+    @property
+    def name(self) -> str:
+        return self.anti_pattern.name
+
+    @property
+    def description(self) -> str:
+        return self.anti_pattern.description
 
     @abstractmethod
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:

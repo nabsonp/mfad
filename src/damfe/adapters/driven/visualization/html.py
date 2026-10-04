@@ -54,7 +54,7 @@ class HtmlRenderer(Renderer):
 
         detections = sorted(
             detections or [],
-            key=lambda item: (item.rule, item.dimension, item.message),
+            key=lambda item: (item.anti_pattern, item.dimension, item.message),
         )
 
         data = payload.build(architecture, detections)

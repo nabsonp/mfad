@@ -12,7 +12,7 @@ from damfe.domain.communication import (
     CommunicationSpec,
     Mechanism,
 )
-from damfe.domain.detection import AntiPatternDetection
+from damfe.domain.detection import AntiPattern, AntiPatternDetection
 from damfe.domain.provenance import (
     Provenance,
     SCHEMA_VERSION,
@@ -41,6 +41,7 @@ __all__ = [
     "CodeSize",
     "CommunicationSpec",
     "MicroFrontendArchitecture",
+    "AntiPattern",
     "AntiPatternDetection",
     "Fragment",
     "FragmentImport",

@@ -308,7 +308,7 @@ def detection(result: DetectionResult, write: Writer) -> None:
         for detection in result.detections:
 
             write(
-                f"{detection.rule}"
+                f"{detection.anti_pattern}"
                 + (f"  [{detection.dimension}]" if detection.dimension else "")
             )
             write(f"  {detection.message}")

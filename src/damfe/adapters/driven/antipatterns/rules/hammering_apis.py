@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
+from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
 
 
 @dataclass
@@ -30,11 +30,14 @@ class Endpoint:
 
 class HammeringApis(Rule):
 
-    name = "hammering-apis"
-
-    description = (
-        "Rota de serviço externo consumida por mais de um micro "
-        "frontend, criando dependência compartilhada de contrato."
+    anti_pattern = AntiPattern(
+        name="hammering-apis",
+        description=(
+            "Rota de serviço externo consumida por mais de um micro "
+            "frontend, criando dependência compartilhada de contrato."
+        ),
+        category="Inter-frontend",
+        reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hammering%20APIs",
     )
 
     def __init__(self, min_callers: int = 2):
@@ -76,7 +79,7 @@ class HammeringApis(Rule):
         callers = sorted(endpoint.callers)
 
         return AntiPatternDetection(
-            rule=self.name,
+            anti_pattern=self.name,
             dimension="backend compartilhado",
             explanation=(
                 "A mesma rota é consumida por mais de um micro "

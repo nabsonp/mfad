@@ -19,16 +19,19 @@ from __future__ import annotations
 from collections import defaultdict
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
+from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture
 
 
 class OneForAll(Rule):
 
-    name = "one-for-all"
-
-    description = (
-        "Micro frontend conectado a quase todos os outros, por "
-        "fragmento, navegação ou comunicação."
+    anti_pattern = AntiPattern(
+        name="one-for-all",
+        description=(
+            "Micro frontend conectado a quase todos os outros, por "
+            "fragmento, navegação ou comunicação."
+        ),
+        category="Inter-frontend",
+        reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/One%20Micro%20Frontend%20for%20all",
     )
 
     def __init__(
@@ -132,7 +135,7 @@ class OneForAll(Rule):
     ) -> AntiPatternDetection:
 
         return AntiPatternDetection(
-            rule=self.name,
+            anti_pattern=self.name,
             dimension="todas as relações",
             explanation=(
                 "O micro frontend está ligado a quase todos os "

@@ -43,7 +43,7 @@ class DetectUseCase(UseCase[DetectionResult]):
         ]
 
         # Sem severidade, a ordem é a estável: regra e mensagem.
-        detections.sort(key=lambda item: (item.rule, item.message))
+        detections.sort(key=lambda item: (item.anti_pattern, item.message))
 
         written = (
             self.repository.save_detections(detections, self.destination)
