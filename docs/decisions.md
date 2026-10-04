@@ -297,6 +297,16 @@ possível alvo de exportação.
 
 ---
 
+## 11. Nomes
+
+**`ArtifactSet` virou `MicroFrontendArchitecture`.** O nome antigo descrevia o FORMATO DO RECIPIENTE — "um conjunto de artefatos" — e não a coisa. É a mesma família de `DataManager` e `InfoHolder`: o domínio não deveria saber que aquilo é uma coleção.
+
+O objeto é a arquitetura reconstruída, que é literalmente o que a ferramenta se propõe a produzir. E ele não pertence à reconstrução: é produzido por ela e consumido também pela detecção e pela visualização, então nomeá-lo pelo produtor — `Reconstruction` — leria errado nos outros dois, como se a regra avaliasse o processo em vez da arquitetura.
+
+A variável acompanhou: `artifacts` virou `architecture` em todo lugar onde segura esse tipo. Ficaram de fora, de propósito, os usos em que `artifacts` significa mesmo a PASTA de saída — `arguments.artifacts`, `Path("artifacts")` e a chave `"artifacts"` do manifesto. Ter os dois sentidos com o mesmo nome era parte da confusão.
+
+---
+
 ## Pendências conhecidas
 
 | | |

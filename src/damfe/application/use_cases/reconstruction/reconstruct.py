@@ -2,7 +2,7 @@
 Reconstrução completa: compõe os casos de uso de extração.
 
 É o Command tirando proveito de si mesmo — um caso de uso cuja
-execução é executar outros. A montagem do `ArtifactSet` mora aqui,
+execução é executar outros. A montagem do `MicroFrontendArchitecture` mora aqui,
 na aplicação, e não no adaptador que extrai.
 """
 
@@ -39,7 +39,7 @@ from damfe.application.use_cases.reconstruction.extract_state_accesses import (
     ExtractStateAccessesUseCase,
 )
 from damfe import __version__
-from damfe.domain import ArtifactSet, Provenance, edges_from_state
+from damfe.domain import MicroFrontendArchitecture, Provenance, edges_from_state
 
 
 class ReconstructUseCase(UseCase[ReconstructionResult]):
@@ -109,7 +109,7 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         # leem a mesma fatia.
         communications = communications + edges_from_state(state_accesses)
 
-        artifacts = ArtifactSet(
+        architecture = MicroFrontendArchitecture(
             project=self.repository_path.resolve().name,
             provenance=self._provenance(),
             microfrontends=microfrontends,
@@ -122,17 +122,17 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
 
         # Os domínios são resolvidos por último: dependem de tudo
         # que foi extraído antes.
-        self.resolve_domains.artifacts = artifacts
+        self.resolve_domains.architecture = architecture
 
-        artifacts.domains = self.resolve_domains.execute().domains
+        architecture.domains = self.resolve_domains.execute().domains
 
         written = (
-            self.repository.save(artifacts, self.destination)
+            self.repository.save(architecture, self.destination)
             if self.destination
             else []
         )
 
-        return ReconstructionResult(artifacts=artifacts, written=written)
+        return ReconstructionResult(architecture=architecture, written=written)
 
     def _provenance(self) -> Provenance:
         """

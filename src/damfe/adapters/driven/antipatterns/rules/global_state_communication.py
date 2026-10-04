@@ -16,7 +16,7 @@ quem participa dela.
 from __future__ import annotations
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 class GlobalStateCommunication(Rule):
@@ -34,9 +34,9 @@ class GlobalStateCommunication(Rule):
         #: interno e passa a ser canal. Dois já bastam.
         self.min_microfrontends = min_microfrontends
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        readers = self._readers(artifacts)
+        readers = self._readers(architecture)
 
         shared = {
             path: holders
@@ -69,7 +69,7 @@ class GlobalStateCommunication(Rule):
                     + ", ".join(self._short(item) for item in involved)
                 ),
                 subjects=involved,
-                locations=self._locations(artifacts, shared),
+                locations=self._locations(architecture, shared),
                 metadata={
                     "relation": "shared_state",
                     "edges": self._edges(shared),
@@ -78,18 +78,18 @@ class GlobalStateCommunication(Rule):
                         for path, holders in sorted(shared.items())
                     },
                     "libraries": sorted(
-                        {item.library for item in artifacts.state_accesses}
+                        {item.library for item in architecture.state_accesses}
                     ),
                 },
             )
         ]
 
     @staticmethod
-    def _readers(artifacts: ArtifactSet) -> dict[str, set[str]]:
+    def _readers(architecture: MicroFrontendArchitecture) -> dict[str, set[str]]:
 
         readers: dict[str, set[str]] = {}
 
-        for access in artifacts.state_accesses:
+        for access in architecture.state_accesses:
             readers.setdefault(access.path, set()).add(access.microfrontend)
 
         return readers
@@ -117,11 +117,11 @@ class GlobalStateCommunication(Rule):
         return pairs
 
     @staticmethod
-    def _locations(artifacts: ArtifactSet, shared: dict) -> list:
+    def _locations(architecture: MicroFrontendArchitecture, shared: dict) -> list:
 
         return [
             access.at
-            for access in artifacts.state_accesses
+            for access in architecture.state_accesses
             if access.path in shared
         ]
 

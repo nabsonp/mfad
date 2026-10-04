@@ -7,7 +7,7 @@ from pathlib import Path
 from damfe.application.errors import ArtifactsNotFound
 from damfe.application.ports import ArtifactRepository, Renderer, UseCase
 from damfe.application.results import VisualizationResult
-from damfe.domain import ArtifactSet, AntiPatternDetection
+from damfe.domain import MicroFrontendArchitecture, AntiPatternDetection
 
 
 class VisualizeUseCase(UseCase[VisualizationResult]):
@@ -19,7 +19,7 @@ class VisualizeUseCase(UseCase[VisualizationResult]):
         renderer: Renderer,
         repository: ArtifactRepository,
         detections_path: Path | None = None,
-        artifacts: ArtifactSet | None = None,
+        architecture: MicroFrontendArchitecture | None = None,
         detections: list[AntiPatternDetection] | None = None,
     ):
         self.source = source
@@ -28,14 +28,14 @@ class VisualizeUseCase(UseCase[VisualizationResult]):
         self.repository = repository
         self.detections_path = detections_path
 
-        self.artifacts = artifacts
+        self.architecture = architecture
         self.detections = detections
 
     def execute(self) -> VisualizationResult:
 
-        artifacts = self.artifacts or self.repository.load(self.source)
+        architecture = self.architecture or self.repository.load(self.source)
 
-        if not artifacts.microfrontends:
+        if not architecture.microfrontends:
             raise ArtifactsNotFound(self.source)
 
         detections = self.detections
@@ -43,7 +43,7 @@ class VisualizeUseCase(UseCase[VisualizationResult]):
         if detections is None and self.detections_path:
             detections = self.repository.load_detections(self.detections_path)
 
-        output = self.renderer.render(artifacts, detections)
+        output = self.renderer.render(architecture, detections)
 
         written = None
 

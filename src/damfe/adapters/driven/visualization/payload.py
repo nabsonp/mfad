@@ -1,7 +1,7 @@
 """
 Projeção dos artefatos para consumo da página.
 
-O que a página precisa não é o `ArtifactSet` inteiro: é uma
+O que a página precisa não é o `MicroFrontendArchitecture` inteiro: é uma
 estrutura achatada, com identificadores curtos e as arestas já
 individualizadas, para que o JavaScript não precise recalcular
 nada em tempo de interação.
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 #: Perspectivas do grafo. A ordem é a das abas na página.
@@ -30,23 +30,23 @@ DERIVED = "shared_endpoint"
 
 
 def build(
-    artifacts: ArtifactSet,
+    architecture: MicroFrontendArchitecture,
     detections: list[AntiPatternDetection],
 ) -> dict:
 
-    degrees = _degrees(artifacts)
+    degrees = _degrees(architecture)
 
     counts = _detection_counts(detections)
 
     return {
-        "project": artifacts.project,
+        "project": architecture.project,
         "microfrontends": [
             _microfrontend(item, degrees, counts)
-            for item in artifacts.microfrontends
+            for item in architecture.microfrontends
         ],
-        "edges": _edges(artifacts),
-        "api_calls": _api_calls(artifacts),
-        "endpoints": _endpoints(artifacts),
+        "edges": _edges(architecture),
+        "api_calls": _api_calls(architecture),
+        "endpoints": _endpoints(architecture),
         "detections": [
             _detection(index, item)
             for index, item in enumerate(detections)
@@ -72,7 +72,7 @@ def _slug(value: str) -> str:
     )
 
 
-def _degrees(artifacts: ArtifactSet) -> dict[str, dict[str, int]]:
+def _degrees(architecture: MicroFrontendArchitecture) -> dict[str, dict[str, int]]:
     """
     Vizinhos distintos de entrada e de saída, somadas as relações
     extraídas. Conta vizinhos, não arestas: dois fragmentos do
@@ -83,9 +83,9 @@ def _degrees(artifacts: ArtifactSet) -> dict[str, dict[str, int]]:
     incoming: dict[str, set[str]] = {}
 
     pairs = (
-        [(item.consumer, item.provider) for item in artifacts.fragment_imports]
-        + [(item.source, item.target) for item in artifacts.navigations]
-        + [(item.source, item.target) for item in artifacts.communications]
+        [(item.consumer, item.provider) for item in architecture.fragment_imports]
+        + [(item.source, item.target) for item in architecture.navigations]
+        + [(item.source, item.target) for item in architecture.communications]
     )
 
     for source, target in pairs:
@@ -101,7 +101,7 @@ def _degrees(artifacts: ArtifactSet) -> dict[str, dict[str, int]]:
             "out": len(outgoing.get(item.id, ())),
             "in": len(incoming.get(item.id, ())),
         }
-        for item in artifacts.microfrontends
+        for item in architecture.microfrontends
     }
 
 
@@ -156,7 +156,7 @@ def _microfrontend(item, degrees: dict, counts: dict) -> dict:
     }
 
 
-def _edges(artifacts: ArtifactSet) -> list[dict]:
+def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
     Uma entrada por relação concreta, não por par de nós.
 
@@ -166,7 +166,7 @@ def _edges(artifacts: ArtifactSet) -> list[dict]:
 
     edges: list[dict] = []
 
-    for item in artifacts.fragment_imports:
+    for item in architecture.fragment_imports:
 
         renders = [
             {
@@ -192,7 +192,7 @@ def _edges(artifacts: ArtifactSet) -> list[dict]:
             }
         )
 
-    for item in artifacts.navigations:
+    for item in architecture.navigations:
 
         edges.append(
             {
@@ -208,11 +208,11 @@ def _edges(artifacts: ArtifactSet) -> list[dict]:
             }
         )
 
-    edges.extend(_mounts(artifacts))
+    edges.extend(_mounts(architecture))
 
-    edges.extend(_shared_endpoints(artifacts))
+    edges.extend(_shared_endpoints(architecture))
 
-    for item in artifacts.communications:
+    for item in architecture.communications:
 
         first = (item.produced_at or item.consumed_at or [None])[0]
 
@@ -233,7 +233,7 @@ def _edges(artifacts: ArtifactSet) -> list[dict]:
     return edges
 
 
-def _mounts(artifacts: ArtifactSet) -> list[dict]:
+def _mounts(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
     O shell montando cada aplicação que registrou.
 
@@ -244,11 +244,11 @@ def _mounts(artifacts: ArtifactSet) -> list[dict]:
     import inventado entre pares, que diz isso.
     """
 
-    known = {item.id for item in artifacts.microfrontends}
+    known = {item.id for item in architecture.microfrontends}
 
     edges: list[dict] = []
 
-    for item in artifacts.microfrontends:
+    for item in architecture.microfrontends:
 
         for mounted in item.mounts:
 
@@ -272,7 +272,7 @@ def _mounts(artifacts: ArtifactSet) -> list[dict]:
     return edges
 
 
-def _api_calls(artifacts: ArtifactSet) -> list[dict]:
+def _api_calls(architecture: MicroFrontendArchitecture) -> list[dict]:
 
     return [
         {
@@ -285,11 +285,11 @@ def _api_calls(artifacts: ArtifactSet) -> list[dict]:
             "line": item.at.line,
             "code": item.at.code,
         }
-        for item in artifacts.api_calls
+        for item in architecture.api_calls
     ]
 
 
-def _endpoints(artifacts: ArtifactSet) -> list[dict]:
+def _endpoints(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
     Endpoints agregados por caminho, com quem os consome.
 
@@ -300,7 +300,7 @@ def _endpoints(artifacts: ArtifactSet) -> list[dict]:
 
     grouped: dict[str, dict] = {}
 
-    for item in artifacts.api_calls:
+    for item in architecture.api_calls:
 
         entry = grouped.setdefault(
             item.path,
@@ -323,7 +323,7 @@ def _endpoints(artifacts: ArtifactSet) -> list[dict]:
     )
 
 
-def _shared_endpoints(artifacts: ArtifactSet) -> list[dict]:
+def _shared_endpoints(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
     Pares de micro frontends que consomem o mesmo endpoint.
 
@@ -334,7 +334,7 @@ def _shared_endpoints(artifacts: ArtifactSet) -> list[dict]:
 
     callers: dict[str, set[str]] = {}
 
-    for item in artifacts.api_calls:
+    for item in architecture.api_calls:
         callers.setdefault(item.path, set()).add(item.microfrontend)
 
     edges: list[dict] = []

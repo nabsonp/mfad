@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from damfe.adapters.driven.antipatterns.alignment import alignments, peers
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 class AccessToDifferentDomains(Rule):
@@ -34,22 +34,22 @@ class AccessToDifferentDomains(Rule):
         #: acusado.
         self.min_domains = min_domains
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        if not artifacts.domains:
+        if not architecture.domains:
             return []
 
-        spread = alignments(artifacts)
+        spread = alignments(architecture)
 
         by_path = {
             path: domain.name
-            for domain in artifacts.domains
+            for domain in architecture.domains
             for path in domain.api_calls
         }
 
         found: list[AntiPatternDetection] = []
 
-        for microfrontend in peers(artifacts):
+        for microfrontend in peers(architecture):
 
             called = spread[microfrontend.id].called
 
@@ -59,7 +59,7 @@ class AccessToDifferentDomains(Rule):
             endpoints = sorted(
                 {
                     f"{call.method} {call.path}"
-                    for call in artifacts.api_calls
+                    for call in architecture.api_calls
                     if call.microfrontend == microfrontend.id
                     and by_path.get(call.path) in called
                 }
@@ -83,7 +83,7 @@ class AccessToDifferentDomains(Rule):
                     subjects=[microfrontend.id],
                     locations=[
                         call.at
-                        for call in artifacts.api_calls
+                        for call in architecture.api_calls
                         if call.microfrontend == microfrontend.id
                         and by_path.get(call.path) in called
                     ],

@@ -14,7 +14,7 @@ from damfe.domain import (
     ApiCall,
     Domain,
     MicroFrontend,
-    ArtifactSet,
+    MicroFrontendArchitecture,
     Communication,
     CommunicationSpec,
     AntiPatternDetection,
@@ -69,7 +69,7 @@ class NavigationsResult:
 
 @dataclass
 class ReconstructionResult:
-    artifacts: ArtifactSet
+    architecture: MicroFrontendArchitecture
     written: list[Path] = field(default_factory=list)
 
 

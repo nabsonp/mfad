@@ -233,7 +233,7 @@ class Navigation:
 
 
 @dataclass
-class ArtifactSet:
+class MicroFrontendArchitecture:
     """Tudo que a reconstrução extraiu de um repositório."""
 
     #: nome do projeto analisado, para identificar o relatório.

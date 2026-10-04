@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 class OneForAll(Rule):
@@ -46,14 +46,14 @@ class OneForAll(Rule):
         #: todo mundo.
         self.min_microfrontends = min_microfrontends
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
         # O orquestrador é excluído: alcançar todos é a função
         # dele. Mantê-lo no cálculo ainda inflaria o grau de todos
         # os outros, já que ele navega para o sistema inteiro.
         peers = [
             microfrontend.id
-            for microfrontend in artifacts.microfrontends
+            for microfrontend in architecture.microfrontends
             if microfrontend.role != "shell"
         ]
 
@@ -62,7 +62,7 @@ class OneForAll(Rule):
 
         known = set(peers)
 
-        outgoing, incoming = self._degrees(artifacts, known)
+        outgoing, incoming = self._degrees(architecture, known)
 
         detections: list[AntiPatternDetection] = []
 
@@ -89,7 +89,7 @@ class OneForAll(Rule):
 
     @staticmethod
     def _degrees(
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         known: set[str],
     ) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
         """Vizinhos de saída e de entrada, unindo as três relações."""
@@ -100,15 +100,15 @@ class OneForAll(Rule):
         edges = (
             [
                 (item.consumer, item.provider)
-                for item in artifacts.fragment_imports
+                for item in architecture.fragment_imports
             ]
             + [
                 (item.source, item.target)
-                for item in artifacts.navigations
+                for item in architecture.navigations
             ]
             + [
                 (item.source, item.target)
-                for item in artifacts.communications
+                for item in architecture.communications
             ]
         )
 

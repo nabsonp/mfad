@@ -272,22 +272,22 @@ def llm_setup(result: LlmSetupResult, write: Writer) -> None:
 
 def reconstruction(result: ReconstructionResult, write: Writer) -> None:
 
-    artifacts = result.artifacts
+    architecture = result.architecture
 
     write("")
     write(
-        f"{len(artifacts.microfrontends)} micro frontends, "
-        f"{len(artifacts.fragments)} fragmentos, "
-        f"{len(artifacts.screens)} telas, "
-        f"{len(artifacts.fragment_imports)} imports e "
-        f"{len(artifacts.navigations)} navegações e "
-        f"{len(artifacts.communications)} comunicações entre micro "
-        f"frontends · {len(artifacts.api_calls)} chamadas externas · "
-        f"{len(artifacts.state_accesses)} acessos ao estado global"
+        f"{len(architecture.microfrontends)} micro frontends, "
+        f"{len(architecture.fragments)} fragmentos, "
+        f"{len(architecture.screens)} telas, "
+        f"{len(architecture.fragment_imports)} imports e "
+        f"{len(architecture.navigations)} navegações e "
+        f"{len(architecture.communications)} comunicações entre micro "
+        f"frontends · {len(architecture.api_calls)} chamadas externas · "
+        f"{len(architecture.state_accesses)} acessos ao estado global"
     )
     write("")
 
-    for microfrontend in artifacts.microfrontends:
+    for microfrontend in architecture.microfrontends:
         _application(microfrontend, write)
 
     _written(result.written, write)

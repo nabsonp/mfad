@@ -17,7 +17,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet, SourceLocation
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
 
 
 @dataclass
@@ -58,9 +58,9 @@ class HubLikeDependency(Rule):
         #: provedores e virava hub.
         self.min_fragments = min_fragments
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        hosts = self._hosts(artifacts)
+        hosts = self._hosts(architecture)
 
         return [
             self._detection(host)
@@ -68,7 +68,7 @@ class HubLikeDependency(Rule):
             if len(host.fragments) >= self.min_fragments
         ]
 
-    def _hosts(self, artifacts: ArtifactSet) -> dict[str, Host]:
+    def _hosts(self, architecture: MicroFrontendArchitecture) -> dict[str, Host]:
         """
         Agrupa os fragmentos instanciados por tela.
 
@@ -81,13 +81,13 @@ class HubLikeDependency(Rule):
 
         screens = {
             screen.id: screen
-            for microfrontend in artifacts.microfrontends
+            for microfrontend in architecture.microfrontends
             for screen in microfrontend.screens
         }
 
         hosts: dict[str, Host] = {}
 
-        for item in artifacts.fragment_imports:
+        for item in architecture.fragment_imports:
 
             for render in item.renders:
 

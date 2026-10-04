@@ -272,11 +272,11 @@ def _analyze(state, _payload) -> dict:
             "No extractor recognised this repository."
         )
 
-    artifacts = state.container.reconstruct(
+    architecture = state.container.reconstruct(
         repository_path=state.repository,
         destination=state.repository / "artifacts",
         reconstructor=reconstructor,
-    ).execute().artifacts
+    ).execute().architecture
 
     detections = state.container.detect(
         source=state.repository / "artifacts",
@@ -286,16 +286,16 @@ def _analyze(state, _payload) -> dict:
 
     return {
         "extractor": reconstructor.name,
-        "microfrontends": [m.id for m in artifacts.microfrontends],
-        "screens": sum(len(m.screens) for m in artifacts.microfrontends),
+        "microfrontends": [m.id for m in architecture.microfrontends],
+        "screens": sum(len(m.screens) for m in architecture.microfrontends),
         "fragments": sum(
-            len(m.fragments) for m in artifacts.microfrontends
+            len(m.fragments) for m in architecture.microfrontends
         ),
-        "fragment_imports": len(artifacts.fragment_imports),
-        "navigations": len(artifacts.navigations),
-        "communications": len(artifacts.communications),
-        "api_calls": len(artifacts.api_calls),
-        "state_accesses": len(artifacts.state_accesses),
+        "fragment_imports": len(architecture.fragment_imports),
+        "navigations": len(architecture.navigations),
+        "communications": len(architecture.communications),
+        "api_calls": len(architecture.api_calls),
+        "state_accesses": len(architecture.state_accesses),
         "detections": [
             {"rule": d.rule, "message": d.message} for d in detections
         ],

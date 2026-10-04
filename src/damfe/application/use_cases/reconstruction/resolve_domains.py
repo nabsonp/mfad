@@ -13,7 +13,7 @@ from pathlib import Path
 
 from damfe.application.ports import SpecRepository, UseCase
 from damfe.application.results import DomainsResult
-from damfe.domain import ArtifactSet, Domain
+from damfe.domain import MicroFrontendArchitecture, Domain
 
 
 class ResolveDomainsUseCase(UseCase[DomainsResult]):
@@ -22,19 +22,19 @@ class ResolveDomainsUseCase(UseCase[DomainsResult]):
         self,
         spec_path: Path,
         specs: SpecRepository,
-        artifacts: ArtifactSet | None = None,
+        architecture: MicroFrontendArchitecture | None = None,
     ):
         self.spec_path = spec_path
         self.specs = specs
-        self.artifacts = artifacts
+        self.architecture = architecture
 
     def execute(self) -> DomainsResult:
 
         mapa = self.specs.load_domains(self.spec_path)
 
-        artifacts = self.artifacts
+        architecture = self.architecture
 
-        if not mapa or artifacts is None:
+        if not mapa or architecture is None:
             return DomainsResult(domains=[], declared=bool(mapa))
 
         domains = {
@@ -49,7 +49,7 @@ class ResolveDomainsUseCase(UseCase[DomainsResult]):
 
         members: dict[str, set[str]] = {name: set() for name in domains}
 
-        for microfrontend in artifacts.microfrontends:
+        for microfrontend in architecture.microfrontends:
 
             for screen in microfrontend.screens:
 
@@ -61,7 +61,7 @@ class ResolveDomainsUseCase(UseCase[DomainsResult]):
                 domains[name].screens.append(screen.id)
                 members[name].add(microfrontend.id)
 
-        for call in artifacts.api_calls:
+        for call in architecture.api_calls:
 
             name = mapa.of_endpoint(call.path)
 

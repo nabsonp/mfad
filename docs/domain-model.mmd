@@ -1,0 +1,224 @@
+%% Modelo de domínio do DAMFE — gerado a partir de src/damfe/domain/
+%% Losango cheio: composição. Tracejado: referência por IDENTIFICADOR,
+%% nunca por ponteiro de objeto.
+classDiagram
+    direction TB
+
+    class MicroFrontendArchitecture {
+        +str project
+        +list~MicroFrontend~ microfrontends
+        +list~FragmentImport~ fragment_imports
+        +list~Navigation~ navigations
+        +list~Communication~ communications
+        +list~ApiCall~ api_calls
+        +list~StateAccess~ state_accesses
+        +list~Domain~ domains
+        +Provenance provenance
+        +microfrontend(id) MicroFrontend
+        +fragments() list~Fragment~
+        +screens() list~Screen~
+    }
+
+    class MicroFrontend {
+        +str id
+        +str directory
+        +str entrypoint
+        +list~str~ routes
+        +str role
+        +list~str~ mounts
+        +list~Fragment~ fragments
+        +list~Screen~ screens
+        +CodeSize size
+        +dict metadata
+    }
+
+    class Fragment {
+        +str name
+        +str microfrontend
+        +str file
+        +int line
+        +id() str
+    }
+
+    class Screen {
+        +str component
+        +str microfrontend
+        +str route
+        +str route_expression
+        +str file
+        +int line
+        +bool reachable
+        +id() str
+    }
+
+    class CodeSize {
+        +int files
+        +int lines
+        +int code_lines
+    }
+
+    class FragmentImport {
+        +str consumer
+        +str provider
+        +str fragment
+        +str local_name
+        +SourceLocation imported_at
+        +list~RenderSite~ renders
+    }
+
+    class RenderSite {
+        +str file
+        +int line
+        +list~str~ props
+        +list~str~ screens
+    }
+
+    class Navigation {
+        +str source
+        +str target
+        +str expression
+        +str resolved_url
+        +str match
+        +SourceLocation at
+    }
+
+    class Communication {
+        +str source
+        +str target
+        +str mechanism
+        +str channel
+        +list~SourceLocation~ produced_at
+        +list~SourceLocation~ consumed_at
+        +bool directed
+    }
+
+    class ApiCall {
+        +str microfrontend
+        +str method
+        +str path
+        +str match
+        +str client
+        +SourceLocation at
+        +list~str~ screens
+        +list~str~ fragments
+    }
+
+    class StateAccess {
+        +str microfrontend
+        +str library
+        +str path
+        +SourceLocation at
+    }
+
+    class Domain {
+        +str name
+        +list~str~ routes
+        +list~str~ endpoints
+        +list~str~ subdomains
+        +list~str~ screens
+        +list~str~ api_calls
+        +list~str~ microfrontends
+    }
+
+    class SourceLocation {
+        +str file
+        +int line
+        +str code
+    }
+
+    class Provenance {
+        +str schema
+        +str tool
+        +str generated_at
+        +str reconstructor
+        +list~SourceRepository~ sources
+        +source(path) SourceRepository
+    }
+
+    class SourceRepository {
+        +str path
+        +str remote
+        +str commit
+        +bool dirty
+    }
+
+    class AntiPatternDetection {
+        +str rule
+        +str message
+        +str dimension
+        +str explanation
+        +list~str~ subjects
+        +list~SourceLocation~ locations
+        +dict metadata
+    }
+
+    %% ---- entrada declarada pelo usuário, não artefato
+    class CommunicationSpec {
+        +list~Mechanism~ mechanisms
+    }
+
+    class Mechanism {
+        +str name
+        +str kind
+        +ChannelOperation produce
+        +ChannelOperation consume
+    }
+
+    class ChannelOperation {
+        +str module
+        +str export
+        +int channel_argument
+    }
+
+    class DomainMap {
+        +list~DomainDeclaration~ declarations
+        +of_route(url) str
+        +of_endpoint(path) str
+    }
+
+    class DomainDeclaration {
+        +str name
+        +list~str~ routes
+        +list~str~ endpoints
+        +list~str~ subdomains
+    }
+
+    %% ---- composição
+    MicroFrontendArchitecture *-- MicroFrontend
+    MicroFrontendArchitecture *-- FragmentImport
+    MicroFrontendArchitecture *-- Navigation
+    MicroFrontendArchitecture *-- Communication
+    MicroFrontendArchitecture *-- ApiCall
+    MicroFrontendArchitecture *-- StateAccess
+    MicroFrontendArchitecture *-- Domain
+    MicroFrontendArchitecture *-- Provenance
+
+    MicroFrontend *-- Fragment
+    MicroFrontend *-- Screen
+    MicroFrontend *-- CodeSize
+
+    FragmentImport *-- SourceLocation : imported_at
+    FragmentImport *-- RenderSite
+    Navigation *-- SourceLocation : at
+    Communication *-- SourceLocation : produced_at / consumed_at
+    ApiCall *-- SourceLocation : at
+    StateAccess *-- SourceLocation : at
+    AntiPatternDetection *-- SourceLocation
+    Provenance *-- SourceRepository
+
+    CommunicationSpec *-- Mechanism
+    Mechanism *-- ChannelOperation : produce / consume
+    DomainMap *-- DomainDeclaration
+
+    %% ---- referência por identificador
+    Screen ..> MicroFrontend : microfrontend
+    Fragment ..> MicroFrontend : microfrontend
+    FragmentImport ..> MicroFrontend : consumer / provider
+    Navigation ..> MicroFrontend : source / target
+    Communication ..> MicroFrontend : source / target
+    ApiCall ..> MicroFrontend : microfrontend
+    StateAccess ..> MicroFrontend : microfrontend
+    Domain ..> MicroFrontend : microfrontends
+    Domain ..> Screen : screens
+    RenderSite ..> Screen : screens
+    AntiPatternDetection ..> MicroFrontend : subjects

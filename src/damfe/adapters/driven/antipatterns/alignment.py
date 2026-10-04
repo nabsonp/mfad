@@ -17,7 +17,7 @@ from __future__ import annotations
 import statistics
 from dataclasses import dataclass, field
 
-from damfe.domain import ArtifactSet, MicroFrontend
+from damfe.domain import MicroFrontendArchitecture, MicroFrontend
 
 
 @dataclass
@@ -64,23 +64,23 @@ class Alignment:
         return bool(self.screens)
 
 
-def alignments(artifacts: ArtifactSet) -> dict[str, Alignment]:
+def alignments(architecture: MicroFrontendArchitecture) -> dict[str, Alignment]:
 
     by_screen = {
         screen: domain.name
-        for domain in artifacts.domains
+        for domain in architecture.domains
         for screen in domain.screens
     }
 
     by_path = {
         path: domain.name
-        for domain in artifacts.domains
+        for domain in architecture.domains
         for path in domain.api_calls
     }
 
     found: dict[str, Alignment] = {}
 
-    for microfrontend in artifacts.microfrontends:
+    for microfrontend in architecture.microfrontends:
 
         entry = Alignment(microfrontend=microfrontend.id)
 
@@ -95,7 +95,7 @@ def alignments(artifacts: ArtifactSet) -> dict[str, Alignment]:
 
         found[microfrontend.id] = entry
 
-    for call in artifacts.api_calls:
+    for call in architecture.api_calls:
 
         domain = by_path.get(call.path)
 
@@ -156,7 +156,7 @@ class Sizes:
         )
 
 
-def peers(artifacts: ArtifactSet) -> list[MicroFrontend]:
+def peers(architecture: MicroFrontendArchitecture) -> list[MicroFrontend]:
     """
     Os micro frontends que entram na comparação.
 
@@ -167,6 +167,6 @@ def peers(artifacts: ArtifactSet) -> list[MicroFrontend]:
 
     return [
         item
-        for item in artifacts.microfrontends
+        for item in architecture.microfrontends
         if item.role != "shell"
     ]

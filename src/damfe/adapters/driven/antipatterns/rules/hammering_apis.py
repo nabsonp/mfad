@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet, SourceLocation
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
 
 
 @dataclass
@@ -44,9 +44,9 @@ class HammeringApis(Rule):
         #: partir do segundo.
         self.min_callers = min_callers
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        endpoints = self._endpoints(artifacts)
+        endpoints = self._endpoints(architecture)
 
         return [
             self._detection(endpoint)
@@ -55,11 +55,11 @@ class HammeringApis(Rule):
         ]
 
     @staticmethod
-    def _endpoints(artifacts: ArtifactSet) -> list[Endpoint]:
+    def _endpoints(architecture: MicroFrontendArchitecture) -> list[Endpoint]:
 
         grouped: dict[str, Endpoint] = {}
 
-        for call in artifacts.api_calls:
+        for call in architecture.api_calls:
 
             endpoint = grouped.setdefault(call.path, Endpoint(path=call.path))
 

@@ -24,7 +24,7 @@ from damfe.adapters.driven.antipatterns.alignment import (
     peers,
 )
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 class NanoFrontend(Rule):
@@ -46,22 +46,22 @@ class NanoFrontend(Rule):
         #: para que o outro seja considerado pedaço, e não metade.
         self.dominance = dominance
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        if artifacts.domains:
-            return self._by_domain(artifacts)
+        if architecture.domains:
+            return self._by_domain(architecture)
 
-        return self._by_size(artifacts)
+        return self._by_size(architecture)
 
     # ------------------------------------------------------------------
 
-    def _by_domain(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def _by_domain(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        spread = alignments(artifacts)
+        spread = alignments(architecture)
 
         found: list[AntiPatternDetection] = []
 
-        for microfrontend in peers(artifacts):
+        for microfrontend in peers(architecture):
 
             entry = spread[microfrontend.id]
 
@@ -132,9 +132,9 @@ class NanoFrontend(Rule):
 
         return best, count
 
-    def _by_size(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def _by_size(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        candidates = peers(artifacts)
+        candidates = peers(architecture)
 
         sizes = Sizes.of(candidates)
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from damfe.application.errors import ArtifactsNotFound
 from damfe.application.ports import ArtifactRepository, Rule, UseCase
 from damfe.application.results import DetectionResult
-from damfe.domain import ArtifactSet
+from damfe.domain import MicroFrontendArchitecture
 
 
 class DetectUseCase(UseCase[DetectionResult]):
@@ -18,7 +18,7 @@ class DetectUseCase(UseCase[DetectionResult]):
         destination: Path | None,
         rules: list[Rule],
         repository: ArtifactRepository,
-        artifacts: ArtifactSet | None = None,
+        architecture: MicroFrontendArchitecture | None = None,
     ):
         self.source = source
         self.destination = destination
@@ -27,19 +27,19 @@ class DetectUseCase(UseCase[DetectionResult]):
 
         # Quando encadeado, os artefatos já estão em memória
         # e não precisam ser relidos do disco.
-        self.artifacts = artifacts
+        self.architecture = architecture
 
     def execute(self) -> DetectionResult:
 
-        artifacts = self.artifacts or self.repository.load(self.source)
+        architecture = self.architecture or self.repository.load(self.source)
 
-        if not artifacts.microfrontends:
+        if not architecture.microfrontends:
             raise ArtifactsNotFound(self.source)
 
         detections = [
             detection
             for rule in self.rules
-            for detection in rule.check(artifacts)
+            for detection in rule.check(architecture)
         ]
 
         # Sem severidade, a ordem é a estável: regra e mensagem.

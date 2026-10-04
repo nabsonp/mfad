@@ -16,7 +16,7 @@ from damfe.application.settings import LlmSettings
 from damfe.domain import (
     ApiCall,
     MicroFrontend,
-    ArtifactSet,
+    MicroFrontendArchitecture,
     Communication,
     CommunicationSpec,
     DomainMap,
@@ -127,7 +127,7 @@ class Rule(ABC):
     description: str = ""
 
     @abstractmethod
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
         """Avalia os artefatos e devolve as ocorrências."""
 
 
@@ -143,7 +143,7 @@ class Renderer(ABC):
     @abstractmethod
     def render(
         self,
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         detections: list[AntiPatternDetection] | None = None,
     ) -> str:
         """Devolve a representação como texto."""
@@ -204,13 +204,13 @@ class ArtifactRepository(ABC):
     @abstractmethod
     def save(
         self,
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         destination: Path,
     ) -> list[Path]:
         ...
 
     @abstractmethod
-    def load(self, source: Path) -> ArtifactSet:
+    def load(self, source: Path) -> MicroFrontendArchitecture:
         ...
 
     @abstractmethod

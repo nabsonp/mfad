@@ -21,7 +21,7 @@ from importlib import resources
 
 from damfe.adapters.driven.visualization import layout, payload
 from damfe.application.ports import Renderer
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 RELATION_LABELS = {
@@ -48,7 +48,7 @@ class HtmlRenderer(Renderer):
 
     def render(
         self,
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         detections: list[AntiPatternDetection] | None = None,
     ) -> str:
 
@@ -57,7 +57,7 @@ class HtmlRenderer(Renderer):
             key=lambda item: (item.rule, item.dimension, item.message),
         )
 
-        data = payload.build(artifacts, detections)
+        data = payload.build(architecture, detections)
 
         flagged = {
             subject
@@ -68,17 +68,17 @@ class HtmlRenderer(Renderer):
         return TEMPLATE.format(
             css=_asset("report.css"),
             js=_asset("report.js"),
-            project=html.escape(artifacts.project or "projeto"),
-            metrics=self._metrics(artifacts, detections),
+            project=html.escape(architecture.project or "projeto"),
+            metrics=self._metrics(architecture, detections),
             tabs=self._tabs(data),
-            svg=self._svg(artifacts, data, flagged),
+            svg=self._svg(architecture, data, flagged),
             legend=self._legend(),
             endpoints=self._endpoints(data["endpoints"]),
             endpoints_count=len(data["endpoints"]),
             detections=self._detections(data["detections"]),
             detections_count=len(detections),
             inventory=self._inventory(data),
-            microfrontends_count=len(artifacts.microfrontends),
+            microfrontends_count=len(architecture.microfrontends),
             data=json.dumps(data, ensure_ascii=False),
         )
 
@@ -88,18 +88,18 @@ class HtmlRenderer(Renderer):
 
     @staticmethod
     def _metrics(
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         detections: list[AntiPatternDetection],
     ) -> str:
 
         cards = [
-            (len(artifacts.microfrontends), "micro frontends", False),
-            (len(artifacts.screens), "telas", False),
-            (len(artifacts.fragments), "fragmentos", False),
-            (len(artifacts.fragment_imports), "composições", False),
-            (len(artifacts.navigations), "navegações", False),
-            (len(artifacts.communications), "comunicações", False),
-            (len(artifacts.api_calls), "chamadas externas", False),
+            (len(architecture.microfrontends), "micro frontends", False),
+            (len(architecture.screens), "telas", False),
+            (len(architecture.fragments), "fragmentos", False),
+            (len(architecture.fragment_imports), "composições", False),
+            (len(architecture.navigations), "navegações", False),
+            (len(architecture.communications), "comunicações", False),
+            (len(architecture.api_calls), "chamadas externas", False),
             (len(detections), "anti-padrões", bool(detections)),
         ]
 
@@ -140,7 +140,7 @@ class HtmlRenderer(Renderer):
 
     def _svg(
         self,
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         data: dict,
         flagged: set[str],
     ) -> str:

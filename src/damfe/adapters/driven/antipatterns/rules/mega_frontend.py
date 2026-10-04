@@ -23,7 +23,7 @@ from damfe.adapters.driven.antipatterns.alignment import (
     peers,
 )
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 class MegaFrontend(Rule):
@@ -41,28 +41,28 @@ class MegaFrontend(Rule):
         #: frontend precisa estar para ser acusado no modo sem mapa.
         self.size_factor = size_factor
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        if artifacts.domains:
-            return self._by_domain(artifacts)
+        if architecture.domains:
+            return self._by_domain(architecture)
 
-        return self._by_size(artifacts)
+        return self._by_size(architecture)
 
     # ------------------------------------------------------------------
 
-    def _by_domain(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def _by_domain(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        spread = alignments(artifacts)
+        spread = alignments(architecture)
 
         by_screen = {
             screen: domain.name
-            for domain in artifacts.domains
+            for domain in architecture.domains
             for screen in domain.screens
         }
 
         found: list[AntiPatternDetection] = []
 
-        for microfrontend in peers(artifacts):
+        for microfrontend in peers(architecture):
 
             entry = spread[microfrontend.id]
 
@@ -112,9 +112,9 @@ class MegaFrontend(Rule):
 
         return found
 
-    def _by_size(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def _by_size(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        candidates = peers(artifacts)
+        candidates = peers(architecture)
 
         sizes = Sizes.of(candidates)
 

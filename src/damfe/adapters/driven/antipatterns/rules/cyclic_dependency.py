@@ -18,7 +18,7 @@ from typing import Callable, Iterable
 import networkx as nx
 
 from damfe.application.ports import Rule
-from damfe.domain import AntiPatternDetection, ArtifactSet, SourceLocation
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
 
 
 @dataclass(frozen=True)
@@ -28,24 +28,24 @@ class Relation:
     key: str
     label: str
     explanation: str
-    edges: Callable[[ArtifactSet], Iterable]
+    edges: Callable[[MicroFrontendArchitecture], Iterable]
 
 
-def _fragment_import_edges(artifacts: ArtifactSet):
+def _fragment_import_edges(architecture: MicroFrontendArchitecture):
 
-    for item in artifacts.fragment_imports:
+    for item in architecture.fragment_imports:
         yield item.consumer, item.provider, item.fragment, [
             item.imported_at
         ]
 
 
-def _navigation_edges(artifacts: ArtifactSet):
+def _navigation_edges(architecture: MicroFrontendArchitecture):
 
-    for item in artifacts.navigations:
+    for item in architecture.navigations:
         yield item.source, item.target, item.resolved_url, [item.at]
 
 
-def _communication_edges(artifacts: ArtifactSet):
+def _communication_edges(architecture: MicroFrontendArchitecture):
     """
     Só as arestas cujo sentido significa alguma coisa.
 
@@ -59,7 +59,7 @@ def _communication_edges(artifacts: ArtifactSet):
     o nome dele.
     """
 
-    for item in artifacts.communications:
+    for item in architecture.communications:
 
         if not item.directed:
             continue
@@ -115,24 +115,24 @@ class CyclicDependency(Rule):
     #: teto evita que um grafo patológico trave a execução.
     MAX_CYCLES = 200
 
-    def check(self, artifacts: ArtifactSet) -> list[AntiPatternDetection]:
+    def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
         detections: list[AntiPatternDetection] = []
 
         for relation in RELATIONS:
-            detections.extend(self._cycles(artifacts, relation))
+            detections.extend(self._cycles(architecture, relation))
 
         return detections
 
     def _cycles(
         self,
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         relation: Relation,
     ) -> list[AntiPatternDetection]:
 
         graph = nx.DiGraph()
 
-        for source, target, label, locations in relation.edges(artifacts):
+        for source, target, label, locations in relation.edges(architecture):
 
             if graph.has_edge(source, target):
 

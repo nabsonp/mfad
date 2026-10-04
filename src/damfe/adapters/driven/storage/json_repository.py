@@ -21,7 +21,7 @@ from damfe.domain import (
     CodeSize,
     Communication,
     MicroFrontend,
-    ArtifactSet,
+    MicroFrontendArchitecture,
     Fragment,
     Provenance,
     FragmentImport,
@@ -49,7 +49,7 @@ DETECTIONS = "detections.json"
 
 class JsonArtifactRepository(ArtifactRepository):
 
-    def save(self, artifacts: ArtifactSet, destination: Path) -> list[Path]:
+    def save(self, architecture: MicroFrontendArchitecture, destination: Path) -> list[Path]:
         """
         Grava TODAS as coleções, inclusive as vazias.
 
@@ -62,19 +62,19 @@ class JsonArtifactRepository(ArtifactRepository):
         destination.mkdir(parents=True, exist_ok=True)
 
         colecoes = [
-            (MICROFRONTENDS, artifacts.microfrontends),
-            (FRAGMENT_IMPORTS, artifacts.fragment_imports),
-            (NAVIGATIONS, artifacts.navigations),
-            (COMMUNICATIONS, artifacts.communications),
-            (API_CALLS, artifacts.api_calls),
-            (STATE_ACCESSES, artifacts.state_accesses),
-            (DOMAINS, artifacts.domains),
+            (MICROFRONTENDS, architecture.microfrontends),
+            (FRAGMENT_IMPORTS, architecture.fragment_imports),
+            (NAVIGATIONS, architecture.navigations),
+            (COMMUNICATIONS, architecture.communications),
+            (API_CALLS, architecture.api_calls),
+            (STATE_ACCESSES, architecture.state_accesses),
+            (DOMAINS, architecture.domains),
         ]
 
         return [
             self._write(
                 destination / MANIFEST,
-                self._manifest(artifacts, colecoes),
+                self._manifest(architecture, colecoes),
             )
         ] + [
             self._write(
@@ -85,7 +85,7 @@ class JsonArtifactRepository(ArtifactRepository):
         ]
 
     @staticmethod
-    def _manifest(artifacts: ArtifactSet, colecoes: list[tuple]) -> dict:
+    def _manifest(architecture: MicroFrontendArchitecture, colecoes: list[tuple]) -> dict:
         """
         O cabeçalho que torna o conjunto autodescritivo.
 
@@ -98,7 +98,7 @@ class JsonArtifactRepository(ArtifactRepository):
         domínio: nomes de arquivo são detalhe deste adaptador.
         """
 
-        provenance = artifacts.provenance
+        provenance = architecture.provenance
 
         return {
             "damfe": provenance.schema,
@@ -107,7 +107,7 @@ class JsonArtifactRepository(ArtifactRepository):
                 provenance.generated_at
                 or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             ),
-            "project": artifacts.project,
+            "project": architecture.project,
             "reconstructor": provenance.reconstructor,
             "sources": [_dump(item) for item in provenance.sources],
             "artifacts": {
@@ -119,11 +119,11 @@ class JsonArtifactRepository(ArtifactRepository):
             },
         }
 
-    def load(self, source: Path) -> ArtifactSet:
+    def load(self, source: Path) -> MicroFrontendArchitecture:
 
         manifest = self._read(source / MANIFEST) or {}
 
-        return ArtifactSet(
+        return MicroFrontendArchitecture(
             project=manifest.get("project", ""),
             provenance=_provenance(manifest),
             microfrontends=[

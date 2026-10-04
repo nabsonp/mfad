@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from damfe.adapters.driven.visualization import payload
 from damfe.application.ports import Renderer
-from damfe.domain import AntiPatternDetection, ArtifactSet
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
 
 
 class FeaturesRenderer(Renderer):
@@ -29,12 +29,12 @@ class FeaturesRenderer(Renderer):
 
     def render(
         self,
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         detections: list[AntiPatternDetection] | None = None,
     ) -> str:
 
         lines = [
-            f"# Features de {artifacts.project or 'projeto'}",
+            f"# Features de {architecture.project or 'projeto'}",
             "",
             "Extraído por análise estática. Uma seção por micro "
             "frontend, com as telas que ele serve, os fragmentos "
@@ -43,27 +43,27 @@ class FeaturesRenderer(Renderer):
             "",
         ]
 
-        hosted = self._hosted_fragments(artifacts)
+        hosted = self._hosted_fragments(architecture)
 
-        for microfrontend in artifacts.microfrontends:
+        for microfrontend in architecture.microfrontends:
 
             lines.extend(
-                self._microfrontend(microfrontend, artifacts, hosted)
+                self._microfrontend(microfrontend, architecture, hosted)
             )
 
-        lines.extend(self._relations(artifacts))
+        lines.extend(self._relations(architecture))
 
         return "\n".join(lines).rstrip() + "\n"
 
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _hosted_fragments(artifacts: ArtifactSet) -> dict[str, list[str]]:
+    def _hosted_fragments(architecture: MicroFrontendArchitecture) -> dict[str, list[str]]:
         """Fragmentos de fora instanciados em cada arquivo."""
 
         hosted: dict[str, list[str]] = {}
 
-        for item in artifacts.fragment_imports:
+        for item in architecture.fragment_imports:
 
             for render in item.renders:
 
@@ -76,7 +76,7 @@ class FeaturesRenderer(Renderer):
     def _microfrontend(
         self,
         microfrontend,
-        artifacts: ArtifactSet,
+        architecture: MicroFrontendArchitecture,
         hosted: dict[str, list[str]],
     ) -> list[str]:
 
@@ -124,7 +124,7 @@ class FeaturesRenderer(Renderer):
         endpoints = sorted(
             {
                 f"{call.method} {call.path}"
-                for call in artifacts.api_calls
+                for call in architecture.api_calls
                 if call.microfrontend == microfrontend.id
             }
         )
@@ -145,7 +145,7 @@ class FeaturesRenderer(Renderer):
         slices = sorted(
             {
                 access.path
-                for access in artifacts.state_accesses
+                for access in architecture.state_accesses
                 if access.microfrontend == microfrontend.id
             }
         )
@@ -160,7 +160,7 @@ class FeaturesRenderer(Renderer):
         return lines
 
     @staticmethod
-    def _relations(artifacts: ArtifactSet) -> list[str]:
+    def _relations(architecture: MicroFrontendArchitecture) -> list[str]:
         """
         As arestas, para que o assistente veja o fluxo entre as
         partes — e não só o conteúdo de cada uma.
@@ -170,13 +170,13 @@ class FeaturesRenderer(Renderer):
 
         rows = [
             ("composição", item.consumer, item.provider, item.fragment)
-            for item in artifacts.fragment_imports
+            for item in architecture.fragment_imports
         ] + [
             ("navegação", item.source, item.target, item.resolved_url or "")
-            for item in artifacts.navigations
+            for item in architecture.navigations
         ] + [
             ("comunicação", item.source, item.target, item.channel)
-            for item in artifacts.communications
+            for item in architecture.communications
         ]
 
         if not rows:
