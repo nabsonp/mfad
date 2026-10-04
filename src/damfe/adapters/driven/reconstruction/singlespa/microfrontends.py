@@ -16,6 +16,9 @@ from pathlib import Path
 from tree_sitter import Node
 
 from damfe.domain import Fragment, MicroFrontend, Screen
+from damfe.adapters.driven.reconstruction.routers import (
+    AngularRouteReader,
+)
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable, ModuleResolver
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import Registration, ScanContext
@@ -500,7 +503,11 @@ class MicroFrontendBuilder:
 
         imports = ImportTable(root, source, file_path)
 
-        screens: list[Screen] = []
+        # Roteamento é eixo à parte do de integração: uma unidade
+        # single-spa pode ser Angular, e aí a tela não está em JSX.
+        screens: list[Screen] = AngularRouteReader(
+            self.context
+        ).screens_in(file_path, application_id)
 
         for element, opening in jsx.elements(root):
 

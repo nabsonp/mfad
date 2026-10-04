@@ -283,6 +283,20 @@ possível alvo de exportação.
 
 ---
 
+## 10. Roteamento é um eixo próprio
+
+**O leitor de rota não pertence a reconstrutor nenhum.** Integração e roteamento são ortogonais: single-spa e Module Federation dizem como as unidades viram um sistema, React Router e Angular Router dizem como UMA unidade declara suas telas, e qualquer combinação existe. Até aqui o segundo estava cravado dentro do primeiro — `<Route>` do React, duplicado em dois arquivos —, e por isso "rota fora do React Router" parecia limite do Module Federation quando era uma dimensão ausente.
+
+**Unidade Angular saía com zero telas.** No single-spa a rota da unidade vem do `activeWhen`, então o sintoma não era rota faltando, era tela. E tela não é artefato acessório: três regras dependem dela — `hub-like-dependency` conta fragmentos por tela, `access-to-different-domains` resolve domínio por tela, e a atribuição fragmento→tela é construída em cima dela.
+
+**As regras vêm da documentação do framework, não de repositório analisado.** Os sistemas selecionados para o estudo são o conjunto de avaliação; desenvolver contra eles os transformaria em treino e contaminaria qualquer acurácia reportada depois. O leitor de Angular foi escrito a partir da interface `Route` publicada pelo projeto e validado em fixture montado com as formas documentadas. O healthcare-system, usado para construir o reconstrutor de Module Federation, é conta pessoal e não está entre as 14 organizações incluídas.
+
+**`path` do Angular é relativo e precisa ser concatenado.** `path: 'info'` dentro de `path: 'product/:id'` responde por `/product/:id/info`. É a diferença mais consequente para o React Router, onde o caminho aninhado costuma ser escrito absoluto — ler o segmento isolado reportaria uma rota que a aplicação não tem.
+
+**O React Router continua onde está, por ora.** As duas cópias divergiram: a do Module Federation desembrulha `<Suspense>` e resolve o provedor, a do single-spa não. Unificá-las no mesmo passo arriscaria regredir dois extratores que funcionam, sem ganho imediato. Fica como refatoração separada.
+
+---
+
 ## Pendências conhecidas
 
 | | |
@@ -296,4 +310,6 @@ possível alvo de exportação.
 | — | apresentação conta estado global duas vezes (aresta e acesso) |
 | — | reconstrutor para Module Federation: 63% da população amostrada |
 | — | esquema JSON publicado dos artefatos, para validação externa |
+| — | mover o leitor de React Router para `routers/`, unificando as duas cópias |
+| — | `loadChildren` do Angular: seguir a tabela de rotas do outro módulo |
 | — | `damfe export --format open-microfrontends` |

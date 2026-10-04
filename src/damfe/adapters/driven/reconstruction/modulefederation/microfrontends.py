@@ -26,6 +26,9 @@ from pathlib import Path
 
 from damfe.domain import Fragment, MicroFrontend, Screen
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
+from damfe.adapters.driven.reconstruction.routers import (
+    AngularRouteReader,
+)
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.modulefederation import (
@@ -316,6 +319,17 @@ class FederatedBuilder:
                 continue
 
             imports = ImportTable(root, source, file_path)
+
+            for screen in AngularRouteReader(self.context).screens_in(
+                file_path, owner
+            ):
+                key = (screen.component, screen.route or "")
+
+                if key in seen:
+                    continue
+
+                seen.add(key)
+                found.append(screen)
 
             # Nome local -> unidade que o publica, para as duas formas
             # de atravessar a fronteira: `import X from "remote/X"` e
