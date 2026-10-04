@@ -8,9 +8,14 @@ na aplicação, e não no adaptador que extrai.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 
-from damfe.application.ports import ArtifactRepository, UseCase
+from damfe.application.ports import (
+    ArtifactRepository,
+    SourceProbe,
+    UseCase,
+)
 from damfe.application.results import ReconstructionResult
 from damfe.application.use_cases.reconstruction.extract_microfrontends import (
     ExtractMicroFrontendsUseCase,
@@ -33,7 +38,8 @@ from damfe.application.use_cases.reconstruction.resolve_domains import (
 from damfe.application.use_cases.reconstruction.extract_state_accesses import (
     ExtractStateAccessesUseCase,
 )
-from damfe.domain import ArtifactSet, edges_from_state
+from damfe import __version__
+from damfe.domain import ArtifactSet, Provenance, edges_from_state
 
 
 class ReconstructUseCase(UseCase[ReconstructionResult]):
@@ -50,6 +56,8 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         extract_state_accesses: ExtractStateAccessesUseCase,
         resolve_domains: ResolveDomainsUseCase,
         repository: ArtifactRepository,
+        probe: SourceProbe,
+        reconstructor_name: str = "",
     ):
         self.repository_path = repository_path
         self.destination = destination
@@ -61,6 +69,8 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         self.extract_state_accesses = extract_state_accesses
         self.resolve_domains = resolve_domains
         self.repository = repository
+        self.probe = probe
+        self.reconstructor_name = reconstructor_name
 
     def execute(self) -> ReconstructionResult:
 
@@ -101,6 +111,7 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
 
         artifacts = ArtifactSet(
             project=self.repository_path.resolve().name,
+            provenance=self._provenance(),
             microfrontends=microfrontends,
             fragment_imports=fragment_imports,
             navigations=navigations,
@@ -122,3 +133,22 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
         )
 
         return ReconstructionResult(artifacts=artifacts, written=written)
+
+    def _provenance(self) -> Provenance:
+        """
+        O carimbo da execução.
+
+        A revisão de cada repositório é o que torna o resultado
+        reproduzível: sem ela, um conjunto de artefatos não diz
+        sobre QUAL versão do código ele fala, e deixa de ser
+        verificável assim que o repositório recebe um commit.
+        """
+
+        return Provenance(
+            tool=__version__,
+            generated_at=datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
+            reconstructor=self.reconstructor_name,
+            sources=self.probe.describe(self.repository_path),
+        )

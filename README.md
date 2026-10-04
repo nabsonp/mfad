@@ -138,6 +138,7 @@ autoria descritos em [docs/prompts/](docs/prompts/).
 
 | arquivo | conteúdo |
 |---|---|
+| `manifest.json` | o envelope: versão do esquema, procedência e índice |
 | `microfrontends.json` | os nós: rotas, papel, telas, fragmentos, tamanho |
 | `fragment_imports.json` | consumo de componente entre micro frontends |
 | `navigations.json` | navegação do usuário entre micro frontends |
@@ -150,6 +151,53 @@ autoria descritos em [docs/prompts/](docs/prompts/).
 Todas as coleções são gravadas a cada execução, inclusive as vazias —
 senão o arquivo da execução anterior permaneceria e a etapa seguinte
 leria dado que não corresponde mais ao código.
+
+### O envelope
+
+O `manifest.json` é o que torna o conjunto autodescritivo e o
+resultado reproduzível:
+
+```json
+{
+  "damfe": "1.0.0",
+  "tool_version": "0.1.0",
+  "generated_at": "2026-10-03T14:22:10Z",
+  "project": "mfe-hands-on",
+  "reconstructor": "single-spa",
+  "sources": [
+    {
+      "path": "mfe-checkout",
+      "remote": "https://github.com/org/mfe-checkout.git",
+      "commit": "a1b2c3d...",
+      "dirty": false
+    }
+  ],
+  "artifacts": {
+    "microfrontends": { "file": "microfrontends.json", "count": 6 }
+  }
+}
+```
+
+`damfe` é a versão do **esquema** dos artefatos e sobe quando a forma
+dos arquivos quebra quem os lê; `tool_version` é a da **ferramenta**.
+São separadas porque corrigir um bug num extrator muda a segunda e não
+a primeira — e uma coleta longa precisa poder afirmar que todos os
+resultados seguem o mesmo esquema.
+
+`sources[]` lista os repositórios lidos, procurados até dois níveis
+abaixo da raiz — é como o `damfe setup` é usado, numa pasta com vários
+clones. O `commit` é o que permite repetir a análise sobre exatamente o
+mesmo código; `dirty` avisa que havia alteração não commitada e que,
+portanto, o `commit` *não* identifica o que foi lido. Credencial
+embutida na URL de origem é removida antes de gravar.
+
+Sem git instalado ou fora de um repositório, `sources` vem vazio e a
+análise segue normalmente.
+
+A saída é JSON e a entrada é YAML, de propósito: `.damfe/*.yml` é
+escrito à mão e ganha comentários; `artifacts/*.json` é gerado e
+consumido por máquina. O porquê está em
+[docs/decisions.md](docs/decisions.md), seção 9.
 
 ### Como os artefatos são descobertos
 

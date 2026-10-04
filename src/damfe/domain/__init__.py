@@ -18,6 +18,11 @@ from damfe.domain.domains import (
     DomainDeclaration,
     DomainMap,
 )
+from damfe.domain.provenance import (
+    Provenance,
+    SCHEMA_VERSION,
+    SourceRepository,
+)
 from damfe.domain.model import (
     ApiCall,
     CodeSize,
@@ -49,8 +54,11 @@ __all__ = [
     "FragmentImport",
     "Mechanism",
     "Navigation",
+    "Provenance",
     "RenderSite",
+    "SCHEMA_VERSION",
     "Screen",
     "SourceLocation",
+    "SourceRepository",
     "StateAccess",
 ]

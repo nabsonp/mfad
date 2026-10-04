@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, fields, is_dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -22,13 +23,16 @@ from damfe.domain import (
     MicroFrontend,
     ArtifactSet,
     Fragment,
+    Provenance,
     FragmentImport,
     Navigation,
     RenderSite,
     Screen,
     SourceLocation,
+    SourceRepository,
     StateAccess,
 )
+from damfe import __version__
 from damfe.application.ports import ArtifactRepository
 
 
@@ -70,7 +74,7 @@ class JsonArtifactRepository(ArtifactRepository):
         return [
             self._write(
                 destination / MANIFEST,
-                {"project": artifacts.project},
+                self._manifest(artifacts, colecoes),
             )
         ] + [
             self._write(
@@ -80,10 +84,48 @@ class JsonArtifactRepository(ArtifactRepository):
             for nome, colecao in colecoes
         ]
 
+    @staticmethod
+    def _manifest(artifacts: ArtifactSet, colecoes: list[tuple]) -> dict:
+        """
+        O cabeçalho que torna o conjunto autodescritivo.
+
+        A chave `damfe` é a versão do ESQUEMA; `tool_version` é a da
+        ferramenta. Separadas porque corrigir um bug no extrator muda
+        a segunda e não a primeira, e uma coleta longa precisa poder
+        afirmar que todos os resultados seguem o mesmo esquema.
+
+        O índice de coleções com a contagem fica aqui, e não no
+        domínio: nomes de arquivo são detalhe deste adaptador.
+        """
+
+        provenance = artifacts.provenance
+
+        return {
+            "damfe": provenance.schema,
+            "tool_version": provenance.tool or __version__,
+            "generated_at": (
+                provenance.generated_at
+                or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            ),
+            "project": artifacts.project,
+            "reconstructor": provenance.reconstructor,
+            "sources": [_dump(item) for item in provenance.sources],
+            "artifacts": {
+                nome.removesuffix(".json"): {
+                    "file": nome,
+                    "count": len(colecao),
+                }
+                for nome, colecao in colecoes
+            },
+        }
+
     def load(self, source: Path) -> ArtifactSet:
 
+        manifest = self._read(source / MANIFEST) or {}
+
         return ArtifactSet(
-            project=(self._read(source / MANIFEST) or {}).get("project", ""),
+            project=manifest.get("project", ""),
+            provenance=_provenance(manifest),
             microfrontends=[
                 _load(MicroFrontend, item)
                 for item in self._read(source / MICROFRONTENDS) or []
@@ -163,6 +205,28 @@ class JsonArtifactRepository(ArtifactRepository):
             return None
 
         return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _provenance(manifest: dict) -> Provenance:
+    """
+    Lê o cabeçalho, tolerando artefato anterior ao versionamento.
+
+    Manifesto sem a chave `damfe` é de uma execução antes do
+    esquema 1.0.0. Vale mais devolver procedência vazia e seguir do
+    que recusar o arquivo: quem precisa da revisão exata checa o
+    campo e encontra vazio.
+    """
+
+    return Provenance(
+        schema=manifest.get("damfe", ""),
+        tool=manifest.get("tool_version", ""),
+        generated_at=manifest.get("generated_at", ""),
+        reconstructor=manifest.get("reconstructor", ""),
+        sources=[
+            _load(SourceRepository, item)
+            for item in manifest.get("sources") or []
+        ],
+    )
 
 
 def _dump(value: Any) -> Any:

@@ -23,6 +23,7 @@ from damfe.domain import (
     AntiPatternDetection,
     FragmentImport,
     Navigation,
+    SourceRepository,
     StateAccess,
 )
 
@@ -94,6 +95,21 @@ class Reconstructor(ABC):
         precisa de configuração, porque é a única sem contrato
         padrão no ecossistema.
         """
+
+
+class SourceProbe(ABC):
+    """
+    Identifica a revisão de cada repositório analisado.
+
+    Existe para que a procedência seja responsabilidade de um
+    adaptador: ler o estado do git é I/O, e o caso de uso só
+    precisa do resultado. Uma implementação que não encontre git
+    nenhum devolve lista vazia — a análise não depende disto.
+    """
+
+    @abstractmethod
+    def describe(self, root: Path) -> list[SourceRepository]:
+        """Os repositórios sob `root`, em ordem estável."""
 
 
 class Rule(ABC):

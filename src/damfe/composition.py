@@ -28,6 +28,7 @@ from damfe.adapters.driven.reconstruction.singlespa.reconstructor import (
 from damfe.adapters.driven.reconstruction.modulefederation import (
     ModuleFederationReconstructor,
 )
+from damfe.adapters.driven.provenance import GitSourceProbe
 from damfe.adapters.driven.visualization.features import FeaturesRenderer
 from damfe.adapters.driven.visualization.html import HtmlRenderer
 from damfe.adapters.driven.storage import (
@@ -40,6 +41,7 @@ from damfe.application.ports import (
     Reconstructor,
     Rule,
     SettingsRepository,
+    SourceProbe,
     SpecRepository,
 )
 from damfe.application.use_cases import (
@@ -92,6 +94,8 @@ class Container:
         self.specs: SpecRepository = YamlSpecRepository()
 
         self.settings: SettingsRepository = FileSettingsRepository()
+
+        self.probe: SourceProbe = GitSourceProbe()
 
     # ------------------------------------------------------------------
     # Resolução de implementações
@@ -270,6 +274,8 @@ class Container:
             ),
             resolve_domains=self.resolve_domains(repository_path),
             repository=self.repository,
+            probe=self.probe,
+            reconstructor_name=reconstructor.name,
         )
 
     def detect(

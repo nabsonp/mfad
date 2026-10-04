@@ -141,6 +141,17 @@ Stability is what makes a diff between two commits mean something: it shows coup
 
 **Done.**
 
+### RF-37 · Provenance of the artefacts
+
+> **Given** a reconstruction that has run
+> **then** the artefacts record the schema version, the tool version, the instant of generation, the reconstructor used, the revision of every repository read, and the count of every collection
+> **and** a repository with uncommitted changes is marked as such
+> **and** no credential embedded in a remote URL is written out.
+
+Without it a set of artefacts is anonymous: it does not say which version of the tool produced it, nor which revision of which repository it describes. For an evaluation over hundreds of systems that is fatal — the result stops being verifiable the moment the analysed repository takes a commit. The schema version is separate from the tool version because fixing an extractor bug changes the second and not the first, and a long collection has to be able to state that every result follows the same schema.
+
+**Done.**
+
 ---
 
 ## Detection
@@ -330,7 +341,7 @@ There is already plenty to report: an opaque activity function, an entrypoint th
 > **when** detection runs over the old artefacts
 > **then** the staleness is reported.
 
-**Pending.** Editing `domains.yml` or `communication.yml` and running only `detect` produces a plausible, outdated result.
+**Pending.** Editing `domains.yml` or `communication.yml` and running only `detect` produces a plausible, outdated result. Cheap now that RF-37 records `sources[].commit`: comparing it against the current HEAD covers the code; the declarations still need their own marker.
 
 ### RF-36 · Extract communication through `customProps`
 

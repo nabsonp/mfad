@@ -3,7 +3,7 @@
 Documento vivo. Uma entrada por decisão, com a razão. Decisão
 revertida fica registrada como revertida, não some.
 
-Última atualização: 19/09/2026.
+Última atualização: 03/10/2026.
 
 ---
 
@@ -23,8 +23,11 @@ instancia outro.
 módulo. Um `reconstruct` monolítico matava a responsabilidade única;
 hoje ele só compõe os outros.
 
-**Um arquivo de artefato por coleção.** Sem índice ou manifesto: não
-havia consumidor para ele.
+**Um arquivo de artefato por coleção.** ~~Sem índice ou manifesto: não
+havia consumidor para ele.~~ **Revertido em 03/10/2026** — o consumidor
+apareceu: a avaliação empírica sobre centenas de repositórios precisa
+dizer de qual revisão de qual repositório cada resultado fala. Ver
+seção 9.
 
 **Nada de código não solicitado.** Esqueleto primeiro, implementação
 sob demanda.
@@ -207,15 +210,90 @@ detecção seguinte lia dado errado sem qualquer aviso.
 
 ---
 
+## 9. Formato e versionamento dos artefatos
+
+**A saída continua em JSON; só a entrada é YAML.** `.damfe/*.yml`
+(`communication.yml`, `domains.yml`) é escrito à mão e ganha
+comentários. `artifacts/*.json` é gerado e consumido por máquina.
+Converter a saída para YAML foi considerado e rejeitado por três
+razões. O campo `code` carrega trecho de código-fonte arbitrário —
+`:`, `#`, `{`, crase, aspas, quebra de linha — que todo emissor de
+YAML resolve quotando, mas o resultado fica frágil justamente para
+quem for editar à mão, e a tentação de editar existe porque é YAML.
+Determinismo: `json.dumps(indent=2)` produz a mesma saída byte a byte
+entre versões, enquanto emissor de YAML varia com versão da
+biblioteca, largura de linha e estilo de quoting — e a avaliação
+empírica precisa ser reproduzível. Ferramental: `jq` sobre os
+artefatos é o uso diário na análise. Legibilidade, o único argumento a
+favor, já é resolvida pelo `damfe visualize`.
+
+**O `manifest.json` é um envelope versionado.** Era
+`{"project": "..."}`. Passou a carregar versão do esquema, versão da
+ferramenta, instante de geração, extrator usado, a revisão de cada
+repositório lido e o índice de coleções com a contagem de cada uma.
+
+**Versão do esquema separada da versão da ferramenta.** A chave
+`damfe` é o esquema dos artefatos e sobe quando a forma dos arquivos
+quebra quem os lê; `tool_version` é a da ferramenta. Separadas porque
+corrigir um bug num extrator muda a segunda e não a primeira, e uma
+coleta longa precisa poder afirmar que todos os resultados seguem o
+mesmo esquema mesmo tendo trocado de versão no meio dela.
+
+**`sources[]` grava `commit` e `dirty` por repositório.** É o que
+torna o resultado reproduzível: sem a revisão, um conjunto de
+artefatos não diz sobre qual versão do código ele fala, e deixa de ser
+verificável assim que o repositório recebe um commit. O `dirty` existe
+porque com alteração não commitada o `commit` *não* identifica o que
+foi lido — omitir isso produziria procedência falsa, que é pior que
+procedência ausente.
+
+**A URL de origem é gravada sem credencial.** Clonar com token na URL
+é comum e o remote fica no `.git/config`; copiá-lo para o artefato
+publicaria a credencial, porque a saída é versionada. A sonda remove
+`usuario:senha@` antes de gravar.
+
+**A procedência vem de uma porta, `SourceProbe`.** Ler o estado do git
+é I/O e não pode morar no caso de uso. A implementação `GitSourceProbe`
+procura repositórios até dois níveis abaixo da raiz — é como o
+`damfe setup` é usado, numa pasta com vários clones — e para de descer
+ao encontrar um. Nada ali falha a análise: sem git, a procedência fica
+mais pobre e o resto segue.
+
+**O índice de coleções mora no adaptador, não no domínio.** Nome de
+arquivo é detalhe de quem persiste. O domínio tem `Provenance` e
+`SourceRepository`; o `JsonArtifactRepository` é quem sabe que
+microfrontends vão em `microfrontends.json`.
+
+**Manifesto sem a chave `damfe` é aceito na leitura.** Artefato
+anterior ao esquema 1.0.0 carrega procedência vazia em vez de ser
+recusado — quem precisa da revisão exata checa o campo e encontra
+vazio.
+
+**O Open Microfrontends foi avaliado como fonte de inspiração, não
+como fundamento.** É uma spec declarativa e prescritiva — o servidor
+declara à mão os MFEs que expõe, para que um host saiba carregá-los —
+enquanto o DAMFE descreve o que foi recuperado do código. Dela vieram
+o envelope versionado e a ideia de esquema publicado. Dela *não* vem o
+modelo conceitual: ela não tem roteamento, não tem composição, não tem
+o conceito de tela e não declara aresta entre MFEs (as mensagens são
+pub/sub mediado pelo host), de modo que nenhum dos anti-padrões do
+catálogo é detectável sobre um descritor dela. Projeto de um
+mantenedor, não padrão de indústria: entra como trabalho relacionado e
+possível alvo de exportação.
+
+---
+
 ## Pendências conhecidas
 
 | | |
 |---|---|
 | RF-25 | relatar cobertura e o que não foi resolvido |
-| RF-35 | avisar quando os artefatos estão obsoletos |
+| RF-35 | avisar quando os artefatos estão obsoletos — barato agora: basta comparar `sources[].commit` do manifesto com o HEAD atual |
 | RF-36 | extrair comunicação via `customProps` |
 | US-27 | spec de comunicação gerada por LLM, integrada |
 | US-28 | suíte de testes automatizados |
 | — | `hub-like-dependency` conta aresta simétrica em dobro |
 | — | apresentação conta estado global duas vezes (aresta e acesso) |
 | — | reconstrutor para Module Federation: 63% da população amostrada |
+| — | esquema JSON publicado dos artefatos, para validação externa |
+| — | `damfe export --format open-microfrontends` |

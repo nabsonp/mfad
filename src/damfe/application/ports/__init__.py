@@ -4,6 +4,7 @@ from damfe.application.ports.driven import (
     Renderer,
     Rule,
     SettingsRepository,
+    SourceProbe,
     SpecRepository,
 )
 from damfe.application.ports.driving import UseCase
@@ -14,6 +15,7 @@ __all__ = [
     "Renderer",
     "Rule",
     "SettingsRepository",
+    "SourceProbe",
     "SpecRepository",
     "UseCase",
 ]

@@ -15,6 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from damfe.domain.provenance import Provenance
+
 if TYPE_CHECKING:
     from damfe.domain.communication import Communication
     from damfe.domain.domains import Domain
@@ -245,6 +247,10 @@ class ArtifactSet:
     api_calls: list[ApiCall] = field(default_factory=list)
     state_accesses: list[StateAccess] = field(default_factory=list)
     domains: list["Domain"] = field(default_factory=list)
+
+    #: De onde isto veio: versão do esquema, versão da ferramenta,
+    #: extrator usado e a revisão de cada repositório lido.
+    provenance: "Provenance" = field(default_factory=Provenance)
 
     def microfrontend(self, identifier: str) -> MicroFrontend | None:
 
