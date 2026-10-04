@@ -95,7 +95,15 @@ class RemoteImportExtractor:
             # é aquela e só aquela. Cair na alcançabilidade aqui
             # devolveria todas as telas declaradas no mesmo arquivo
             # de rotas, que é onde elas costumam estar juntas.
-            exact = by_component.get((item.consumer, item.local_name))
+            #
+            # O PROVEDOR vem primeiro. A rota é declarada no roteador
+            # de quem hospeda, mas a tela pertence a quem publica o
+            # módulo, e é lá que ela está registrada. Procurar só no
+            # consumidor devolvia vazio para exatamente o caso que
+            # esta regra existe para resolver.
+            exact = by_component.get(
+                (item.provider, item.local_name)
+            ) or by_component.get((item.consumer, item.local_name))
 
             for render in item.renders:
 

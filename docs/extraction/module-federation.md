@@ -94,8 +94,8 @@ This is how a host loads a remote page, and it is not an optional style. Fetchin
 
 ### 3.4 · Where a fragment appears
 
-> **Given** a fragment import and the screens of the consuming unit
-> **when** a screen's component is the fragment's local name
+> **Given** a fragment import
+> **when** a screen's component is the fragment's local name — looked up in the **provider** first, then in the consumer
 > **then** that screen, and only that one, is recorded on the render site.
 
 > **Given** a fragment import whose local name matches no screen
@@ -103,6 +103,10 @@ This is how a host loads a remote page, and it is not an optional style. Fetchin
 > **then** that screen is recorded on the render site.
 
 Exact match first, because falling back to reachability in a routing file would return every screen declared there — routers usually declare all of them in one place.
+
+The provider is looked up before the consumer because of §4.1: when the fragment is a route's component, the route is declared in the host's router but the screen belongs to whoever publishes the module, and that is where it is registered. Searching only the consumer returns nothing for exactly the case this rule exists to answer — on the healthcare system, five of the seven render sites came back with no screen at all.
+
+A fragment mounted **above** the router — a theme provider or a navigation bar wrapping the whole application in `main.tsx` — matches no screen and is reached by none, so its render site carries an empty list. That is the honest answer rather than a wrong one: it is on every screen, not on a particular one, and the artefact has no way to say "all of them".
 
 ---
 
