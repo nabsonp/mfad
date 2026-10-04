@@ -42,6 +42,9 @@ class CommunicationsResult:
     communications: list[Communication]
     configured: bool
 
+    #: Mecanismos declarados que não produziram aresta nenhuma.
+    unmatched: list[str] = field(default_factory=list)
+
 
 @dataclass
 class CommunicationSetupResult:
@@ -63,6 +66,9 @@ class NavigationsResult:
 class ReconstructionResult:
     architecture: MicroFrontendArchitecture
     written: list[Path] = field(default_factory=list)
+
+    #: Mecanismos declarados que não produziram aresta nenhuma.
+    unmatched: list[str] = field(default_factory=list)
 
 
 @dataclass

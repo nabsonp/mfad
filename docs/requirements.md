@@ -287,6 +287,16 @@ Writes a commented template to `.damfe/` in the analysed repository — input to
 
 # Pending
 
+### RF-38 · Warn about a declaration that matched nothing
+
+> **Given** a mechanism declared in the communication spec
+> **when** it produces no communication at all
+> **then** the run reports it, naming the mechanism.
+
+A declaration whose `module` does not match the real import specifier yields zero in silence, and zero is a plausible result on its own. Without the warning a typo and a true absence read the same. A first step towards RF-25, on the failure mode that has actually occurred.
+
+**Done.**
+
 ### RF-25 · Report what could not be resolved
 
 > **Given** an analysis that has run

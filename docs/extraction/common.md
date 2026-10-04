@@ -108,6 +108,12 @@ Not a naming heuristic: if the imported module is `mitt`, whatever comes out of 
 > **when** it declares the module, the export and the position of the channel argument
 > **then** those calls become recognised.
 
-For the project's own wrapper, which no catalogue knows. Without a declaration the result is not empty: the first two tiers still hold.
+For the project's own wrapper, which no catalogue knows. The declaration is **additive and optional**: every mechanism above is found without it, and the spec only adds what a catalogue cannot know. Without one the result is not empty.
+
+> **Given** a declared mechanism
+> **when** it produces no communication at all
+> **then** the run reports it.
+
+A declaration whose `module` does not match the real import specifier yields zero in silence, and zero is a plausible result — the system may genuinely not use that channel. Without the warning a typo and a true absence are indistinguishable, which is exactly what happened on the reference repository, where the declared `publishEvent` and `subscribeToTopic` do not exist in the code at all.
 
 ---

@@ -259,10 +259,30 @@ def reconstruction(result: ReconstructionResult, write: Writer) -> None:
     )
     write("")
 
+    _unmatched(result.unmatched, write)
+
     for microfrontend in architecture.microfrontends:
         _application(microfrontend, write)
 
     _written(result.written, write)
+
+
+def _unmatched(names: list[str], write: Writer) -> None:
+
+    if not names:
+        return
+
+    for name in names:
+        write(
+            f"  aviso: o mecanismo declarado {name!r} não produziu "
+            "comunicação nenhuma"
+        )
+
+    write(
+        "  verifique se `module` bate com o especificador real do "
+        "import, e se os dois lados existem no código"
+    )
+    write("")
 
 
 def detection(result: DetectionResult, write: Writer) -> None:

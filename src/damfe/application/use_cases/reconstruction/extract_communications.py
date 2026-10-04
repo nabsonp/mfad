@@ -45,11 +45,34 @@ class ExtractCommunicationsUseCase(UseCase[CommunicationsResult]):
                 self.repository_path
             )
 
-        return CommunicationsResult(
-            communications=self.reconstructor.communications(
-                self.repository_path,
-                microfrontends,
-                spec,
-            ),
-            configured=bool(spec),
+        communications = self.reconstructor.communications(
+            self.repository_path,
+            microfrontends,
+            spec,
         )
+
+        return CommunicationsResult(
+            communications=communications,
+            configured=bool(spec),
+            unmatched=self._unmatched(spec, communications),
+        )
+
+    @staticmethod
+    def _unmatched(spec, communications) -> list[str]:
+        """
+        Mecanismos declarados que não renderam aresta nenhuma.
+
+        Uma declaração cujo `module` não bate com o especificador
+        real do import produz zero em silêncio, e zero é um
+        resultado plausível — o sistema pode mesmo não usar aquele
+        canal. Sem este aviso, erro de digitação e ausência
+        verdadeira são indistinguíveis.
+        """
+
+        found = {item.mechanism for item in communications}
+
+        return [
+            mechanism.name
+            for mechanism in spec.mechanisms
+            if mechanism.name not in found
+        ]

@@ -83,9 +83,9 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
 
         self.extract_communications.microfrontends = microfrontends
 
-        communications = (
-            self.extract_communications.execute().communications
-        )
+        extracted = self.extract_communications.execute()
+
+        communications = extracted.communications
 
         self.extract_api_calls.microfrontends = microfrontends
 
@@ -122,7 +122,11 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
             else []
         )
 
-        return ReconstructionResult(architecture=architecture, written=written)
+        return ReconstructionResult(
+            architecture=architecture,
+            written=written,
+            unmatched=extracted.unmatched,
+        )
 
     def _provenance(self) -> Provenance:
         """
