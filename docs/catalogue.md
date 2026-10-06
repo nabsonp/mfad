@@ -147,7 +147,7 @@ menu; muito código e uma tela é uma biblioteca.
 | | |
 |---|---|
 | **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
-| **Detecção** | Dois critérios. **Piso absoluto**: nenhuma tela e no máximo `floor` fragmentos. **Tamanho relativo**: telas somadas a fragmentos abaixo de `size_factor` vezes a mediana do sistema. Em ambos, o orquestrador fica fora da comparação. |
+| **Detecção** | Telas somadas a fragmentos abaixo do **piso absoluto** `floor` **ou** de `size_factor` vezes a **mediana** do sistema. Basta uma das duas. O orquestrador fica fora da comparação. |
 | **Saída** | Uma ocorrência por micro frontend, com as contagens e as medianas contra as quais foi comparado. |
 
 Telas e fragmentos somados porque as duas formas de entregar interface
@@ -155,9 +155,16 @@ contam: uma unidade sem tela que publica muitos fragmentos não é nano.
 
 **O piso existe porque a comparação relativa é cega em sistema
 uniforme.** No `healthcare-system` toda unidade tem uma tela e um
-fragmento: a mediana acompanha, e nenhuma é acusada, por construção.
-Uma unidade sem tela alguma não responde por URL nenhuma e entrega
-pouco mais que um componente — isso não depende de vizinho.
+fragmento: a mediana acompanha, e nenhuma seria acusada, por
+construção. A premissa do piso é que abaixo dele a unidade é pequena
+demais para ser micro frontend, independentemente dos vizinhos.
+
+**O valor de `floor` é escolha declarada, não medida.** Em `5`, ele
+acusa **9 das 10 unidades** dos dois sistemas de referência — o
+`healthcare-system` inteiro e três das quatro unidades do `nabstore`.
+Como ele vale em OU com o relativo, domina sempre que for mais frouxo
+que a mediana, que é o caso nos dois. Calibrar contra a base do estudo
+é pendência aberta.
 
 A regra assume que **tudo que recebe é micro frontend**. Separar
 biblioteca de unidade é decisão de quem aponta a ferramenta, e não
