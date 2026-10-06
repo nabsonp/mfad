@@ -222,10 +222,11 @@ With no declared map of business capabilities there is no way to state *which* r
 ### RF-20 · Nano frontend
 
 > **Given** the screens, the fragments and the size of each unit
-> **when** a unit's screens plus fragments sit below **0.4×** the system median, with the orchestrator left out of the comparison
-> **then** it is reported, with its counts and the medians it was compared against.
+> **when** a unit has **no screen at all** and publishes at most **3** fragments
+> **or** its screens plus fragments sit below **0.4×** the system median, with the orchestrator left out of the comparison
+> **then** it is reported, with its counts, the criterion that fired and the medians it was compared against.
 
-Screens and fragments are summed because both are ways of delivering interface: a unit with no screen that publishes five fragments is not nano. An indication rather than a verdict — a small micro frontend is legitimate when it is a whole capability on its own, and the rule cannot tell that case apart, which is why the output carries what it compared against.
+Screens and fragments are summed because both are ways of delivering interface. The absolute floor exists because the relative comparison is blind in a uniform system: when every unit holds one screen and one fragment the median follows, and nothing is ever reported. A unit with no screen answers no URL and delivers little more than a component, which does not depend on its neighbours. A unit whose entrypoint did not resolve is left out of both criteria — an extraction that could not read returns zero for everything, and reporting that would call a reading failure an anti-pattern. An indication rather than a verdict — a small micro frontend is legitimate when it is a whole capability on its own, and the rule cannot tell that case apart, which is why the output carries what it compared against.
 
 **Done.**
 

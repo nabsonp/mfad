@@ -147,11 +147,26 @@ menu; muito código e uma tela é uma biblioteca.
 | | |
 |---|---|
 | **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
-| **Detecção** | Telas somadas a fragmentos abaixo de `size_factor` vezes a mediana do sistema, com o orquestrador fora da comparação. |
+| **Detecção** | Dois critérios. **Piso absoluto**: nenhuma tela e no máximo `floor` fragmentos. **Tamanho relativo**: telas somadas a fragmentos abaixo de `size_factor` vezes a mediana do sistema. Em ambos, o orquestrador fica fora da comparação. |
 | **Saída** | Uma ocorrência por micro frontend, com as contagens e as medianas contra as quais foi comparado. |
 
 Telas e fragmentos somados porque as duas formas de entregar interface
-contam: uma unidade sem tela que publica cinco fragmentos não é nano.
+contam: uma unidade sem tela que publica muitos fragmentos não é nano.
+
+**O piso existe porque a comparação relativa é cega em sistema
+uniforme.** No `healthcare-system` toda unidade tem uma tela e um
+fragmento: a mediana acompanha, e nenhuma é acusada, por construção.
+Uma unidade sem tela alguma não responde por URL nenhuma e entrega
+pouco mais que um componente — isso não depende de vizinho.
+
+A regra assume que **tudo que recebe é micro frontend**. Separar
+biblioteca de unidade é decisão de quem aponta a ferramenta, e não
+cabe aqui: o remédio do nano é absorver a unidade noutra, o da
+biblioteca é não contá-la.
+
+Unidade cujo entrypoint não resolveu fica de fora dos dois critérios.
+Extração que não conseguiu ler devolve zero em tudo, e acusar isso
+seria chamar falha de leitura de anti-padrão.
 
 Indício, não veredito. Um micro frontend pequeno é legítimo quando
 constitui sozinho uma capacidade inteira, e a regra não sabe distinguir

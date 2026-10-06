@@ -42,10 +42,6 @@ classDiagram
         +list~Communication~ communications
         +list~ApiCall~ api_calls
         +list~StateAccess~ state_accesses
-        +microfrontend(id) MicroFrontend
-        +fragments() list~Fragment~
-        +screens() list~Screen~
-        +endpoints() list~Endpoint~
     }
 
     class MicroFrontend:::entity {
@@ -70,7 +66,6 @@ classDiagram
         +str file
         +int line
         +bool reachable
-        +id() str
     }
     class Fragment:::entity {
         <<entity>>
@@ -78,7 +73,6 @@ classDiagram
         +str microfrontend
         +str file
         +int line
-        +id() str
     }
 
     class Composition:::relationship {
