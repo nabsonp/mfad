@@ -57,6 +57,14 @@ class Registration:
     #: não é literal.
     custom_props: dict[str, str] = field(default_factory=dict)
 
+    #: Arquivo de entrada, quando já se sabe qual é.
+    #:
+    #: Preenchido pela descoberta de baixo para cima, que parte do
+    #: arquivo que exporta os ciclos de vida em vez de partir do
+    #: registro. Nesse caminho não há especificador a resolver: o
+    #: arquivo É o ponto de partida.
+    entrypoint: Path | None = None
+
 
 @dataclass
 class ScanContext:

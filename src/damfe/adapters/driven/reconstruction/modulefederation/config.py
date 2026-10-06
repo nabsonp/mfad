@@ -85,6 +85,19 @@ def read(path: Path, root: Node, source: bytes) -> list[Federation]:
     # `withModuleFederation({...})` é `call_expression`. As duas
     # formas aparecem no mesmo ecossistema, e procurar só uma
     # devolvia declaração nenhuma num projeto webpack inteiro.
+    # Num arquivo cujo nome existe só para conter a declaração, o
+    # objeto pode estar exportado sem chamada alguma em volta.
+    if path.name.startswith(("module-federation.config", "federation.config")):
+
+        exported = exported_object(root, source)
+
+        if exported is not None:
+
+            federation = _from_object(exported, source, path, root)
+
+            if federation:
+                found.append(federation)
+
     calls = list(AstReader.find_all(root, "call_expression")) + list(
         AstReader.find_all(root, "new_expression")
     )
@@ -106,10 +119,27 @@ def read(path: Path, root: Node, source: bytes) -> list[Federation]:
 
         for child in arguments.named_children:
 
-            if child.type != "object":
+            # `federation({...})` — o literal está ali.
+            if child.type == "object":
+                candidate = child
+
+            # `federation(config)` — o literal está noutro lugar do
+            # mesmo arquivo. É a forma canônica do Nx, e a que o
+            # plugin de Vite também aceita; sem resolver o
+            # identificador, um projeto inteiro lê como se não
+            # tivesse federação nenhuma.
+            elif child.type == "identifier":
+                candidate = _declared_object(
+                    root, AstReader.text(child, source), source
+                )
+
+            else:
+                candidate = None
+
+            if candidate is None:
                 continue
 
-            federation = _from_object(child, source, path)
+            federation = _from_object(candidate, source, path, root)
 
             if federation:
                 found.append(federation)
@@ -117,9 +147,68 @@ def read(path: Path, root: Node, source: bytes) -> list[Federation]:
     return found
 
 
-def _from_object(node: Node, source: bytes, path: Path) -> Federation | None:
+def exported_object(root: Node, source: bytes) -> Node | None:
+    """
+    O literal de objeto que o arquivo exporta por padrão.
 
-    fields = _pairs(node, source)
+    `export default { name, exposes }`, ou `export default config`
+    com o objeto declarado acima. É como o Nx escreve o
+    `module-federation.config.ts`: o arquivo existe só para conter a
+    declaração, e não há chamada nenhuma para procurar dentro.
+    """
+
+    for node in AstReader.find_all(root, "export_statement"):
+
+        value = node.child_by_field_name("value")
+
+        if value is None:
+            continue
+
+        if value.type == "object":
+            return value
+
+        if value.type == "identifier":
+            resolved = _declared_object(
+                root, AstReader.text(value, source), source
+            )
+
+            if resolved is not None:
+                return resolved
+
+    return None
+
+
+def _declared_object(root: Node, name: str, source: bytes) -> Node | None:
+    """O literal de objeto atribuído a `name` neste arquivo."""
+
+    for declarator in AstReader.find_all(root, "variable_declarator"):
+
+        target = declarator.child_by_field_name("name")
+        value = declarator.child_by_field_name("value")
+
+        if target is None or value is None:
+            continue
+
+        if AstReader.text(target, source) != name:
+            continue
+
+        # `const config: ModuleFederationConfig = {...}` — a anotação
+        # de tipo fica entre o nome e o valor, e o valor continua
+        # sendo o objeto.
+        if value.type == "object":
+            return value
+
+    return None
+
+
+def _from_object(
+    node: Node,
+    source: bytes,
+    path: Path,
+    root: Node | None = None,
+) -> Federation | None:
+
+    fields = _pairs(node, source, root)
 
     if "name" not in fields:
         return None
@@ -141,11 +230,35 @@ def _from_object(node: Node, source: bytes, path: Path) -> Federation | None:
     )
 
 
-def _pairs(node: Node, source: bytes) -> dict[str, Node]:
+def _pairs(
+    node: Node,
+    source: bytes,
+    root: Node | None = None,
+) -> dict[str, Node]:
 
     found = {}
 
     for pair in node.named_children:
+
+        # `federation({ ...remoteConfig })` — o literal existe, mas o
+        # que interessa está no objeto espalhado dentro dele. Sem
+        # resolver, o campo `name` não aparece e a declaração é
+        # descartada como se não fosse uma.
+        if pair.type == "spread_element" and root is not None:
+
+            for child in pair.named_children:
+
+                if child.type != "identifier":
+                    continue
+
+                target = _declared_object(
+                    root, AstReader.text(child, source), source
+                )
+
+                if target is not None:
+                    found.update(_pairs(target, source, root))
+
+            continue
 
         if pair.type != "pair":
             continue

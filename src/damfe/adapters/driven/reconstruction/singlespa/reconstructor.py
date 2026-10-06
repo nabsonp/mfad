@@ -18,6 +18,7 @@ from damfe.domain import (
 from damfe.adapters.driven.reconstruction.ast import AstReader, SourceTree
 from damfe.adapters.driven.reconstruction.singlespa.microfrontends import MicroFrontendBuilder
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
+from damfe.adapters.driven.reconstruction.singlespa import discovery
 from damfe.adapters.driven.reconstruction.singlespa.compositions import (
     CompositionExtractor,
 )
@@ -101,18 +102,43 @@ class SingleSpaReconstructor(Reconstructor):
 
         builder = MicroFrontendBuilder(context)
 
+        registrations = [
+            registration
+            for registration in context.registrations
+            if self._in_scope(registration.name)
+        ]
+
+        # Descoberta de baixo para cima, para o que o registro não
+        # nomeia. Ver `discovery.by_lifecycles`.
+        registrations += discovery.by_lifecycles(
+            context,
+            builder._exports,
+            {
+                path.resolve()
+                for registration in registrations
+                for path in [self._package_of(context, registration)]
+                if path
+            },
+            self._in_scope,
+        )
+
         found = sorted(
-            (
-                builder.build(registration)
-                for registration in context.registrations
-                if self._in_scope(registration.name)
-            ),
+            (builder.build(registration) for registration in registrations),
             key=lambda item: item.id,
         )
 
         self._mark_shell(context, found)
 
         return found
+
+    @staticmethod
+    def _package_of(context, registration) -> Path | None:
+        """O diretório do pacote que uma aplicação registrada ocupa."""
+
+        if registration.specifier and not registration.specifier.startswith("."):
+            return context.packages.get(registration.specifier)
+
+        return context.package_dir(registration.declared_in)
 
     def compositions(
         self,

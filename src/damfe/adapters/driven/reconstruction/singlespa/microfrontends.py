@@ -143,6 +143,9 @@ class MicroFrontendBuilder:
         não resolvida.
         """
 
+        if registration.entrypoint:
+            return registration.entrypoint
+
         specifier = registration.specifier
 
         if not specifier:
@@ -262,6 +265,30 @@ class MicroFrontendBuilder:
 
                     if name in LIFECYCLE_NAMES:
                         lifecycles.append(name)
+
+                # export const bootstrap = lifecycles.bootstrap;
+                #
+                # A terceira forma, e a que os adaptadores de Angular
+                # geram. Sem ela, uma unidade que exporta os ciclos de
+                # vida um a um não é reconhecida como micro frontend, e
+                # um componente exportado assim não é reconhecido como
+                # fragmento.
+                for declarator in AstReader.find_all(
+                    declaration, "variable_declarator"
+                ):
+                    name_node = declarator.child_by_field_name("name")
+
+                    if not name_node or name_node.type != "identifier":
+                        continue
+
+                    name = AstReader.text(name_node, source)
+
+                    if name in LIFECYCLE_NAMES:
+                        lifecycles.append(name)
+                    else:
+                        exported.append(
+                            (name, name_node.start_point[0] + 1)
+                        )
 
                 continue
 
