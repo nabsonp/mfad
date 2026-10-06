@@ -340,3 +340,4 @@ O mega exige telas **e** linhas acima do limiar, não qualquer uma: muitas telas
 | — | `loadChildren` do Angular: seguir a tabela de rotas do outro módulo |
 | — | `damfe export --format open-microfrontends` |
 | — | calibrar `nano-frontend.floor` contra a base do estudo: em 5 ele acusa 9 das 10 unidades de referência |
+| — | `MIN_SAMPLE = 8` para a cerca de Tukey é convenção, não medida |

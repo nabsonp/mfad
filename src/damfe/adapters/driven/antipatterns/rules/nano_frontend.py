@@ -1,19 +1,22 @@
 """
-Micro frontend pequeno demais perto dos seus pares.
+Micro frontend pequeno demais para se sustentar como unidade.
 
 O catálogo descreve a fragmentação excessiva: a unidade é tão
-pequena que não se sustenta como unidade de implantação, e o custo
-de tê-la separada supera o ganho.
+pequena que o custo de tê-la separada supera o ganho.
 
-A medida é relativa, em telas e fragmentos. Um micro frontend
-pequeno pode ser perfeitamente legítimo — é o caso de um que
-constitui sozinho uma capacidade inteira —, então isto é indício e
-não veredito, e a saída diz contra o que a unidade foi comparada.
+Dois critérios em OU. O PISO é absoluto e não depende de vizinho
+nenhum: abaixo dele a unidade entrega pouco demais para ser micro
+frontend. O OUTLIER é a cerca inferior de Tukey sobre a distribuição
+do próprio sistema, e só vale quando há distribuição para medir.
 """
 
 from __future__ import annotations
 
-from damfe.adapters.driven.antipatterns.alignment import Sizes, peers
+from damfe.adapters.driven.antipatterns.alignment import (
+    Sizes,
+    fences,
+    peers,
+)
 from damfe.application.ports import Rule
 from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture
 
@@ -30,22 +33,11 @@ class NanoFrontend(Rule):
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Nano%20Frontend",
     )
 
-    def __init__(self, size_factor: float = 0.4, floor: int = 5):
+    def __init__(self, floor: int = 5):
 
-        #: Que fração da mediana do sistema a unidade precisa estar
-        #: abaixo para ser acusada.
-        self.size_factor = size_factor
-
-        #: Piso absoluto de telas somadas a fragmentos: abaixo disto
-        #: a unidade é nano, qualquer que seja a mediana.
+        #: Piso absoluto de telas somadas a fragmentos.
         #:
-        #: Vale em OU com o relativo, não em E: basta uma das duas
-        #: condições. Isso faz o piso dominar sempre que ele for mais
-        #: frouxo que a mediana — o que é a intenção, porque a
-        #: premissa é que abaixo dele a unidade é pequena demais para
-        #: ser micro frontend, independentemente dos vizinhos.
-        #:
-        #: O número não vem de medida. Nos dois sistemas de
+        #: Escolha declarada, não medida. Nos dois sistemas de
         #: referência ele acusa 9 das 10 unidades, e carece de
         #: calibração contra a base do estudo.
         self.floor = floor
@@ -59,46 +51,38 @@ class NanoFrontend(Rule):
 
         sizes = Sizes.of(candidates)
 
-        # Sem medida não há comparação. Ver `Sizes.measurable`.
-        if not sizes.measurable:
-            return []
+        measured = {
+            item.id: len(item.screens) + len(item.fragments)
+            for item in candidates
+            # Extração que não resolveu o entrypoint devolve zero em
+            # tudo, e entraria na distribuição puxando-a para baixo
+            # além de ser acusada. Falha de leitura não é anti-padrão.
+            if item.metadata.get("entrypoint_resolved") is not False
+        }
 
-        relative = (sizes.screens + sizes.fragments) * self.size_factor
+        limit = fences(list(measured.values()))
 
         found: list[AntiPatternDetection] = []
 
         for microfrontend in candidates:
 
-            screens = len(microfrontend.screens)
-            fragments = len(microfrontend.fragments)
-            code_lines = microfrontend.size.code_lines
+            size = measured.get(microfrontend.id)
 
-            # Extração que não resolveu o entrypoint devolve zero em
-            # tudo. Acusar isso seria chamar falha de leitura de
-            # anti-padrão.
-            if microfrontend.metadata.get("entrypoint_resolved") is False:
+            if size is None:
                 continue
 
-            # Telas e fragmentos somados, porque as duas formas de
-            # entregar interface contam: uma unidade sem tela que
-            # publica muitos fragmentos não é nano.
-            size = screens + fragments
+            if size <= self.floor:
+                criterion, threshold = "piso absoluto", float(self.floor)
 
-            if size > self.floor and size > relative:
+            elif limit and size < limit.low:
+                criterion, threshold = "outlier inferior", limit.low
+
+            else:
                 continue
 
             found.append(
                 self._detection(
-                    microfrontend, screens, fragments, code_lines,
-                    criterion=(
-                        "piso absoluto"
-                        if size <= self.floor
-                        else "tamanho relativo"
-                    ),
-                    threshold=(
-                        self.floor if size <= self.floor else relative
-                    ),
-                    sizes=sizes,
+                    microfrontend, size, criterion, threshold, limit, sizes
                 )
             )
 
@@ -107,13 +91,15 @@ class NanoFrontend(Rule):
     def _detection(
         self,
         microfrontend,
-        screens: int,
-        fragments: int,
-        code_lines: int,
+        size: int,
         criterion: str,
         threshold: float,
+        limit,
         sizes,
     ) -> AntiPatternDetection:
+
+        screens = len(microfrontend.screens)
+        fragments = len(microfrontend.fragments)
 
         return AntiPatternDetection(
             anti_pattern=self.name,
@@ -121,18 +107,14 @@ class NanoFrontend(Rule):
             explanation=(
                 "Indício, não prova: um micro frontend pequeno é "
                 "legítimo quando constitui sozinho uma capacidade "
-                "inteira. O limiar é o MENOR entre o teto absoluto e "
-                "a fração da mediana do sistema — o relativo manda "
-                "onde ele é mais apertado, para a regra não acusar "
-                "unidade que é normal entre seus pares."
+                "inteira. O corte relativo é a cerca inferior de "
+                "Tukey sobre a distribuição do próprio sistema, que "
+                "não acusa ninguém quando as unidades são homogêneas."
             ),
             message=(
                 f"{self._short(microfrontend.id)} tem {screens} telas "
-                f"e {fragments} fragmentos, somando "
-                f"{screens + fragments}, no máximo {threshold:g} "
-                f"({criterion}; mediana do sistema: "
-                f"{sizes.screens:g} telas, {sizes.fragments:g} "
-                f"fragmentos)."
+                f"e {fragments} fragmentos, somando {size}, no máximo "
+                f"{threshold:g} ({criterion})."
             ),
             subjects=[microfrontend.id],
             metadata={
@@ -140,11 +122,15 @@ class NanoFrontend(Rule):
                 "limiar": threshold,
                 "telas": screens,
                 "fragmentos": fragments,
-                "linhas": code_lines,
+                "linhas": microfrontend.size.code_lines,
+                "piso": self.floor,
                 "mediana_telas": sizes.screens,
                 "mediana_fragmentos": sizes.fragments,
-                "fator": self.size_factor,
-                "teto": self.floor,
+                **(
+                    {"q1": limit.q1, "q3": limit.q3, "iqr": limit.iqr}
+                    if limit
+                    else {"distribuicao": "sem amostra suficiente"}
+                ),
             },
         )
 

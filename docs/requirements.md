@@ -212,7 +212,7 @@ One occurrence, not one per slice: what matters is whether the practice exists a
 ### RF-19 · Mega frontend
 
 > **Given** the screens, the fragments and the size of each unit
-> **when** a unit's screens **and** lines of code both sit above **twice** the system median, with the orchestrator left out of the comparison
+> **when** a unit's screens **and** lines of code both sit above the **upper Tukey fence** (`Q3 + 1.5 × IQR`) of the system's own distribution, with the orchestrator left out
 > **then** it is reported, with its counts and the medians it was compared against.
 
 With no declared map of business capabilities there is no way to state *which* responsibilities a unit accumulates, so what is measured is the observable consequence: it grew far beyond its peers. Both measures are required together — many screens and little code is a menu, much code and one screen is a library. The rule abstains when the median is zero: zero means nothing was measured, not that everything is small.
@@ -223,12 +223,14 @@ With no declared map of business capabilities there is no way to state *which* r
 
 > **Given** the screens, the fragments and the size of each unit
 > **when** a unit's screens plus fragments sit below an absolute floor of **5**
-> **or** below **0.4×** the system median, with the orchestrator left out of the comparison
+> **or** below the **lower Tukey fence** (`Q1 - 1.5 × IQR`) of the system's own distribution, with the orchestrator left out
 > **then** it is reported, with its counts, the criterion that fired and the medians it was compared against.
 
 Screens and fragments are summed because both are ways of delivering interface. The absolute floor exists because the relative comparison is blind in a uniform system: when every unit holds one screen and one fragment the median follows, and nothing is ever reported. Its premise is that below it a unit is too small to be a micro frontend at all, whatever its neighbours look like.
 
-The two conditions are in **or**, so the floor dominates wherever it is looser than the median — which is the case in both reference systems, where a floor of 5 reports **9 of 10 units**. The value is a declared choice, not a measurement, and calibrating it against the study's base is open work.
+The relative cut is the **Tukey fence**, not a multiple of the median. The earlier multipliers — 2.0 for mega, 0.4 for nano — were picked for symmetry with each other and never had an empirical origin; the fence has a name, a reference, and a property neither a median multiple nor a raw percentile has: on a homogeneous set it reports nobody, instead of always reporting a fixed fraction. The rule abstains below **8 units**, where a quartile describes no distribution, and compares **strictly**, so that a zero IQR collapses both fences onto one point and only what departs from it is reported.
+
+The two conditions are in **or**, so the floor dominates wherever it is looser — which is the case in both reference systems, where a floor of 5 reports **9 of 10 units**. That value is a declared choice, not a measurement, and calibrating it against the study's base is open work.
 
 A unit whose entrypoint did not resolve is left out of both criteria — an extraction that could not read returns zero for everything, and reporting that would call a reading failure an anti-pattern. An indication rather than a verdict — a small micro frontend is legitimate when it is a whole capability on its own, and the rule cannot tell that case apart, which is why the output carries what it compared against.
 

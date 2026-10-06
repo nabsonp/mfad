@@ -129,8 +129,23 @@ normal, não o desvio.
 | | |
 |---|---|
 | **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
-| **Detecção** | Telas **e** linhas acima de `size_factor` vezes a mediana do sistema, com o orquestrador fora da comparação. |
+| **Detecção** | Telas **e** linhas acima da **cerca superior de Tukey** (`Q3 + 1.5 × IQR`) da distribuição do próprio sistema, com o orquestrador fora. |
 | **Saída** | Uma ocorrência por micro frontend, com as três contagens e as medianas contra as quais foi comparado. |
+
+**O corte é a cerca de Tukey, não um múltiplo da mediana.** Os
+valores anteriores — `2.0` para o mega e `0.4` para o nano — foram
+escolhidos por simetria entre si, e nunca tiveram origem empírica. A
+cerca tem nome, referência e uma propriedade que múltiplo de mediana
+não tem: num conjunto homogêneo ela não acusa ninguém, em vez de
+acusar uma fração fixa como fariam P25 e P75.
+
+Duas consequências de projeto. A regra **se abstém com menos de 8
+unidades**, porque com quatro pontos a interpolação inventa valores
+fracionários sobre uma amostra de inteiros e o quartil vira ficção.
+E a comparação é **estrita**: quando o IQR é zero as duas cercas
+colapsam no mesmo ponto, e aí só quem destoa dele é acusado — o que
+é coerente, porque com dispersão zero qualquer diferença está a
+distância infinita em IQRs.
 
 Sem mapa de domínios não há como afirmar QUAIS responsabilidades a
 unidade acumula, então a v0 mede a consequência observável: ela cresceu
@@ -147,7 +162,7 @@ menu; muito código e uma tela é uma biblioteca.
 | | |
 |---|---|
 | **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
-| **Detecção** | Telas somadas a fragmentos abaixo do **piso absoluto** `floor` **ou** de `size_factor` vezes a **mediana** do sistema. Basta uma das duas. O orquestrador fica fora da comparação. |
+| **Detecção** | Telas somadas a fragmentos abaixo do **piso absoluto** `floor` **ou** da **cerca inferior de Tukey** (`Q1 - 1.5 × IQR`). Basta uma das duas. O orquestrador fica fora. |
 | **Saída** | Uma ocorrência por micro frontend, com as contagens e as medianas contra as quais foi comparado. |
 
 Telas e fragmentos somados porque as duas formas de entregar interface
