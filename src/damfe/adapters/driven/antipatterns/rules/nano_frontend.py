@@ -8,10 +8,20 @@ Dois critérios em OU. O PISO é absoluto e não depende de vizinho
 nenhum: abaixo dele a unidade entrega pouco demais para ser micro
 frontend. O OUTLIER é a cerca inferior de Tukey sobre a distribuição
 do próprio sistema, e só vale quando há distribuição para medir.
+
+Os dois exigem também CÓDIGO abaixo da mediana do sistema. Telas e
+fragmentos contam por onde a unidade é vista, não quanto ela faz: uma
+aplicação Angular com duas rotas e dezenas de abas e diálogos tem
+poucas telas e é das maiores do sistema. É a mesma exigência dupla do
+`mega-frontend`, do lado oposto — pouca tela com muito código não é
+unidade pequena, é tela densa.
 """
 
 from __future__ import annotations
 
+import statistics
+
+from damfe.adapters.driven import i18n
 from damfe.adapters.driven.antipatterns.alignment import (
     Sizes,
     fences,
@@ -62,6 +72,14 @@ class NanoFrontend(Rule):
 
         limit = fences(list(measured.values()))
 
+        lines = sorted(
+            item.size.code_lines
+            for item in candidates
+            if item.id in measured
+        )
+
+        median_lines = statistics.median(lines) if lines else 0
+
         found: list[AntiPatternDetection] = []
 
         for microfrontend in candidates:
@@ -71,18 +89,23 @@ class NanoFrontend(Rule):
             if size is None:
                 continue
 
+            # Mais código que a metade dos pares não é unidade pequena.
+            if microfrontend.size.code_lines >= median_lines:
+                continue
+
             if size <= self.floor:
-                criterion, threshold = "piso absoluto", float(self.floor)
+                criterion, threshold = "nano.criterion.floor", float(self.floor)
 
             elif limit and size < limit.low:
-                criterion, threshold = "outlier inferior", limit.low
+                criterion, threshold = "nano.criterion.outlier", limit.low
 
             else:
                 continue
 
             found.append(
                 self._detection(
-                    microfrontend, size, criterion, threshold, limit, sizes
+                    microfrontend, size, criterion, threshold, limit, sizes,
+                    median_lines,
                 )
             )
 
@@ -96,29 +119,46 @@ class NanoFrontend(Rule):
         threshold: float,
         limit,
         sizes,
+        median_lines: float,
     ) -> AntiPatternDetection:
 
         screens = len(microfrontend.screens)
         fragments = len(microfrontend.fragments)
 
+        text = {
+            "dimension": i18n.ref("dimension.size"),
+            "explanation": i18n.ref("nano.explanation"),
+            "message": i18n.ref(
+                "nano.message",
+                name=self._short(microfrontend.id),
+                screens=screens,
+                fragments=fragments,
+                size=size,
+                threshold=f"{threshold:g}",
+                criterion=i18n.ref(criterion),
+                lines=microfrontend.size.code_lines,
+                median=f"{median_lines:g}",
+            ),
+        }
+
+        text["facts"] = [
+            i18n.fact("fact.screens", screens),
+            i18n.fact("fact.fragments", fragments),
+            i18n.fact("fact.size", size),
+            i18n.fact("fact.size_limit", i18n.ref("fact.limit_by", value=f"{threshold:g}", criterion=i18n.ref(criterion))),
+            i18n.fact("fact.code_lines", microfrontend.size.code_lines),
+            i18n.fact("fact.median_lines", f"{median_lines:g}"),
+        ]
+
         return AntiPatternDetection(
             anti_pattern=self.name,
-            dimension="tamanho",
-            explanation=(
-                "Indício, não prova: um micro frontend pequeno é "
-                "legítimo quando constitui sozinho uma capacidade "
-                "inteira. O corte relativo é a cerca inferior de "
-                "Tukey sobre a distribuição do próprio sistema, que "
-                "não acusa ninguém quando as unidades são homogêneas."
-            ),
-            message=(
-                f"{self._short(microfrontend.id)} tem {screens} telas "
-                f"e {fragments} fragmentos, somando {size}, no máximo "
-                f"{threshold:g} ({criterion})."
-            ),
+            dimension=i18n.t(text["dimension"]),
+            explanation=i18n.t(text["explanation"]),
+            message=i18n.t(text["message"]),
             subjects=[microfrontend.id],
             metadata={
-                "criterio": criterion,
+                "text": text,
+                "criterio": i18n.t(criterion),
                 "limiar": threshold,
                 "telas": screens,
                 "fragmentos": fragments,
@@ -126,6 +166,7 @@ class NanoFrontend(Rule):
                 "piso": self.floor,
                 "mediana_telas": sizes.screens,
                 "mediana_fragmentos": sizes.fragments,
+                "mediana_linhas": median_lines,
                 **(
                     {"q1": limit.q1, "q3": limit.q3, "iqr": limit.iqr}
                     if limit

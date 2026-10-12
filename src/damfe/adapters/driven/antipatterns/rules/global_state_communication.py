@@ -1,11 +1,20 @@
 """
 Estado global usado como canal entre micro frontends.
 
-Quando mais de um micro frontend lê a mesma fatia do estado, o
-estado deixou de ser detalhe interno de um e virou meio de
+Quando mais de um micro frontend acessa a mesma fatia do estado,
+o estado deixou de ser detalhe interno de um e virou meio de
 comunicação entre vários — sem contrato declarado, sem mensagem e
 sem import. O formato daquele dado passa a ser interface pública
-de fato, e mudá-lo quebra todos os leitores ao mesmo tempo.
+de fato, e mudá-lo quebra todos os que o tocam ao mesmo tempo.
+
+Vale para biblioteca de estado e para o armazenamento do navegador:
+uma chave do `localStorage` tocada por vários micro frontends é a
+mesma coisa que uma fatia do store lida por vários.
+
+A fatia é identificada pela biblioteca E pelo caminho. A chave
+`user` do `localStorage` e a fatia `user` de um store Redux são
+dados diferentes, e juntá-las pelo nome acusaria acoplamento que
+não existe.
 
 A ocorrência é ÚNICA e binária: ou o sistema usa estado global
 como canal, ou não usa. Emitir uma por fatia diria a mesma coisa
@@ -15,8 +24,20 @@ quem participa dela.
 
 from __future__ import annotations
 
+from damfe.adapters.driven import i18n
 from damfe.application.ports import Rule
-from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture
+from damfe.domain import (
+    AntiPattern,
+    AntiPatternDetection,
+    MicroFrontendArchitecture,
+    StateAccess,
+)
+
+
+def _slice(access: StateAccess) -> str:
+    """`localStorage:token`, `react-redux:cart` — o mesmo rótulo das arestas."""
+
+    return f"{access.library}:{access.path}"
 
 
 class GlobalStateCommunication(Rule):
@@ -24,7 +45,7 @@ class GlobalStateCommunication(Rule):
     anti_pattern = AntiPattern(
         name="global-state-communication",
         description=(
-            "Estado global lido por mais de um micro frontend, "
+            "Estado global acessado por mais de um micro frontend, "
             "funcionando como canal de comunicação não declarado."
         ),
         category="Inter-frontend",
@@ -33,7 +54,7 @@ class GlobalStateCommunication(Rule):
 
     def __init__(self, min_microfrontends: int = 2):
 
-        #: A partir de quantos leitores o estado deixa de ser
+        #: A partir de quantos acessantes o estado deixa de ser
         #: interno e passa a ser canal. Dois já bastam.
         self.min_microfrontends = min_microfrontends
 
@@ -54,26 +75,31 @@ class GlobalStateCommunication(Rule):
             {holder for holders in shared.values() for holder in holders}
         )
 
+        text = {
+            "dimension": i18n.ref("dimension.global_state"),
+            "explanation": i18n.ref("gsc.explanation"),
+            "message": i18n.ref(
+                "gsc.message",
+                n=len(involved),
+                slices=len(shared),
+                names=", ".join(self._short(item) for item in involved),
+            ),
+        }
+
+        # Quem está envolvido já é a coluna da linha, e cada fatia, com
+        # quem lê, quem grava e onde, sai de `metadata.slices`.
+        text["facts"] = [i18n.fact("fact.slices", len(shared))]
+
         return [
             AntiPatternDetection(
                 anti_pattern=self.name,
-                dimension="estado global",
-                explanation=(
-                    "Mais de um micro frontend lê a mesma fatia do "
-                    "estado global. O formato desse dado virou "
-                    "interface pública de fato, sem nunca ter sido "
-                    "declarado como tal."
-                ),
-                message=(
-                    f"{len(involved)} micro frontends compartilham "
-                    f"{len(shared)} "
-                    + ("fatia" if len(shared) == 1 else "fatias")
-                    + " do estado global: "
-                    + ", ".join(self._short(item) for item in involved)
-                ),
+                dimension=i18n.t(text["dimension"]),
+                explanation=i18n.t(text["explanation"]),
+                message=i18n.t(text["message"]),
                 subjects=involved,
                 locations=self._locations(architecture, shared),
                 metadata={
+                    "text": text,
                     "relation": "shared_state",
                     "edges": self._edges(shared),
                     "slices": {
@@ -93,7 +119,7 @@ class GlobalStateCommunication(Rule):
         readers: dict[str, set[str]] = {}
 
         for access in architecture.state_accesses:
-            readers.setdefault(access.path, set()).add(access.microfrontend)
+            readers.setdefault(_slice(access), set()).add(access.microfrontend)
 
         return readers
 
@@ -122,11 +148,15 @@ class GlobalStateCommunication(Rule):
     @staticmethod
     def _locations(architecture: MicroFrontendArchitecture, shared: dict) -> list:
 
-        return [
-            access.at
-            for access in architecture.state_accesses
-            if access.path in shared
-        ]
+        # Uma linha pode tocar duas fatias; ela aparece uma vez só.
+        found: dict[tuple, object] = {}
+
+        for access in architecture.state_accesses:
+
+            if _slice(access) in shared:
+                found.setdefault((access.at.file, access.at.line), access.at)
+
+        return list(found.values())
 
     @staticmethod
     def _short(name: str) -> str:

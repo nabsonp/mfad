@@ -14,15 +14,13 @@ o mesmo contrato, ainda que por verbos diferentes.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-
+from damfe.adapters.driven import i18n
 from damfe.application.ports import Rule
 from damfe.domain import (
     AntiPattern,
     AntiPatternDetection,
     Endpoint,
     MicroFrontendArchitecture,
-    SourceLocation,
 )
 
 
@@ -61,20 +59,27 @@ class HammeringApis(Rule):
 
         callers = sorted(endpoint.microfrontends)
 
+        text = {
+            "dimension": i18n.ref("dimension.shared_backend"),
+            "explanation": i18n.ref("hammering.explanation"),
+            "message": i18n.ref(
+                "hammering.message",
+                path=endpoint.path,
+                n=len(callers),
+                names=", ".join(self._short(caller) for caller in callers),
+            ),
+        }
+
+        text["facts"] = [
+            i18n.fact("fact.route", endpoint.path),
+            i18n.fact("fact.callers", ", ".join(self._short(caller) for caller in callers)),
+        ]
+
         return AntiPatternDetection(
             anti_pattern=self.name,
-            dimension="backend compartilhado",
-            explanation=(
-                "A mesma rota é consumida por mais de um micro "
-                "frontend. Uma mudança no contrato do serviço "
-                "afeta todos eles ao mesmo tempo, sem que nenhum "
-                "dependa diretamente do outro."
-            ),
-            message=(
-                f"A rota {endpoint.path} é chamada por "
-                f"{len(callers)} micro frontends: "
-                + ", ".join(self._short(caller) for caller in callers)
-            ),
+            dimension=i18n.t(text["dimension"]),
+            explanation=i18n.t(text["explanation"]),
+            message=i18n.t(text["message"]),
             subjects=callers,
             # As localizações vêm das chamadas, não do endpoint:
             # ele é o nó externo, e quem registra onde a chamada
@@ -85,6 +90,7 @@ class HammeringApis(Rule):
                 if call.path == endpoint.path
             ],
             metadata={
+                "text": text,
                 "relation": "shared_endpoint",
                 # Os dois sentidos: a relação não tem direção, e o
                 # desenho traça um arco para cada ordem.

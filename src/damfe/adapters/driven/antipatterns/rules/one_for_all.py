@@ -12,12 +12,20 @@ A conexão é contada sem direção. Depender de todos e ser
 dependido por todos são problemas diferentes — a proporção de
 cada um vai no metadata —, mas ambos caracterizam o mesmo
 acoplamento excessivo.
+
+Arestas simétricas não entram. O estado global vira, na
+reconstrução, uma aresta entre cada par de quem toca a mesma fatia
+— uma chave de token lida por todos liga todos a todos, e a regra
+acusaria quase o sistema inteiro por um acoplamento que não tem
+centro. Esse acoplamento já tem regra própria, o
+`global-state-communication`.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
 
+from damfe.adapters.driven import i18n
 from damfe.application.ports import Rule
 from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture
 
@@ -112,6 +120,9 @@ class OneForAll(Rule):
             + [
                 (item.source, item.target)
                 for item in architecture.communications
+                # O teste é a propriedade, não o mecanismo, como no
+                # cyclic-dependency.
+                if item.directed
             ]
         )
 
@@ -134,22 +145,33 @@ class OneForAll(Rule):
         incoming: set[str],
     ) -> AntiPatternDetection:
 
+        text = {
+            "dimension": i18n.ref("dimension.all_relations"),
+            "explanation": i18n.ref("ofa.explanation"),
+            "message": i18n.ref(
+                "ofa.message",
+                name=self._short(peer),
+                neighbours=len(neighbours),
+                others=others,
+                out=len(outgoing),
+                incoming=len(incoming),
+            ),
+        }
+
+        text["facts"] = [
+            i18n.fact("fact.connected", i18n.ref("fact.of", part=len(neighbours), whole=others)),
+            i18n.fact("fact.depends_on", len(outgoing)),
+            i18n.fact("fact.depended_by", len(incoming)),
+        ]
+
         return AntiPatternDetection(
             anti_pattern=self.name,
-            dimension="todas as relações",
-            explanation=(
-                "O micro frontend está ligado a quase todos os "
-                "demais, somadas as três relações. Deixa de ser uma "
-                "parte implantável de forma independente."
-            ),
-            message=(
-                f"{self._short(peer)} está conectado a "
-                f"{len(neighbours)} dos {others} demais micro "
-                f"frontends: depende de {len(outgoing)} e é "
-                f"dependido por {len(incoming)}."
-            ),
+            dimension=i18n.t(text["dimension"]),
+            explanation=i18n.t(text["explanation"]),
+            message=i18n.t(text["message"]),
             subjects=[peer, *sorted(neighbours)],
             metadata={
+                "text": text,
                 "edges": (
                     [[peer, other] for other in sorted(outgoing)]
                     + [[other, peer] for other in sorted(incoming)]

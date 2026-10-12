@@ -6,16 +6,17 @@ contrato ou indisponibilidade em qualquer um dos provedores
 aparece ali. E quem mantém a tela precisa acompanhar a evolução
 de todos eles.
 
-O sinal é a QUANTIDADE DE PROVEDORES DISTINTOS, não a de
-fragmentos. Uma tela com três fragmentos do mesmo micro frontend
-tem um fornecedor só — é reúso, não concentração de dependência.
+O sinal é a quantidade de FRAGMENTOS DISTINTOS que a tela monta, não
+a de provedores (ver `min_fragments`) nem a de instanciações: o mesmo
+fragmento repetido numa lista é uma dependência só, por mais vezes que
+apareça.
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass, field
 
+from damfe.adapters.driven import i18n
 from damfe.application.ports import Rule
 from damfe.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitecture, SourceLocation
 
@@ -68,7 +69,7 @@ class HubLikeDependency(Rule):
         return [
             self._detection(host)
             for host in hosts.values()
-            if len(host.fragments) >= self.min_fragments
+            if len(set(host.fragments)) >= self.min_fragments
         ]
 
     def _hosts(self, architecture: MicroFrontendArchitecture) -> dict[str, Host]:
@@ -110,7 +111,7 @@ class HubLikeDependency(Rule):
                     )
 
                     host.providers.add(item.provider)
-                    host.fragments.append(item.fragment)
+                    host.fragments.append(f"{item.provider}#{item.fragment}")
                     host.locations.append(
                         SourceLocation(file=render.file, line=render.line)
                     )
@@ -121,30 +122,43 @@ class HubLikeDependency(Rule):
 
         providers = sorted(host.providers)
 
+        text = {
+            "dimension": i18n.ref("dimension.composition"),
+            "explanation": i18n.ref("hub.explanation"),
+            "message": i18n.ref(
+                "hub.message",
+                screen=host.screen,
+                owner=self._short(host.owner),
+                fragments=len(set(host.fragments)),
+                n=len(providers),
+                names=", ".join(self._short(item) for item in providers),
+            ),
+        }
+
+        text["facts"] = [
+            i18n.fact("fact.screen", host.screen),
+            i18n.fact("fact.owner", self._short(host.owner)),
+            i18n.fact("fact.fragments", len(set(host.fragments))),
+            i18n.fact("fact.providers", ", ".join(self._short(item) for item in providers)),
+        ]
+
         return AntiPatternDetection(
             anti_pattern=self.name,
-            dimension="composição",
-            explanation=(
-                "A tela instancia muitos fragmentos, concentrando "
-                "num só ponto as falhas e as mudanças de contrato "
-                "de todos eles."
-            ),
-            message=(
-                f"A tela {host.screen}, de {self._short(host.owner)}, "
-                f"instancia {len(host.fragments)} fragmentos, de "
-                f"{len(providers)} micro "
-                f"{'frontend' if len(providers) == 1 else 'frontends'}: "
-                + ", ".join(self._short(item) for item in providers)
-            ),
+            dimension=i18n.t(text["dimension"]),
+            explanation=i18n.t(text["explanation"]),
+            message=i18n.t(text["message"]),
             subjects=[host.owner, *providers],
             locations=host.locations,
             metadata={
+                "text": text,
                 "edges": [
                     [host.owner, provider] for provider in providers
                 ],
                 "screen": host.screen,
                 "providers": providers,
-                "fragments": sorted(set(host.fragments)),
+                "fragments": sorted(
+                    {fragment.partition("#")[2] for fragment in host.fragments}
+                ),
             },
         )
 

@@ -13,6 +13,7 @@ menu, muito código com uma tela é uma biblioteca.
 
 from __future__ import annotations
 
+from damfe.adapters.driven import i18n
 from damfe.adapters.driven.antipatterns.alignment import (
     Sizes,
     fences,
@@ -64,25 +65,35 @@ class MegaFrontend(Rule):
             if screens <= by_screens.high or code_lines <= by_lines.high:
                 continue
 
+            text = {
+                "dimension": i18n.ref("dimension.size"),
+                "explanation": i18n.ref("mega.explanation"),
+                "message": i18n.ref(
+                    "mega.message",
+                    name=self._short(microfrontend.id),
+                    screens=screens,
+                    lines=code_lines,
+                    screen_fence=f"{by_screens.high:g}",
+                    line_fence=f"{by_lines.high:g}",
+                ),
+            }
+
+            text["facts"] = [
+                i18n.fact("fact.screens", screens),
+                i18n.fact("fact.screen_fence", f"{by_screens.high:g}"),
+                i18n.fact("fact.code_lines", code_lines),
+                i18n.fact("fact.line_fence", f"{by_lines.high:g}"),
+            ]
+
             found.append(
                 AntiPatternDetection(
                     anti_pattern=self.name,
-                    dimension="tamanho",
-                    explanation=(
-                        "Indício, não prova: um micro frontend grande "
-                        "e coeso não é Mega Frontend. O corte é a "
-                        "cerca superior de Tukey sobre a distribuição "
-                        "do próprio sistema, exigida nas duas medidas "
-                        "ao mesmo tempo."
-                    ),
-                    message=(
-                        f"{self._short(microfrontend.id)} tem "
-                        f"{screens} telas e {code_lines} linhas, "
-                        f"acima das cercas de {by_screens.high:g} "
-                        f"telas e {by_lines.high:g} linhas."
-                    ),
+                    dimension=i18n.t(text["dimension"]),
+                    explanation=i18n.t(text["explanation"]),
+                    message=i18n.t(text["message"]),
                     subjects=[microfrontend.id],
                     metadata={
+                        "text": text,
                         "criterio": "outlier superior",
                         "telas": screens,
                         "fragmentos": len(microfrontend.fragments),
