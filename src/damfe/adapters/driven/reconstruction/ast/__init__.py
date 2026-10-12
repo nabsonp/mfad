@@ -2,6 +2,7 @@ from damfe.adapters.driven.reconstruction.ast.constants import RouteConstantTabl
 from damfe.adapters.driven.reconstruction.ast.imports import ImportTable
 from damfe.adapters.driven.reconstruction.ast.reader import AstReader
 from damfe.adapters.driven.reconstruction.ast.resolver import ModuleResolver
+from damfe.adapters.driven.reconstruction.ast.symbols import SymbolIndex
 from damfe.adapters.driven.reconstruction.ast.tree import SourceTree
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     "ModuleResolver",
     "RouteConstantTable",
     "SourceTree",
+    "SymbolIndex",
 ]

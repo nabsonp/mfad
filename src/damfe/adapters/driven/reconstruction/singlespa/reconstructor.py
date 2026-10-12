@@ -15,9 +15,12 @@ from damfe.domain import (
     Navigation,
     StateAccess,
 )
-from damfe.adapters.driven.reconstruction.ast import AstReader, SourceTree
+from damfe.adapters.driven.reconstruction.ast import SourceTree
 from damfe.adapters.driven.reconstruction.singlespa.microfrontends import MicroFrontendBuilder
-from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
+from damfe.adapters.driven.reconstruction.singlespa.context import (
+    ScanContext,
+    unscoped,
+)
 from damfe.adapters.driven.reconstruction.singlespa import discovery
 from damfe.adapters.driven.reconstruction.singlespa.compositions import (
     CompositionExtractor,
@@ -251,19 +254,34 @@ class SingleSpaReconstructor(Reconstructor):
         # de um sistema — o de exemplo aqui contém dois —, e juntar
         # os registros de todos num nó só inventaria um orquestrador
         # que monta aplicações de sistemas diferentes.
-        by_package: dict[Path, list] = {}
+        #: pacote → (arquivo que declara, nomes montados)
+        by_package: dict[Path, tuple[Path, set[str]]] = {}
 
         for registration in context.registrations:
 
             directory = context.package_dir(registration.declared_in)
 
-            by_package.setdefault(directory, []).append(registration)
+            by_package.setdefault(
+                directory, (registration.declared_in, set())
+            )[1].add(registration.name)
+
+        # Sob single-spa-layout o registro é `applications.forEach(
+        # registerApplication)`, sem nome literal nenhum. Quem monta é
+        # o pacote que declara o layout, e o que ele monta são as
+        # aplicações que o layout nomeia.
+        for layout_file, declared in sorted(context.layouts.items()):
+
+            directory = context.package_dir(layout_file)
+
+            by_package.setdefault(directory, (layout_file, set()))[1].update(
+                declared
+            )
 
         known = {item.id for item in microfrontends}
 
         shells = []
 
-        for directory, registrations in sorted(by_package.items()):
+        for directory, (declared_in, names) in sorted(by_package.items()):
 
             relative = context.relative(directory)
 
@@ -276,7 +294,7 @@ class SingleSpaReconstructor(Reconstructor):
                 id=identifier,
                 role="shell",
                 directory=relative,
-                entrypoint=context.relative(registrations[0].declared_in),
+                entrypoint=context.relative(declared_in),
             )
 
             shell.size = context.size_of(directory)
@@ -284,12 +302,35 @@ class SingleSpaReconstructor(Reconstructor):
             # Quem ele monta. É a aresta de composição do sistema: o
             # shell escolhe a aplicação por URL e a põe na página.
             shell.mounts = sorted(
-                registration.name for registration in registrations
+                {self._mounted(name, microfrontends) for name in names}
             )
 
             shells.append(shell)
 
         microfrontends[:0] = shells
+
+    @staticmethod
+    def _mounted(name: str, microfrontends: list[MicroFrontend]) -> str:
+        """
+        O identificador da unidade montada, quando ela está no inventário.
+
+        O orquestrador nomeia pelo especificador do import map; a
+        unidade achada pelos ciclos de vida se chama pelo `package.json`.
+        Mesma regra de `ScanContext.layout_routes_of`: igual, ou igual
+        sem o escopo. Fora isso o nome fica como está — a unidade pode
+        não estar no repositório.
+        """
+
+        ids = {item.id for item in microfrontends}
+
+        if name in ids:
+            return name
+
+        wanted = unscoped(name)
+
+        matches = [item for item in ids if unscoped(item) == wanted]
+
+        return matches[0] if len(matches) == 1 else name
 
     @staticmethod
     def _shell_id(directory: Path, relative: str) -> str:

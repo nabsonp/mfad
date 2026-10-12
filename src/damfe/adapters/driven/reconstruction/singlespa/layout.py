@@ -22,6 +22,19 @@ navegação e sem telas, sem nada indicando que faltou informação.
 Aqui se lê o template e se recuperam os pares aplicação/rota. Rotas
 aninhadas concatenam, como no single-spa-layout.
 
+O layout é lido nas duas formas que a documentação descreve: dentro de
+`<template id="single-spa-layout">`, no HTML da página, e como arquivo
+próprio cuja raiz é `<single-spa-router>` — o `microfrontend-layout.html`
+que o `create-single-spa` gera e o código passa a
+`constructRoutes(microfrontendLayout)`. Ler só a primeira deixava sem
+rota todo sistema criado pelo gerador oficial.
+
+`<route default>` responde quando nenhuma outra rota casa. Não é dono
+de prefixo nenhum, então a aplicação entra no layout sem rota. O mesmo
+vale para a aplicação fora de qualquer `<route>` — barra de navegação,
+rodapé: fica sempre montada, e não é dona de URL nenhuma. Dar a ela a
+rota `/` fazia todo `"/"` do código virar navegação para ela.
+
 A forma JavaScript — `constructRoutes({ routes: [...] })` — é lida
 quando o argumento é literal de objeto, que é como ela é escrita.
 Argumento montado em variável ou vindo de outro módulo não é
@@ -35,61 +48,86 @@ from pathlib import Path
 
 
 class _LayoutReader(HTMLParser):
-    """Percorre o template acumulando o caminho das rotas aninhadas."""
+    """Percorre o layout acumulando o caminho das rotas aninhadas."""
+
+    #: Os elementos que abrem um layout: o template na página, ou a
+    #: raiz do arquivo de layout.
+    ROOTS = ("template", "single-spa-router")
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
 
-        self.inside = False
-        self.depth: list[str] = []
+        #: a tag que abriu o layout, enquanto dentro dele
+        self.opened_by: str | None = None
+        self.depth: list[str | None] = []
         self.found: dict[str, list[str]] = {}
 
     def handle_starttag(self, tag, attrs):
 
         values = dict(attrs)
 
-        if tag == "template" and values.get("id") == "single-spa-layout":
-            self.inside = True
-            return
+        if self.opened_by is None:
 
-        if not self.inside:
+            if tag == "template" and values.get("id") == "single-spa-layout":
+                self.opened_by = tag
+
+            elif tag == "single-spa-router":
+                self.opened_by = tag
+
             return
 
         if tag == "route":
-            self.depth.append(values.get("path", "") or "")
+            # `None` marca a rota padrão: abaixo dela não há prefixo.
+            self.depth.append(
+                None if "default" in values else (values.get("path", "") or "")
+            )
             return
 
         if tag == "application":
 
             name = values.get("name")
 
-            if name:
-                self.found.setdefault(name, []).append(self._route())
+            if not name:
+                return
+
+            routes = self.found.setdefault(name, [])
+
+            route = self._route()
+
+            if route is not None:
+                routes.append(route)
 
     def handle_endtag(self, tag):
 
-        if tag == "template":
-            self.inside = False
+        if tag == self.opened_by:
+            self.opened_by = None
 
-        elif tag == "route" and self.depth:
+        elif tag == "route" and self.depth and self.opened_by:
             self.depth.pop()
 
-    def _route(self) -> str:
+    def _route(self) -> str | None:
         """Concatena os `path` das rotas que envolvem a aplicação."""
+
+        if None in self.depth or not self.depth:
+            return None
 
         parts = [part.strip("/") for part in self.depth if part.strip("/")]
 
         return "/" + "/".join(parts) if parts else "/"
 
 
-def routes_by_application(repository: Path, tree) -> dict[str, list[str]]:
+def layouts(tree) -> dict[Path, dict[str, list[str]]]:
     """
-    Aplicação → rotas, lidas dos templates de layout do repositório.
+    Arquivo → (aplicação → rotas), dos layouts do repositório.
+
+    Por arquivo, e não somado, porque o layout também diz QUEM monta:
+    o pacote que o contém é o orquestrador daquelas aplicações. Um
+    repositório pode ter mais de um sistema, cada um com o seu.
 
     Devolve vazio quando não há layout, que é o caso comum.
     """
 
-    found: dict[str, list[str]] = {}
+    found: dict[Path, dict[str, list[str]]] = {}
 
     for file_path in tree.markup_files():
 
@@ -98,7 +136,7 @@ def routes_by_application(repository: Path, tree) -> dict[str, list[str]]:
         except OSError:
             continue
 
-        if "single-spa-layout" not in content:
+        if "single-spa-layout" not in content and "single-spa-router" not in content:
             continue
 
         reader = _LayoutReader()
@@ -108,10 +146,12 @@ def routes_by_application(repository: Path, tree) -> dict[str, list[str]]:
         except Exception:
             continue
 
-        for name, routes in reader.found.items():
-            found.setdefault(name, []).extend(routes)
+        if reader.found:
+            found[file_path] = {
+                name: sorted(set(routes)) for name, routes in reader.found.items()
+            }
 
-    return {name: sorted(set(routes)) for name, routes in found.items()}
+    return found
 
 
 def routes_from_construct(root, source, reader) -> dict[str, list[str]]:

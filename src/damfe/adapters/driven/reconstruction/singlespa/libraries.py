@@ -28,6 +28,14 @@ DISPATCH = "dispatchEvent"
 
 LISTEN = "addEventListener"
 
+#: `fromEvent(window, "canal")` do rxjs: o mesmo ouvinte, escrito como
+#: Observable. https://rxjs.dev/api/index/function/fromEvent
+FROM_EVENT = "fromEvent"
+
+#: Os alvos globais em que um evento atravessa micro frontends. Um
+#: `fromEvent(botao, ...)` é evento de um elemento, não canal.
+GLOBAL_TARGETS = frozenset({"window", "document", "globalThis", "self", "window.document"})
+
 #: `new BroadcastChannel(canal)` e o `postMessage` sobre ela
 BROADCAST_CHANNEL = "BroadcastChannel"
 
@@ -37,8 +45,8 @@ POST_MESSAGE = "postMessage"
 #:
 #: Dois micro frontends que tocam a mesma chave estão acoplados pelo
 #: formato do valor, e ninguém declarou esse contrato em lugar
-#: nenhum. É canal como qualquer outro, com a chave fazendo o papel
-#: do nome.
+#: nenhum. É estado global, não mensagem: a chave é a fatia, e quem
+#: grava não manda nada a ninguém — deixa o dado lá para quem vier.
 STORAGES = ("localStorage", "sessionStorage")
 
 STORAGE_WRITE = ("setItem", "removeItem")
@@ -140,6 +148,20 @@ class StateLibrary:
     dispatchers: tuple[str, ...] = ()
     atoms: tuple[str, ...] = ()
 
+
+#: Quem cria um store Redux: `createStore` do redux e `configureStore`
+#: do Redux Toolkit. https://redux.js.org/api/createstore e
+#: https://redux-toolkit.js.org/api/configureStore
+#:
+#: Um micro frontend que cria o próprio store lê o PRÓPRIO estado. Duas
+#: unidades com um store cada, ambas com a fatia `lookup`, não
+#: compartilham nada — mesmo caminho, stores diferentes.
+REDUX_STORE_FACTORIES = (
+    ("redux", "createStore"),
+    ("redux", "legacy_createStore"),
+    ("@reduxjs/toolkit", "configureStore"),
+    ("@reduxjs/toolkit", "createStore"),
+)
 
 STATE_LIBRARIES = (
     StateLibrary(

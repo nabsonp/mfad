@@ -25,11 +25,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from damfe.domain import Fragment, MicroFrontend, Screen
-from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
+from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable, ModuleResolver
 from damfe.adapters.driven.reconstruction.routers import (
     AngularRouteReader,
+    ReactRouteReader,
 )
-from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.modulefederation import (
     config,
@@ -236,7 +236,12 @@ class FederatedBuilder:
 
         base = (directory / target).resolve()
 
+        # Acrescentar a extensão vem antes de trocar o sufixo:
+        # `./x.component` é `x.component.ts`, não `x.ts`.
         for candidate in [base] + [
+            base.parent / f"{base.name}{extension}"
+            for extension in (".js", ".jsx", ".ts", ".tsx")
+        ] + [
             base.with_suffix(extension)
             for extension in (".js", ".jsx", ".ts", ".tsx")
         ] + [
@@ -336,32 +341,23 @@ class FederatedBuilder:
             # `const X = lazy(() => import("remote/X"))`.
             remote_of = self._remote_names(root, source)
 
-            for element, opening in jsx.elements(root):
-
-                if jsx.tag_name(opening, source) != "Route":
-                    continue
-
-                attributes = jsx.attributes(opening, source)
-
-                component = jsx.component_name(
-                    attributes.get("element", "")
-                )
-
-                if not component:
-                    continue
-
-                route = self.context.routes.resolve(
-                    attributes.get("path", "")
-                )
-
-                key = (component, route or "")
+            for entry in ReactRouteReader(self.context.routes).routes_in(
+                root, source
+            ):
+                key = (entry.component, entry.route or "")
 
                 if key in seen:
                     continue
 
                 seen.add(key)
 
-                provider, exposed = remote_of.get(component, (None, ""))
+                # `lazy: () => import("remote/Pagina")` aponta direto
+                # para o módulo; nas outras formas é o nome local.
+                provider, exposed = (
+                    specifiers.split(entry.specifier, self.catalog)
+                    if entry.specifier
+                    else remote_of.get(entry.component, (None, ""))
+                )
 
                 if provider:
                     # A tela é de quem publica o módulo, mesmo que a
@@ -374,7 +370,11 @@ class FederatedBuilder:
                     # alcançar tudo que ele importa, e a atribuição de
                     # fragmento a tela vira ruído: cada tela recebe as
                     # dependências de todas as outras.
-                    target = imports.file_for(component)
+                    target = (
+                        ModuleResolver.resolve(entry.specifier, file_path)
+                        if entry.specifier
+                        else imports.file_for(entry.component)
+                    )
 
                     file = (
                         self.context.relative(target)
@@ -384,12 +384,12 @@ class FederatedBuilder:
 
                 found.append(
                     Screen(
-                        component=component,
+                        component=entry.component,
                         microfrontend=provider or owner,
-                        route=route,
-                        route_expression=attributes.get("path", ""),
+                        route=entry.route,
+                        route_expression=entry.expression,
                         file=file,
-                        line=element.start_point.row + 1,
+                        line=entry.line,
                     )
                 )
 

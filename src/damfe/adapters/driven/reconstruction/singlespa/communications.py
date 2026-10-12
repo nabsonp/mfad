@@ -31,12 +31,23 @@ from pathlib import Path
 from tree_sitter import Node
 
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
+from damfe.adapters.driven.reconstruction.ast.symbols import (
+    ModuleSymbols,
+    declared_value,
+    unwrap,
+)
 from damfe.adapters.driven.reconstruction.singlespa import libraries
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.singlespa.expressions import (
+    EXACT,
     ExpressionEvaluator,
 )
+from damfe.adapters.driven.reconstruction.singlespa.liveness import Liveness
 from damfe.adapters.driven.reconstruction.singlespa.ownership import Ownership
+from damfe.adapters.driven.reconstruction.singlespa.reachability import (
+    placement_of,
+    placements,
+)
 from damfe.domain import (
     MicroFrontend,
     ChannelOperation,
@@ -90,6 +101,8 @@ class CommunicationExtractor:
 
         self.evaluator = ExpressionEvaluator(context.routes)
 
+        self.liveness = Liveness(context)
+
     def extract(self) -> list[Communication]:
 
         communications: list[Communication] = []
@@ -120,6 +133,20 @@ class CommunicationExtractor:
                     self._endpoints(mechanism.produce),
                     self._endpoints(mechanism.consume),
                 )
+            )
+
+        # Onde cada ponta acontece. Feito por último, e uma vez só,
+        # porque vale para os três níveis igualmente: o mecanismo não
+        # muda a pergunta de qual tela alcança o arquivo da chamada.
+        found = placements(self.context, self.microfrontends)
+
+        for item in communications:
+
+            item.produced_on = placement_of(
+                found, [location.file for location in item.produced_at]
+            )
+            item.consumed_on = placement_of(
+                found, [location.file for location in item.consumed_at]
             )
 
         return sorted(
@@ -222,10 +249,12 @@ class CommunicationExtractor:
 
         for file_path in self.context.tree.source_files():
 
-            try:
-                root, source = self.context.reader.parse(file_path)
-            except Exception:
+            symbols = self.context.symbols().of(file_path)
+
+            if symbols is None:
                 continue
+
+            root, source = symbols.root, symbols.source
 
             owner = self.ownership.of_file(file_path)
 
@@ -254,6 +283,10 @@ class CommunicationExtractor:
                 if not found:
                     continue
 
+                # Ponta em função que nada chama não comunica.
+                if not self.liveness.is_live(node, symbols):
+                    continue
+
                 mechanism, channel, side = found
 
                 endpoint = Endpoint(
@@ -271,6 +304,9 @@ class CommunicationExtractor:
                 target.setdefault(mechanism, []).append(endpoint)
 
             for channel, call in self._message_listeners(root, source):
+
+                if not self.liveness.is_live(call, symbols):
+                    continue
 
                 consumed.setdefault("postMessage", []).append(
                     Endpoint(
@@ -309,7 +345,22 @@ class CommunicationExtractor:
 
             channel = self._event_channel(arguments[0], source)
 
-            return ("CustomEvent", channel, "produce") if channel else None
+            if not channel or channel in NATIVE_EVENTS:
+                return None
+
+            return "CustomEvent", channel, "produce"
+
+        if name == libraries.FROM_EVENT and len(arguments) >= 2:
+
+            if AstReader.text(arguments[0], source) not in libraries.GLOBAL_TARGETS:
+                return None
+
+            channel = self._value(arguments[1], source)
+
+            if not channel or channel in NATIVE_EVENTS:
+                return None
+
+            return "CustomEvent", channel, "consume"
 
         if name == libraries.LISTEN:
 
@@ -321,11 +372,6 @@ class CommunicationExtractor:
                 return None
 
             return "CustomEvent", channel, "consume"
-
-        storage = self._storage(function, source, name, arguments)
-
-        if storage:
-            return storage
 
         if name == libraries.POST_MESSAGE:
 
@@ -459,67 +505,31 @@ class CommunicationExtractor:
 
         return found
 
-    def _storage(
-        self,
-        function: Node,
-        source: bytes,
-        name: str,
-        arguments: list[Node],
-    ) -> tuple[str, str, str] | None:
-        """
-        `localStorage.setItem(chave, …)` e `getItem(chave)`.
-
-        O receptor precisa ser o próprio `localStorage` ou
-        `sessionStorage`: um `cache.getItem("x")` qualquer não é
-        armazenamento compartilhado, e casar só pelo nome do método
-        transformaria toda classe com `getItem` num canal.
-
-        A chave é o canal. Dois micro frontends que tocam a mesma
-        chave estão acoplados pelo formato do valor, sem que contrato
-        algum tenha sido declarado.
-        """
-
-        if name not in libraries.STORAGE_WRITE + libraries.STORAGE_READ:
-            return None
-
-        if function.type != "member_expression":
-            return None
-
-        receiver = function.child_by_field_name("object")
-
-        if not receiver:
-            return None
-
-        # Aceita `localStorage` e `window.localStorage`.
-        kind = AstReader.text(receiver, source).rpartition(".")[2]
-
-        if kind not in libraries.STORAGES:
-            return None
-
-        if not arguments:
-            return None
-
-        # Só literal, nunca o nome do identificador.
-        #
-        # A chave aqui é o contrato: duas unidades se acoplam por
-        # escreverem e lerem a MESMA string. Cair no nome da variável
-        # pareia qualquer par de arquivos que, por coincidência,
-        # chame a sua de `storageKey` — foi o que aconteceu com dois
-        # theme providers copiados, que nada tinham entre si.
-        #
-        # O preço é perder a chave montada em variável. Vale: inventar
-        # acoplamento é pior do que não achar um.
-        channel = self._literal(arguments[0], source)
-
-        if not channel:
-            return None
-
-        side = "produce" if name in libraries.STORAGE_WRITE else "consume"
-
-        return kind, channel, side
-
     def _event_channel(self, node: Node, source: bytes) -> str | None:
-        """O canal de `new CustomEvent(canal, ...)`."""
+        """
+        O canal de `new CustomEvent(canal, ...)`.
+
+        O evento costuma ser criado antes e disparado depois:
+
+            const evento = new CustomEvent("carrinho", { detail });
+            window.dispatchEvent(evento);
+
+        e então o canal está na declaração da variável, não na chamada.
+        Segue-se o nome até a declaração mais próxima no mesmo escopo.
+        `Event` entra junto: `new Event("x")` também carrega o tipo.
+        """
+
+        node = unwrap(node)
+
+        if node.type == "identifier":
+            node = declared_value(node, source)
+
+            if node is None:
+                return None
+
+        # `new CustomEvent("x") as EventoTipado`: a anotação de tipo
+        # não muda o evento.
+        node = unwrap(node)
 
         if node.type != "new_expression":
             return None
@@ -529,7 +539,7 @@ class CommunicationExtractor:
         if not constructor:
             return None
 
-        if AstReader.text(constructor, source) != libraries.CUSTOM_EVENT:
+        if AstReader.text(constructor, source) not in (libraries.CUSTOM_EVENT, "Event"):
             return None
 
         arguments = self._call_arguments(node)
@@ -676,16 +686,6 @@ class CommunicationExtractor:
 
         return "rxjs-subject", f"{module}#{path}", side
 
-    def _literal(self, node: Node, source: bytes) -> str | None:
-        """O valor quando ele é literal ou constante resolvível, e só."""
-
-        if node.type == "string":
-            return AstReader.strip_quotes(AstReader.text(node, source))
-
-        value = self.evaluator.evaluate(node, source)
-
-        return value.url if value else None
-
     def _value(self, node: Node, source: bytes) -> str | None:
         """Resolve o canal: literal, constante, ou o texto da expressão."""
 
@@ -694,7 +694,7 @@ class CommunicationExtractor:
 
         value = self.evaluator.evaluate(node, source)
 
-        if value:
+        if value and value.match == EXACT and not value.based:
             return value.url
 
         if node.type in {"identifier", "member_expression", "subscript_expression"}:
@@ -729,18 +729,18 @@ class CommunicationExtractor:
 
         for file_path in self.context.tree.source_files():
 
-            try:
-                root, source = self.context.reader.parse(file_path)
-            except Exception:
+            symbols = self.context.symbols().of(file_path)
+
+            if symbols is None:
                 continue
 
-            names = self._local_names(root, source, operation)
+            names = self._local_names(symbols.root, symbols.source, operation)
 
             if not names:
                 continue
 
             found.extend(
-                self._calls(file_path, root, source, names, operation)
+                self._calls(file_path, symbols, names, operation)
             )
 
         return found
@@ -767,13 +767,17 @@ class CommunicationExtractor:
     def _calls(
         self,
         file_path: Path,
-        root: Node,
-        source: bytes,
+        symbols: ModuleSymbols,
         names: set[str],
         operation: ChannelOperation,
     ) -> list[Endpoint]:
 
+        root, source = symbols.root, symbols.source
+
         microfrontend = self.ownership.of_file(file_path)
+
+        if microfrontend not in self.known:
+            return []
 
         relative = self.context.relative(file_path)
 
@@ -791,7 +795,7 @@ class CommunicationExtractor:
 
             channel = self._channel(node, source, operation)
 
-            if not channel:
+            if not channel or not self.liveness.is_live(node, symbols):
                 continue
 
             found.append(
@@ -841,7 +845,7 @@ class CommunicationExtractor:
         # Canal vindo de constante, como `eventTopics.CART_UPDATED`.
         value = self.evaluator.evaluate(argument, source)
 
-        if value:
+        if value and value.match == EXACT and not value.based:
             return value.url
 
         # Sem resolver o valor, o identificador ainda serve de canal:

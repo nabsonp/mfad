@@ -20,13 +20,95 @@ from typing import Iterator
 
 from tree_sitter import Node
 
-from damfe.adapters.driven.reconstruction.ast import AstReader
+from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.singlespa.expressions import (
     ExpressionEvaluator,
 )
 from damfe.adapters.driven.reconstruction.singlespa.ownership import Ownership
+from damfe.adapters.driven.reconstruction.singlespa.reachability import placements
 from damfe.domain import MicroFrontend, Navigation, SourceLocation
+
+
+
+#: Elementos de roteador cujo `path`/`from` declara o caminho a que o
+#: roteador responde, em vez de levar a ele.
+ROUTE_ELEMENTS = frozenset({"Route", "Redirect"})
+
+#: Contêineres cujos filhos diretos são rotas — no @reach/router, a
+#: tela é filha de `<Router>` com `path` próprio.
+ROUTE_CONTAINERS = frozenset({"Router", "Routes", "Switch"})
+
+
+def _declares_route(attribute: Node, name: str) -> bool:
+    """
+    Se o atributo declara um caminho do roteador, em vez de navegar.
+
+    Só no elemento de roteador: `path` num componente do projeto —
+    `<Voltar path={routes.HOME}>` — é a URL para onde ele leva.
+    """
+
+    if name not in ("path", "from", "basename"):
+        return False
+
+    opening = attribute.parent
+
+    tag = _tag(opening)
+
+    if name == "basename":
+        return bool(tag) and tag.endswith("Router")
+
+    if tag in ROUTE_ELEMENTS:
+        return True
+
+    # Filho direto de um contêiner de rotas.
+    element = opening if opening.type == "jsx_self_closing_element" else opening.parent
+
+    parent = element.parent if element is not None else None
+
+    if parent is not None and parent.type == "jsx_element":
+        return _tag(parent.child_by_field_name("open_tag")) in ROUTE_CONTAINERS
+
+    return False
+
+
+def _tag(opening: Node | None) -> str | None:
+
+    if opening is None:
+        return None
+
+    name = opening.child_by_field_name("name")
+
+    return name.text.decode("utf-8", "replace") if name is not None else None
+
+#: Chamadas que recebem URL sem navegar.
+NOT_NAVIGATION_CALLS = frozenset({"fetch"})
+
+#: Métodos de `String` e `Array` cujo argumento é texto a comparar,
+#: cortar ou juntar — nunca um destino.
+TEXT_METHODS = frozenset({
+    "startsWith", "endsWith", "includes", "indexOf", "lastIndexOf",
+    "split", "join", "replace", "replaceAll", "concat", "match",
+    "matchAll", "search", "padStart", "padEnd", "trim", "localeCompare",
+})
+
+#: Pacotes do React Router.
+ROUTER_MODULES = frozenset({"react-router", "react-router-dom"})
+
+#: Componentes cujo `to` é resolvido pelo roteador.
+ROUTER_LINKS = frozenset({"Link", "NavLink", "Navigate"})
+
+#: Roteadores que aceitam `basename`.
+ROUTER_COMPONENTS = frozenset(
+    {"BrowserRouter", "HashRouter", "MemoryRouter", "Router", "unstable_HistoryRouter"}
+)
+
+#: Fábricas de roteador de dados, com `basename` nas opções.
+ROUTER_FACTORIES = frozenset({"createBrowserRouter", "createHashRouter", "createMemoryRouter"})
+
+#: Ganchos que devolvem quem navega pelo roteador: a função do v6 e
+#: o histórico do v5.
+ROUTER_HOOKS = {"useNavigate": None, "useHistory": ("push", "replace")}
 
 
 class NavigationExtractor:
@@ -38,13 +120,20 @@ class NavigationExtractor:
     ):
         self.context = context
 
+        self.microfrontends = microfrontends
+
         self.ownership = Ownership(context.repository, microfrontends)
 
         self.evaluator = ExpressionEvaluator(context.routes)
 
+        #: unidade → `basename` do roteador dela
+        self.basenames: dict[str, str] = {}
+
     def extract(self) -> list[Navigation]:
 
         found: list[Navigation] = []
+
+        parsed = []
 
         for file_path in self.context.tree.source_files():
 
@@ -53,7 +142,21 @@ class NavigationExtractor:
             except Exception:
                 continue
 
+            parsed.append((file_path, root, source))
+
+        self.basenames = self._basenames(parsed)
+
+        for file_path, root, source in parsed:
             found.extend(self._from_file(file_path, root, source))
+
+        # De que tela parte cada navegação: a mesma pergunta da ponta
+        # de um canal, feita uma vez para todas.
+        if found:
+
+            reached = placements(self.context, self.microfrontends)
+
+            for item in found:
+                item.on = reached.get(item.at.file, item.on)
 
         return sorted(
             found,
@@ -74,18 +177,34 @@ class NavigationExtractor:
 
         origin = self.ownership.of_file(file_path)
 
+        # Código fora de qualquer unidade não navega de ninguém.
+        if not origin:
+            return []
+
         relative = self.context.relative(file_path)
 
         found: list[Navigation] = []
+
+        routed = self._router_targets(root, source)
 
         for node in self._candidates(root):
 
             value = self.evaluator.evaluate(node, source)
 
-            if not value or not value.url.startswith("/"):
+            # Base desconhecida pode ser outra origem — um CDN, uma
+            # API —, e aí o caminho não é rota do sistema.
+            if not value or value.based or not value.url.startswith("/"):
                 continue
 
-            target = self.ownership.of_route(value.url)
+            url = value.url
+
+            # `<Link to="/">` debaixo de `<BrowserRouter basename="/loja">`
+            # vai para `/loja`: o React Router resolve o destino a partir
+            # da base do roteador, não da raiz do site.
+            if node.id in routed:
+                url = self._under_basename(origin, url)
+
+            target = self.ownership.of_route(url)
 
             if not target or target == origin:
                 continue
@@ -95,7 +214,7 @@ class NavigationExtractor:
                     source=origin,
                     target=target,
                     expression=AstReader.text(node, source),
-                    resolved_url=value.url,
+                    resolved_url=url,
                     match=value.match,
                     at=SourceLocation(
                         file=relative,
@@ -106,6 +225,190 @@ class NavigationExtractor:
             )
 
         return found
+
+    # ------------------------------------------------------------------
+    # A base do roteador de cada unidade
+    # ------------------------------------------------------------------
+
+    def _basenames(self, parsed) -> dict[str, str]:
+        """
+        Unidade → `basename` do roteador que ela monta.
+
+        Só quando há UM valor: a unidade com dois roteadores de bases
+        diferentes deixa ambíguo de qual deles é cada link, e o
+        destino fica como está escrito.
+        """
+
+        found: dict[str, set[str]] = {}
+
+        for file_path, root, source in parsed:
+
+            owner = self.ownership.of_file(file_path)
+
+            if not owner:
+                continue
+
+            names = self._router_imports(root, source)
+
+            if not names:
+                continue
+
+            for base in self._declared_basenames(root, source, names):
+                found.setdefault(owner, set()).add(base)
+
+        return {
+            owner: next(iter(values))
+            for owner, values in found.items()
+            if len(values) == 1
+        }
+
+    def _declared_basenames(self, root: Node, source: bytes, names: dict[str, str]) -> Iterator[str]:
+
+        for node in AstReader.walk(root):
+
+            if node.type in ("jsx_opening_element", "jsx_self_closing_element"):
+
+                if names.get(_tag(node) or "") not in ROUTER_COMPONENTS:
+                    continue
+
+                for attribute in node.named_children:
+
+                    parts = attribute.named_children if attribute.type == "jsx_attribute" else []
+
+                    if len(parts) < 2 or AstReader.text(parts[0], source) != "basename":
+                        continue
+
+                    value = parts[1]
+
+                    if value.type == "jsx_expression" and value.named_children:
+                        value = value.named_children[0]
+
+                    resolved = self.evaluator.evaluate(value, source)
+
+                    if resolved and resolved.match == "exact" and not resolved.based:
+                        yield resolved.url
+
+            elif node.type == "call_expression":
+
+                function = node.child_by_field_name("function")
+
+                if function is None or names.get(AstReader.text(function, source)) not in ROUTER_FACTORIES:
+                    continue
+
+                # `createBrowserRouter(rotas, { basename })`
+                arguments = node.child_by_field_name("arguments")
+
+                given = [child for child in arguments.named_children if child.type != "comment"] if arguments else []
+
+                options = given[1] if len(given) > 1 and given[1].type == "object" else None
+
+                for pair in options.named_children if options is not None else []:
+
+                    key = pair.child_by_field_name("key") if pair.type == "pair" else None
+
+                    if key is None or AstReader.strip_quotes(AstReader.text(key, source)) != "basename":
+                        continue
+
+                    resolved = self.evaluator.evaluate(pair.child_by_field_name("value"), source)
+
+                    if resolved and resolved.match == "exact" and not resolved.based:
+                        yield resolved.url
+
+    @staticmethod
+    def _router_imports(root: Node, source: bytes) -> dict[str, str]:
+        """Nome local → nome exportado, para o que vem do React Router."""
+
+        return {
+            record.local_name: record.imported_name
+            for record in ImportTable.records(root, source)
+            if record.module in ROUTER_MODULES
+        }
+
+    def _router_targets(self, root: Node, source: bytes) -> set[int]:
+        """
+        Os nós de destino que o roteador resolve: o `to` dos links do
+        React Router e o argumento de `navigate()` e `history.push()`.
+        """
+
+        names = self._router_imports(root, source)
+
+        if not names:
+            return set()
+
+        found: set[int] = set()
+
+        #: nome local → métodos que navegam (`None`: a própria função)
+        navigators: dict[str, tuple[str, ...] | None] = {}
+
+        for declarator in AstReader.find_all(root, "variable_declarator"):
+
+            name = declarator.child_by_field_name("name")
+            value = declarator.child_by_field_name("value")
+
+            if name is None or value is None or name.type != "identifier" or value.type != "call_expression":
+                continue
+
+            hook = names.get(AstReader.text(value.child_by_field_name("function"), source))
+
+            if hook in ROUTER_HOOKS:
+                navigators[AstReader.text(name, source)] = ROUTER_HOOKS[hook]
+
+        for node in AstReader.walk(root):
+
+            if node.type == "jsx_attribute":
+
+                parts = node.named_children
+
+                if len(parts) < 2 or AstReader.text(parts[0], source) != "to":
+                    continue
+
+                if names.get(_tag(node.parent) or "") not in ROUTER_LINKS:
+                    continue
+
+                value = parts[1]
+
+                found.add(value.id)
+                found.update(child.id for child in value.named_children)
+
+            elif node.type == "call_expression" and navigators:
+
+                function = node.child_by_field_name("function")
+                arguments = node.child_by_field_name("arguments")
+
+                if function is None or arguments is None:
+                    continue
+
+                if function.type == "identifier":
+                    name = AstReader.text(function, source)
+                    navigates = name in navigators and navigators[name] is None
+
+                elif function.type == "member_expression":
+                    receiver = function.child_by_field_name("object")
+                    method = function.child_by_field_name("property")
+                    methods = navigators.get(AstReader.text(receiver, source)) if receiver is not None else None
+                    navigates = bool(methods) and method is not None and AstReader.text(method, source) in methods
+
+                else:
+                    navigates = False
+
+                if navigates:
+                    found.update(child.id for child in arguments.named_children[:1])
+
+        return found
+
+    def _under_basename(self, owner: str, url: str) -> str:
+
+        base = self.basenames.get(owner)
+
+        if not base:
+            return url
+
+        base = "/" + base.strip("/")
+
+        if base == "/":
+            return url
+
+        return base if url == "/" else base + url
 
     @staticmethod
     def _candidates(root: Node) -> Iterator[Node]:
@@ -119,11 +422,34 @@ class NavigationExtractor:
         Só o argumento direto, nunca aninhado: é o que mantém o
         `activeWhen: ["/users"]` do próprio `registerApplication`
         fora do resultado.
+
+        Dois cortes. Atributo que DECLARA caminho em vez de levar a
+        ele — `<Route path>`, `<Redirect from>`, `<Router basename>` —
+        não é navegação: é o roteador dizendo o que responde ali. E
+        `fetch(url)` busca dado, não leva o usuário a lugar nenhum.
         """
 
         for node in AstReader.walk(root):
 
             if node.type == "call_expression":
+
+                function = node.child_by_field_name("function")
+
+                if function is not None and function.type == "identifier" and (
+                    function.text.decode("utf-8", "replace") in NOT_NAVIGATION_CALLS
+                ):
+                    continue
+
+                # `url.endsWith("/")`, `path.split("/")`: método de
+                # texto ou de lista recebe pedaço de texto, não destino.
+                if function is not None and function.type == "member_expression":
+
+                    method = function.child_by_field_name("property")
+
+                    if method is not None and (
+                        method.text.decode("utf-8", "replace") in TEXT_METHODS
+                    ):
+                        continue
 
                 arguments = node.child_by_field_name("arguments")
 
@@ -140,6 +466,9 @@ class NavigationExtractor:
                 parts = node.named_children
 
                 if len(parts) < 2:
+                    continue
+
+                if _declares_route(node, parts[0].text.decode("utf-8", "replace")):
                     continue
 
                 value = parts[1]

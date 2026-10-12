@@ -77,6 +77,23 @@ class ImportTable:
                             code=code,
                         )
 
+                    # import * as api from "./x"
+                    elif child.type == "namespace_import":
+
+                        names = [
+                            item for item in child.named_children
+                            if item.type == "identifier"
+                        ]
+
+                        if names:
+                            yield ImportRecord(
+                                local_name=AstReader.text(names[0], source),
+                                imported_name="*",
+                                module=module,
+                                line=line,
+                                code=code,
+                            )
+
                     # import { a, b as c } from "./x"
                     elif child.type == "named_imports":
 

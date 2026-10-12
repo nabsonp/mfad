@@ -215,17 +215,19 @@ def state_accesses(result: StateAccessesResult, write: Writer) -> None:
     slices: dict[str, set[str]] = {}
 
     for item in result.state_accesses:
-        slices.setdefault(item.path, set()).add(item.microfrontend)
+        slices.setdefault(f"{item.library}:{item.path}", set()).add(
+            item.microfrontend
+        )
 
     libraries = sorted({item.library for item in result.state_accesses})
 
     write(
-        f"{len(result.state_accesses)} leituras do estado global "
+        f"{len(result.state_accesses)} acessos ao estado global "
         f"em {len(slices)} fatias ({', '.join(libraries)})"
     )
     write("")
 
-    # As fatias lidas por mais de um micro frontend vêm primeiro:
+    # As fatias acessadas por mais de um micro frontend vêm primeiro:
     # são elas que caracterizam acoplamento.
     for path, readers in sorted(
         slices.items(),

@@ -21,8 +21,10 @@ from damfe.adapters.driven.reconstruction.ast import (
     AstReader,
     RouteConstantTable,
     SourceTree,
+    SymbolIndex,
 )
 from damfe.adapters.driven.reconstruction.singlespa import sizing
+from damfe.adapters.driven.reconstruction.templates import AngularTemplates
 from damfe.domain import CodeSize
 
 
@@ -79,8 +81,16 @@ class ScanContext:
     #: aplicação -> rotas declaradas em template de layout
     layout_routes: dict[str, list[str]] = field(default_factory=dict)
 
+    #: arquivo de layout -> (aplicação -> rotas). Quem declara o
+    #: layout é o orquestrador das aplicações que ele nomeia.
+    layouts: dict[Path, dict[str, list[str]]] = field(default_factory=dict)
+
     #: caminho -> (linhas físicas, linhas de código)
     measurements: dict[Path, tuple[int, int]] = field(default_factory=dict)
+
+    _templates: AngularTemplates | None = field(default=None, repr=False)
+
+    _symbols: SymbolIndex | None = field(default=None, repr=False)
 
     @classmethod
     def build(cls, repository: Path) -> "ScanContext":
@@ -98,10 +108,11 @@ class ScanContext:
 
         context._scan()
 
-        for name, routes in layout.routes_by_application(
-            repository, tree
-        ).items():
-            context.layout_routes.setdefault(name, []).extend(routes)
+        context.layouts.update(layout.layouts(tree))
+
+        for declared in context.layouts.values():
+            for name, routes in declared.items():
+                context.layout_routes.setdefault(name, []).extend(routes)
 
         context.layout_routes = {
             name: sorted(set(routes))
@@ -114,6 +125,56 @@ class ScanContext:
 
     def relative(self, path: Path) -> str:
         return self.tree.relative(path)
+
+    def layout_routes_of(self, name: str) -> list[str] | None:
+        """
+        As rotas que o layout dá a uma aplicação, ou `None` se ele não a nomeia.
+
+        O layout nomeia a aplicação pelo especificador do import map,
+        e a unidade se chama pelo `package.json`. Quando os dois
+        coincidem, a ligação é direta. Quando não, a convenção do
+        single-spa é o especificador ser `@org/<pacote>`: compara-se o
+        nome sem o escopo. Semelhança além disso — prefixos, sufixos —
+        seria adivinhar, e fica de fora.
+        """
+
+        if name in self.layout_routes:
+            return self.layout_routes[name]
+
+        wanted = unscoped(name)
+
+        matches = [
+            routes
+            for declared, routes in self.layout_routes.items()
+            if unscoped(declared) == wanted
+        ]
+
+        # Dois especificadores de escopos diferentes com o mesmo nome:
+        # ambíguo, e nenhum dos dois é escolhido.
+        return matches[0] if len(matches) == 1 else None
+
+    def templates(self) -> AngularTemplates:
+        """
+        A ligação por template entre componentes, indexada uma vez.
+
+        Preguiçosa: só quem pergunta pelo alcance precisa dela, e o
+        índice lê todo arquivo que declara componente.
+        """
+
+        if self._templates is None:
+            self._templates = AngularTemplates(
+                self.reader, list(self.tree.source_files())
+            )
+
+        return self._templates
+
+    def symbols(self) -> SymbolIndex:
+        """Funções, exports e a quem cada chamada se refere — lidos sob demanda."""
+
+        if self._symbols is None:
+            self._symbols = SymbolIndex(self.reader)
+
+        return self._symbols
 
     def size_of(self, directory: Path) -> "CodeSize":
         """Soma as medições dos arquivos sob um diretório."""
@@ -130,7 +191,9 @@ class ScanContext:
 
         directory = file_path.parent
 
-        while directory != self.repository:
+        # O segundo teste para na raiz do disco: caminho resolvido por
+        # link simbólico pode não ter o repositório como ancestral.
+        while directory != self.repository and directory != directory.parent:
 
             if (directory / "package.json").is_file():
                 return directory
@@ -174,10 +237,10 @@ class ScanContext:
 
             # A forma JavaScript do layout mora no código, não no
             # template, então é aqui que ela é colhida.
-            for name, routes in layout.routes_from_construct(
-                root, source, AstReader
-            ).items():
-                self.layout_routes.setdefault(name, []).extend(routes)
+            declared = layout.routes_from_construct(root, source, AstReader)
+
+            if declared:
+                self.layouts[file_path] = declared
 
             self.registrations.extend(
                 self._registrations(root, source, file_path)
@@ -285,9 +348,7 @@ class ScanContext:
             key = AstReader.strip_quotes(AstReader.text(key_node, source))
 
             if key == "name":
-                name = AstReader.strip_quotes(
-                    AstReader.text(value_node, source)
-                )
+                name = self._literal_name(value_node, source)
 
             elif key == "activeWhen":
                 active_when, form = self._active_when(value_node, source)
@@ -306,7 +367,7 @@ class ScanContext:
         source: bytes,
     ) -> tuple[str | None, list[str], Node | None, str, dict[str, str]]:
 
-        name = AstReader.strip_quotes(AstReader.text(parts[0], source))
+        name = self._literal_name(parts[0], source)
 
         loader = parts[1] if len(parts) > 1 else None
 
@@ -321,6 +382,28 @@ class ScanContext:
         )
 
         return name, active_when, loader, form, custom_props
+
+    @staticmethod
+    def _literal_name(node: Node, source: bytes) -> str | None:
+        """
+        O nome da aplicação, só quando escrito como texto.
+
+        `registerApplication(appName, ...)` dentro de um laço registra
+        o que vier em tempo de execução. Tomar o texto do identificador
+        como nome criava uma aplicação chamada `appName`. Sem nome
+        literal o registro é descartado, e a descoberta pelos ciclos
+        de vida acha a unidade pelo próprio pacote.
+        """
+
+        if node.type == "string":
+            return AstReader.strip_quotes(AstReader.text(node, source)) or None
+
+        if node.type == "template_string" and not any(
+            child.type == "template_substitution" for child in node.named_children
+        ):
+            return AstReader.strip_quotes(AstReader.text(node, source)) or None
+
+        return None
 
     #: Formas de função de atividade que se resolvem estaticamente.
     #:
@@ -418,6 +501,12 @@ class ScanContext:
 
         for pair in node.named_children:
 
+            # `customProps: { store }` — a forma abreviada também é
+            # chave, e costuma ser justamente a do objeto compartilhado.
+            if pair.type == "shorthand_property_identifier":
+                found[AstReader.text(pair, source)] = ""
+                continue
+
             if pair.type != "pair":
                 continue
 
@@ -486,3 +575,9 @@ class ScanContext:
                     )
 
         return None
+
+
+def unscoped(name: str) -> str:
+    """`@org/Meu_App` → `meu-app`: o nome do pacote sem o escopo."""
+
+    return name.rpartition("/")[2].lower().replace("_", "-")

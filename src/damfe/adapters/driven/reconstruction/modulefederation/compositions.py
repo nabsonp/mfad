@@ -21,14 +21,16 @@ from tree_sitter import Node
 from damfe.domain import (
     Composition,
     MicroFrontend,
+    Placement,
     RenderLocation,
     SourceLocation,
 )
-from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
+from damfe.adapters.driven.reconstruction.ast import ImportTable
 from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
+from damfe.adapters.driven.reconstruction.singlespa.ownership import Ownership
 from damfe.adapters.driven.reconstruction.singlespa.reachability import (
-    Reachability,
+    placements,
 )
 from damfe.adapters.driven.reconstruction.modulefederation import specifiers
 
@@ -51,11 +53,9 @@ class RemoteImportExtractor:
             for item in microfrontends
         }
 
-        self.owners = {
-            item.directory: item.id
-            for item in microfrontends
-            if item.directory
-        }
+        self.ownership = Ownership(context.repository, microfrontends)
+
+        self.by_id = {item.id: item for item in microfrontends}
 
         #: apelido local do remoto -> unidade, por quem declarou
         self.aliases = {
@@ -66,11 +66,11 @@ class RemoteImportExtractor:
             for item in microfrontends
         }
 
-        self.containers: dict[str, list[str]] = {}
+        self.containers: dict[str, Placement] = {}
 
     def extract(self) -> list[Composition]:
 
-        self.containers = self._containers()
+        self.containers = placements(self.context, self.microfrontends)
 
         found: list[Composition] = []
 
@@ -82,6 +82,8 @@ class RemoteImportExtractor:
                 continue
 
             found.extend(self._from_file(file_path, root, source))
+
+        found = [item for item in found if self._composed(item)]
 
         by_component = {
             (item.id, screen.component): screen.id
@@ -107,16 +109,44 @@ class RemoteImportExtractor:
 
             for render in item.renders:
 
-                render.screens = (
-                    [exact]
-                    if exact
-                    else self.containers.get(render.file, [])
-                )
+                placement = self.containers.get(render.file, Placement())
+
+                render.screens = [exact] if exact else placement.screens
+                render.fragments = placement.fragments
 
         return sorted(
             found,
             key=lambda item: (item.consumer, item.provider, item.fragment),
         )
+
+    def _composed(self, item: Composition) -> bool:
+        """
+        Se o import acontece no sistema composto.
+
+        Um remoto tem duas portas de entrada: os módulos que publica,
+        que são o que o hospedeiro carrega, e o próprio arquivo de
+        entrada, que só roda quando ele é aberto sozinho, em
+        desenvolvimento. Import alcançável só pela segunda nunca chega
+        à página do sistema — e contá-lo fazia uma biblioteca de
+        componentes, usada apenas no `main.tsx` de cada remoto, parecer
+        dependida por todos.
+
+        Vale só para remoto (quem publica algo). Hospedeiro e unidade
+        sem publicação não têm essa distinção, e aí o import fica.
+        """
+
+        consumer = self.by_id.get(item.consumer)
+
+        if consumer is None or consumer.role == "shell" or not consumer.fragments:
+            return True
+
+        own = {fragment.id for fragment in consumer.fragments} | {
+            screen.id for screen in consumer.screens
+        }
+
+        placement = self.containers.get(item.imported_at.file, Placement())
+
+        return bool(own & (set(placement.fragments) | set(placement.screens)))
 
     def _from_file(
         self,
@@ -125,7 +155,12 @@ class RemoteImportExtractor:
         source: bytes,
     ) -> list[Composition]:
 
-        consumer = self._owner_of(file_path)
+        consumer = self.ownership.of_file(file_path)
+
+        # Import de remoto fora de qualquer unidade não liga dois
+        # micro frontends.
+        if not consumer:
+            return []
 
         renders = self._render_sites(root, source, file_path)
 
@@ -187,20 +222,6 @@ class RemoteImportExtractor:
 
         return specifiers.split(module, self.catalog)
 
-    def _owner_of(self, file_path: Path) -> str:
-
-        relative = self.context.relative(file_path)
-
-        best = ""
-        owner = ""
-
-        for directory, name in self.owners.items():
-
-            if relative.startswith(directory) and len(directory) > len(best):
-                best, owner = directory, name
-
-        return owner
-
     def _render_sites(
         self,
         root: Node,
@@ -228,29 +249,3 @@ class RemoteImportExtractor:
             )
 
         return sites
-
-    def _containers(self) -> dict[str, list[str]]:
-        """Arquivo → telas que o alcançam. Ver a regra em US-26."""
-
-        reachability = Reachability(self.context)
-
-        found: dict[str, list[str]] = {}
-
-        for microfrontend in self.microfrontends:
-
-            for screen in microfrontend.screens:
-
-                if not screen.file:
-                    continue
-
-                origin = self.context.repository / screen.file
-
-                if not origin.is_file():
-                    continue
-
-                for reached in reachability.reachable_from(origin):
-                    found.setdefault(
-                        self.context.relative(reached), []
-                    ).append(screen.id)
-
-        return {path: sorted(set(names)) for path, names in found.items()}

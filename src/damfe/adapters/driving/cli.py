@@ -203,6 +203,19 @@ def _reconstructor(container, arguments, write):
             "Use --framework para forçar um."
         )
 
+        return chosen
+
+    excluded = container.excluded_packages(arguments.repository)
+
+    if excluded:
+        write(
+            f"{len(excluded)} pacote(s) fora da análise, construídos sobre "
+            "plataforma com integração própria:"
+        )
+
+        for path, platform in excluded.items():
+            write(f"  {path} — {platform}")
+
     return chosen
 
 

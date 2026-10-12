@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from damfe.application.errors import ArtifactsNotFound
+from damfe.application.errors import ArtifactsNotFound, NoMicroFrontends
 from damfe.application.ports import ArtifactRepository, Rule, UseCase
 from damfe.application.results import DetectionResult
 from damfe.domain import MicroFrontendArchitecture
@@ -33,8 +33,15 @@ class DetectUseCase(UseCase[DetectionResult]):
 
         architecture = self.architecture or self.repository.load(self.source)
 
+        # Artefato lido do disco e vazio é falta de artefato; vindo
+        # encadeado da reconstrução, é reconstrução que não achou nada,
+        # e a mensagem tem de dizer isso.
         if not architecture.microfrontends:
-            raise ArtifactsNotFound(self.source)
+            raise (
+                NoMicroFrontends(self.source)
+                if self.architecture is not None
+                else ArtifactsNotFound(self.source)
+            )
 
         detections = [
             detection

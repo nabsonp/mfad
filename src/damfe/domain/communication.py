@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from damfe.domain.model import SourceLocation, StateAccess
+from damfe.domain.model import Placement, SourceLocation, StateAccess
 
 
 @dataclass
@@ -66,6 +66,15 @@ class Communication:
     channel: str
     produced_at: list[SourceLocation] = field(default_factory=list)
     consumed_at: list[SourceLocation] = field(default_factory=list)
+
+    #: Telas e fragmentos que alcançam cada ponta.
+    #:
+    #: Os dois lados de um canal só conversam de fato quando estão
+    #: montados ao mesmo tempo. Sem saber onde cada ponta está, um
+    #: produtor numa tela e um consumidor noutra viravam aresta, e o
+    #: grafo ligava partes que nunca coexistem.
+    produced_on: Placement = field(default_factory=Placement)
+    consumed_on: Placement = field(default_factory=Placement)
 
     #: Se o sentido da aresta significa alguma coisa.
     #:

@@ -13,7 +13,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from damfe.domain import (
-    ApiCall,
     MicroFrontend,
     MicroFrontendArchitecture,
     Communication,
@@ -23,7 +22,6 @@ from damfe.domain import (
     Composition,
     Navigation,
     SourceRepository,
-    StateAccess,
 )
 
 

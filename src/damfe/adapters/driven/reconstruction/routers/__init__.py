@@ -15,4 +15,9 @@ from damfe.adapters.driven.reconstruction.routers.angular import (
     AngularRouteReader,
 )
 
-__all__ = ["AngularRouteReader"]
+from damfe.adapters.driven.reconstruction.routers.react import (
+    ReactRouteReader,
+    RouteEntry,
+)
+
+__all__ = ["AngularRouteReader", "ReactRouteReader", "RouteEntry"]

@@ -13,6 +13,8 @@ from pathlib import Path
 from damfe.application.ports import Reconstructor
 
 
+
+
 _REGISTRY: dict[str, Reconstructor] = {}
 
 
@@ -50,3 +52,36 @@ def detect(repository: Path) -> Reconstructor | None:
             return reconstructor
 
     return None
+
+
+def unsupported(repository: Path) -> str | None:
+    """
+    A plataforma não suportada, quando ela é o repositório inteiro.
+
+    Pacotes construídos sobre plataforma com integração própria saem
+    da varredura (ver `SourceTree.PLATFORMS`). Quando não sobra código
+    nenhum, a resposta honesta é "não suportado", não uma reconstrução
+    vazia que parece válida.
+    """
+
+    from damfe.adapters.driven.reconstruction.ast import SourceTree
+
+    tree = SourceTree(repository)
+
+    if next(tree.source_files(), None) is not None or not tree.skipped:
+        return None
+
+    return sorted(tree.skipped.values())[0]
+
+
+def excluded(repository: Path) -> dict[str, str]:
+    """Os pacotes deixados de fora por serem de plataforma não suportada."""
+
+    from damfe.adapters.driven.reconstruction.ast import SourceTree
+
+    tree = SourceTree(repository)
+
+    for _ in tree.source_files():
+        pass
+
+    return {tree.relative(path) or ".": platform for path, platform in sorted(tree.skipped.items())}

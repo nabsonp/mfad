@@ -31,6 +31,26 @@ class SourceLocation:
 
 
 @dataclass
+class Placement:
+    """
+    De onde um trecho de código é alcançado: por quais telas e por
+    quais fragmentos, seguindo os imports internos do micro frontend.
+
+    É o que permite perguntar se duas coisas acontecem na MESMA tela.
+    Uma tela alcança o próprio código diretamente; o código de outro
+    micro frontend só chega a ela através de um fragmento que a tela
+    renderiza — por isso os fragmentos são guardados à parte, e quem
+    precisa da tela completa segue as composições.
+
+    Vazio significa que nem tela nem fragmento alcançam o arquivo:
+    código morto, ou código que só o orquestrador monta.
+    """
+
+    screens: list[str] = field(default_factory=list)
+    fragments: list[str] = field(default_factory=list)
+
+
+@dataclass
 class RenderLocation:
     """Onde um fragmento é de fato instanciado na interface."""
 
@@ -51,6 +71,16 @@ class RenderLocation:
     #: instanciação em código morto, ou em arquivo que só o shell
     #: monta.
     screens: list[str] = field(default_factory=list)
+
+    #: Os fragmentos cujo código alcança esta instanciação.
+    #:
+    #: É o aninhamento: um fragmento que renderiza outro fragmento.
+    #: `screens` não vê esse caso, porque a tela que renderiza o
+    #: primeiro fragmento é de outro micro frontend, e a
+    #: alcançabilidade não atravessa a fronteira do pacote. Seguir
+    #: esta lista a partir dos fragmentos de uma tela devolve tudo o
+    #: que é montado nela, em qualquer profundidade.
+    fragments: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -215,24 +245,29 @@ class Endpoint:
 @dataclass
 class StateAccess:
     """
-    Um micro frontend LÊ uma parte do estado global.
+    Um micro frontend acessa uma parte do estado global.
 
     Acoplamento sem mensagem e sem import: dois micro frontends que
-    leem a mesma fatia dependem do mesmo formato de dado, e uma
+    tocam a mesma fatia dependem do mesmo formato de dado, e uma
     mudança nela quebra os dois — ainda que não se conheçam.
 
-    Só leitura, deliberadamente. A escrita existe e também acopla,
-    mas o que o código revela no ponto da chamada é o nome da ação
-    despachada, não a fatia alterada — descobrir a fatia exigiria
-    seguir o redutor, que pode viver noutro pacote. Registrar as
-    duas na mesma lista misturaria dois vocabulários: caminho de
-    estado e nome de ação não são a mesma coisa.
+    Nas bibliotecas de estado, só a leitura entra. A escrita também
+    acopla, mas o que o código revela no ponto da chamada é o nome
+    da ação despachada, não a fatia alterada — descobrir a fatia
+    exigiria seguir o redutor, que pode viver noutro pacote.
+
+    No armazenamento do navegador a escrita entra, porque ali ela
+    revela a fatia: `setItem("token", …)` diz a chave tanto quanto
+    `getItem("token")`. `access` distingue os dois.
     """
 
     microfrontend: str
     library: str
     path: str
     at: SourceLocation
+
+    #: `read` ou `write`
+    access: str = "read"
 
 
 @dataclass
@@ -252,6 +287,13 @@ class Navigation:
     resolved_url: str | None
     match: str
     at: SourceLocation
+
+    #: Telas e fragmentos que alcançam o código que navega.
+    #:
+    #: É o lado de ORIGEM visto como lugar: o botão de "Finalizar
+    #: compra" está na tela do carrinho. O destino é a rota, que já
+    #: diz a tela de chegada.
+    on: Placement = field(default_factory=Placement)
 
 
 @dataclass

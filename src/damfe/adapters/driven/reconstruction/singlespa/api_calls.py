@@ -2,38 +2,117 @@
 Chamadas a serviços externos.
 
 A detecção não depende do framework de micro frontend nem da
-organização do projeto. Ela parte de duas âncoras genéricas — a
-API da plataforma web e o especificador de import das bibliotecas
-cliente — e resolve o caminho com o mesmo avaliador parcial usado
-nas rotas.
+organização do projeto. Ela parte de âncoras genéricas — a API da
+plataforma web, o especificador de import das bibliotecas cliente e
+o tipo injetado do `HttpClient` do Angular — e resolve o caminho com
+avaliação parcial da expressão.
 
-Projetos costumam embrulhar o cliente HTTP num módulo próprio
-(`services/api.js`), e esse módulo pertence ao micro frontend que
-o contém — então a aresta `micro frontend → endpoint` sai correta
-mesmo sem seguir a indireção.
+Projetos costumam embrulhar o cliente HTTP numa função própria:
 
-Para saber qual TELA chama, porém, é preciso segui-la: a chamada
+    export function fetchApi(url, options) {
+      return fetch(`${API_BASE_URL}${url}`, options);
+    }
+
+e a URL só aparece em quem chama `fetchApi("/contas")`. Por isso a
+função que REPASSA um parâmetro seu como URL de um cliente vira
+cliente também, com a URL naquela posição — e isso se propaga: um
+serviço que chama `fetchApi(endpoint)` com o próprio parâmetro é
+cliente do mesmo jeito. O critério é fluxo de dado, não nome: a
+função não precisa se chamar `get` nem morar em `services/`.
+
+Chamada dentro de função sem uso não conta, pelo mesmo critério de
+código morto da comunicação.
+
+Para saber qual TELA chama é preciso seguir os imports: a chamada
 mora no módulo de serviço, não na tela que o usa. O alcance entre
-arquivos resolve isso percorrendo os imports internos.
+arquivos resolve isso.
 """
 
 from __future__ import annotations
 
+import re
+from dataclasses import dataclass
 from pathlib import Path
 
 from tree_sitter import Node
 
-from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable
+from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable, ModuleResolver
+from damfe.adapters.driven.reconstruction.ast.resolver import canonical
+from damfe.adapters.driven.reconstruction.ast.symbols import (
+    ModuleSymbols,
+    SymbolIndex,
+    declared_value,
+    parameters,
+    returned_expression,
+    unwrap,
+)
 from damfe.adapters.driven.reconstruction.singlespa import http_clients
 from damfe.adapters.driven.reconstruction.singlespa.context import ScanContext
 from damfe.adapters.driven.reconstruction.singlespa.expressions import (
+    PREFIX,
     ExpressionEvaluator,
 )
+from damfe.adapters.driven.reconstruction.singlespa.forwarding import (
+    Parameter,
+    parameter_of,
+    until_stable,
+)
+from damfe.adapters.driven.reconstruction.singlespa.liveness import Liveness
 from damfe.adapters.driven.reconstruction.singlespa.ownership import Ownership
 from damfe.adapters.driven.reconstruction.singlespa.reachability import (
     Reachability,
 )
 from damfe.domain import ApiCall, MicroFrontend, SourceLocation
+
+
+#: Trecho de URL que depende de valor de runtime: `/users/{param}`.
+PARAM = "{param}"
+
+#: Uma URL cujo trecho é `{param}` ganha esta correspondência.
+PATTERN = "pattern"
+
+#: Quantas indireções — variável, função que devolve a URL — se
+#: seguem a partir de um argumento.
+MAX_DEPTH = 4
+
+
+#: Pedaço de URL: texto conhecido, parâmetro, ou `None` para valor
+#: que não se resolve.
+Part = str | Parameter | None
+
+
+@dataclass(frozen=True)
+class Shape:
+    """De onde uma chamada HTTP tira a URL e o verbo."""
+
+    url: Node
+    client: str
+
+    #: verbo fixo da chamada (`api.post`)
+    method: str | None = None
+
+    #: argumento de onde sai o `method` (`fetch(url, { method })`)
+    options: Node | None = None
+
+    #: texto que a função embrulhadora põe antes da URL recebida
+    prefix: str = ""
+
+    #: há uma base desconhecida antes de tudo
+    based: bool = False
+
+
+@dataclass(frozen=True)
+class Wrapper:
+    """Função do projeto que é cliente HTTP por repassar a URL."""
+
+    client: str
+    url: int
+    prefix: str = ""
+    based: bool = False
+    method: str | None = None
+
+    #: parâmetro de onde sai o `method`, quando é repassado
+    method_from: int | None = None
 
 
 class ApiCallExtractor:
@@ -49,20 +128,34 @@ class ApiCallExtractor:
 
         self.evaluator = ExpressionEvaluator(context.routes)
 
+        self.index: SymbolIndex = context.symbols()
+
+        self.liveness = Liveness(context)
+
+        self._bindings_cache: dict[Path, dict[str, str]] = {}
+
+        self.wrappers: dict[tuple[Path, str], Wrapper] = {}
+
+        #: o último nome de cada embrulhadora, para só resolver a
+        #: chamada que pode ser uma delas
+        self._wrapper_names: set[str] = set()
+
         self.callers = self._callers(microfrontends)
 
     def extract(self) -> list[ApiCall]:
 
+        files = [
+            symbols
+            for file_path in self.context.tree.source_files()
+            if (symbols := self.index.of(file_path)) is not None
+        ]
+
+        self._find_wrappers(files)
+
         found: list[ApiCall] = []
 
-        for file_path in self.context.tree.source_files():
-
-            try:
-                root, source = self.context.reader.parse(file_path)
-            except Exception:
-                continue
-
-            found.extend(self._from_file(file_path, root, source))
+        for symbols in files:
+            found.extend(self._from_file(symbols))
 
         return sorted(
             found,
@@ -112,7 +205,7 @@ class ApiCallExtractor:
                 continue
 
             for reached in reachability.reachable_from(origin):
-                target.setdefault(reached, []).append(name)
+                target.setdefault(canonical(reached), []).append(name)
 
         return {
             path: (
@@ -122,46 +215,49 @@ class ApiCallExtractor:
             for path in set(screens) | set(fragments)
         }
 
-    def _from_file(
-        self,
-        file_path: Path,
-        root: Node,
-        source: bytes,
-    ) -> list[ApiCall]:
+    def _from_file(self, symbols: ModuleSymbols) -> list[ApiCall]:
 
-        bindings = self._bindings(root, source)
+        owner = self.ownership.of_file(symbols.path)
 
-        owner = self.ownership.of_file(file_path)
+        # Chamada fora de qualquer unidade não é de micro frontend
+        # nenhum, e contá-la criaria um consumidor que não existe no
+        # inventário — o mesmo corte do estado global.
+        if not owner:
+            return []
 
-        relative = self.context.relative(file_path)
+        relative = self.context.relative(symbols.path)
+
+        screens, fragments = self.callers.get(symbols.path, ([], []))
 
         found: list[ApiCall] = []
 
-        for node in AstReader.find_all(root, "call_expression"):
+        for node in AstReader.find_all(symbols.root, "call_expression"):
 
-            call = (
-                self._platform_call(node, source, bindings)
-                or self._client_call(node, source, bindings)
-            )
+            shape = self._shape(node, symbols)
 
-            if not call:
+            if shape is None:
                 continue
 
-            method, path, match, client = call
+            path = self._path(shape, symbols)
 
-            screens, fragments = self.callers.get(file_path, ([], []))
+            # Chamada em função que ninguém chama não acontece — o mesmo
+            # critério da comunicação e do estado global.
+            if path is None or not self.liveness.is_live(node, symbols):
+                continue
+
+            url, match = path
 
             found.append(
                 ApiCall(
                     microfrontend=owner,
-                    method=method,
-                    path=path,
+                    method=self._method(shape, symbols),
+                    path=url,
                     match=match,
-                    client=client,
+                    client=shape.client,
                     at=SourceLocation(
                         file=relative,
                         line=node.start_point.row + 1,
-                        code=self._line(node, source),
+                        code=self._line(node, symbols.source),
                     ),
                     screens=screens,
                     fragments=fragments,
@@ -171,48 +267,399 @@ class ApiCallExtractor:
         return found
 
     # ------------------------------------------------------------------
+    # Funções que embrulham um cliente
+    # ------------------------------------------------------------------
+
+    def _find_wrappers(self, files: list[ModuleSymbols]) -> None:
+        """
+        As funções que repassam um parâmetro como URL, em camadas.
+
+        A primeira camada embrulha um cliente conhecido; cada camada
+        seguinte embrulha uma da anterior.
+        """
+
+        def step(node: Node, symbols: ModuleSymbols) -> bool:
+
+            shape = self._shape(node, symbols)
+
+            wrapper = self._as_wrapper(shape, symbols) if shape is not None else None
+
+            if wrapper is None or wrapper[0] in self.wrappers:
+                return False
+
+            key, item = wrapper
+
+            self.wrappers[key] = item
+            self._wrapper_names.add(key[1].rpartition(".")[2])
+
+            return True
+
+        until_stable(files, step)
+
+    def _as_wrapper(
+        self,
+        shape: Shape,
+        symbols: ModuleSymbols,
+    ) -> tuple[tuple[Path, str], Wrapper] | None:
+        """
+        A função em volta, se ela repassa um parâmetro como a URL.
+
+        A URL tem de TERMINAR no parâmetro, com no máximo uma base
+        desconhecida e texto antes: `${base}${url}`, `base + url`,
+        `url`. Se o texto antes já é um caminho de serviço — `/api/` —
+        a chamada é registrada onde está, como sempre foi, e a função
+        não vira embrulhadora: não há como saber o que o parâmetro
+        completa.
+        """
+
+        if self._path(shape, symbols) is not None:
+            return None
+
+        parts = self._full_parts(shape, symbols)
+
+        if not parts or not isinstance(parts[-1], Parameter):
+            return None
+
+        tail = parts[-1]
+
+        # O parâmetro tem de ser da função em volta da chamada, e não
+        # de uma função que só devolveu a URL a ela.
+        if not self._encloses(tail.function, shape.url):
+            return None
+
+        head = parts[:-1]
+
+        based = False
+
+        while head and not isinstance(head[0], str):
+            head = head[1:]
+            based = True
+
+        if any(not isinstance(part, str) for part in head):
+            return None
+
+        key = self.index.key_of(tail.function, symbols)
+
+        if key is None:
+            return None
+
+        method, method_from = shape.method, None
+
+        if method is None and shape.options is not None:
+            method, method_from = self._forwarded_method(shape.options, tail.function, symbols)
+
+        return (symbols.path, key), Wrapper(
+            client=shape.client,
+            url=tail.index,
+            prefix="".join(head),
+            based=based,
+            method=method,
+            method_from=method_from,
+        )
+
+    def _forwarded_method(
+        self,
+        options: Node,
+        function: Node,
+        symbols: ModuleSymbols,
+    ) -> tuple[str | None, int | None]:
+        """O verbo fixo, ou o parâmetro de opções de onde ele vem."""
+
+        options = unwrap(options)
+
+        names = parameters(function, symbols.source)
+
+        if options.type == "identifier" and symbols.text(options) in names:
+            return None, names.index(symbols.text(options))
+
+        if options.type != "object":
+            return None, None
+
+        method = self._option(options, "method", symbols.source)
+
+        if method:
+            return method.upper(), None
+
+        # `{ ...options, headers }`: o `method` vem de quem chamou.
+        for child in options.named_children:
+
+            if child.type != "spread_element":
+                continue
+
+            spread = [item for item in child.named_children if item.type == "identifier"]
+
+            if spread and symbols.text(spread[0]) in names:
+                return None, names.index(symbols.text(spread[0]))
+
+        return None, None
+
+    # ------------------------------------------------------------------
+    # A forma de cada chamada
+    # ------------------------------------------------------------------
+
+    def _shape(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
+
+        return (
+            self._platform_call(node, symbols)
+            or self._client_call(node, symbols)
+            or self._wrapper_call(node, symbols)
+        )
+
+    def _platform_call(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
+        """`fetch(url, { method })` e `xhr.open(method, url)`."""
+
+        function = node.child_by_field_name("function")
+
+        if not function:
+            return None
+
+        text = symbols.text(function)
+
+        arguments = self._arguments(node)
+
+        if text == http_clients.PLATFORM or text.endswith(f".{http_clients.PLATFORM}"):
+
+            if not arguments:
+                return None
+
+            return Shape(
+                url=arguments[0],
+                client="fetch",
+                options=arguments[1] if len(arguments) > 1 else None,
+            )
+
+        if function.type != "member_expression":
+            return None
+
+        receiver = function.child_by_field_name("object")
+        name = function.child_by_field_name("property")
+
+        if not receiver or not name or symbols.text(name) != "open":
+            return None
+
+        if self._bindings(symbols).get(symbols.text(receiver)) != http_clients.XHR_CONSTRUCTOR:
+            return None
+
+        if len(arguments) < 2:
+            return None
+
+        method = self.evaluator.evaluate(arguments[0], symbols.source)
+
+        return Shape(
+            url=arguments[1],
+            client="xmlhttprequest",
+            method=(method.url if method else "?").upper(),
+        )
+
+    def _client_call(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
+        """`api.get(url)`, `this.http.get(url)` e `axios({ url, method })`."""
+
+        function = node.child_by_field_name("function")
+
+        if not function:
+            return None
+
+        arguments = self._arguments(node)
+
+        if not arguments:
+            return None
+
+        by_module = {item.module: item for item in http_clients.CLIENTS}
+
+        bindings = self._bindings(symbols)
+
+        if function.type == "member_expression":
+
+            receiver = function.child_by_field_name("object")
+            name = function.child_by_field_name("property")
+
+            if not receiver or not name:
+                return None
+
+            module = bindings.get(symbols.text(receiver))
+
+            client = by_module.get(module or "")
+
+            if not client:
+                return None
+
+            verb = symbols.text(name)
+
+            if verb not in client.methods:
+                return None
+
+            if verb in client.verb_first:
+
+                if len(arguments) < 2:
+                    return None
+
+                method = self.evaluator.evaluate(arguments[0], symbols.source)
+
+                return Shape(
+                    url=arguments[1],
+                    client=module,
+                    method=(method.url if method else "?").upper(),
+                )
+
+            if verb == "request":
+                return Shape(
+                    url=arguments[0],
+                    client=module,
+                    options=arguments[1] if len(arguments) > 1 else None,
+                )
+
+            if verb == "jsonp":
+                return Shape(url=arguments[0], client=module, method="GET")
+
+            return Shape(url=arguments[0], client=module, method=verb.upper())
+
+        # chamada direta na própria biblioteca: `axios({ url })`
+        if function.type == "identifier":
+
+            module = bindings.get(symbols.text(function))
+
+            client = by_module.get(module or "")
+
+            if not client or not client.callable_directly:
+                return None
+
+            config = unwrap(arguments[0])
+
+            if config.type == "object":
+
+                url = self._option_node(config, "url", symbols.source)
+
+                return Shape(url=url, client=module, options=config) if url else None
+
+            return Shape(
+                url=arguments[0],
+                client=module,
+                options=arguments[1] if len(arguments) > 1 else None,
+            )
+
+        return None
+
+    def _wrapper_call(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
+        """Chamada a uma função do projeto que embrulha um cliente."""
+
+        function = unwrap(node.child_by_field_name("function"))
+
+        if function is None:
+            return None
+
+        name = function.child_by_field_name("property") if function.type == "member_expression" else function
+
+        if name is None or symbols.text(name) not in self._wrapper_names:
+            return None
+
+        target = self.index.callee(node, symbols)
+
+        wrapper = self.wrappers.get(target) if target else None
+
+        if wrapper is None:
+            return None
+
+        arguments = self._arguments(node)
+
+        if wrapper.url >= len(arguments):
+            return None
+
+        options = (
+            arguments[wrapper.method_from]
+            if wrapper.method_from is not None and wrapper.method_from < len(arguments)
+            else None
+        )
+
+        return Shape(
+            url=arguments[wrapper.url],
+            client=wrapper.client,
+            method=wrapper.method,
+            options=options,
+            prefix=wrapper.prefix,
+            based=wrapper.based,
+        )
+
+    # ------------------------------------------------------------------
     # Quem é cliente HTTP neste arquivo
     # ------------------------------------------------------------------
 
-    def _bindings(self, root: Node, source: bytes) -> dict[str, str]:
+    def _bindings(self, symbols: ModuleSymbols) -> dict[str, str]:
         """
         Nomes locais que se comportam como cliente HTTP.
 
         Começa pelos imports das bibliotecas conhecidas e propaga
         para as instâncias criadas a partir delas — é o caso de
         `const api = axios.create({ baseURL })`, em que a chamada
-        nunca acontece sobre o nome importado.
+        nunca acontece sobre o nome importado. A instância criada num
+        módulo do projeto e importada por outro também conta.
+
+        No Angular o cliente é o que foi injetado pelo tipo
+        `HttpClient`: `this.http`, quando o campo `http` tem esse tipo.
         """
+
+        if symbols.path in self._bindings_cache:
+            return self._bindings_cache[symbols.path]
+
+        # Ciclo de imports: o arquivo ainda em cálculo não contribui.
+        self._bindings_cache[symbols.path] = {}
 
         by_module = {client.module: client for client in http_clients.CLIENTS}
 
         bindings: dict[str, str] = {}
 
-        for record in ImportTable.records(root, source):
+        #: nome local do tipo injetável → módulo
+        injectable: dict[str, str] = {}
+
+        for record in ImportTable.records(symbols.root, symbols.source):
 
             client = by_module.get(record.module)
 
-            if client:
+            if client and client.injected:
+
+                if record.imported_name == client.injected:
+                    injectable[record.local_name] = client.module
+
+            elif client:
                 bindings[record.local_name] = client.module
 
-        # `new XMLHttpRequest()` também cria um cliente.
-        for node in AstReader.find_all(root, "variable_declarator"):
+            else:
+
+                # Instância criada noutro módulo do projeto.
+                target = ModuleResolver.resolve(record.module, symbols.path)
+
+                other = self.index.of(target) if target else None
+
+                if other is not None:
+
+                    exported = other.exports.get(record.imported_name, record.imported_name)
+
+                    origin = self._bindings(other).get(exported)
+
+                    if origin:
+                        bindings[record.local_name] = origin
+
+        # `new XMLHttpRequest()`, `axios.create()`, `inject(HttpClient)`
+        for node in AstReader.find_all(symbols.root, "variable_declarator"):
 
             name_node = node.child_by_field_name("name")
             value_node = node.child_by_field_name("value")
 
-            if not name_node or not value_node:
+            if not name_node or not value_node or name_node.type != "identifier":
                 continue
 
-            if name_node.type != "identifier":
-                continue
-
-            name = AstReader.text(name_node, source)
-
-            origin = self._origin(value_node, source, bindings, by_module)
+            origin = self._origin(unwrap(value_node), symbols.source, bindings, by_module, injectable)
 
             if origin:
-                bindings[name] = origin
+                bindings[symbols.text(name_node)] = origin
+
+        for fields in symbols.fields.values():
+
+            for field_name, kind in fields.items():
+
+                if kind in injectable:
+                    bindings[f"this.{field_name}"] = injectable[kind]
+
+        self._bindings_cache[symbols.path] = bindings
 
         return bindings
 
@@ -222,6 +669,7 @@ class ApiCallExtractor:
         source: bytes,
         bindings: dict[str, str],
         by_module: dict,
+        injectable: dict[str, str],
     ) -> str | None:
 
         text = AstReader.text(value, source).strip()
@@ -242,7 +690,19 @@ class ApiCallExtractor:
 
         function = value.child_by_field_name("function")
 
-        if not function or function.type != "member_expression":
+        if not function:
+            return None
+
+        # `const http = inject(HttpClient)`
+        if function.type == "identifier" and AstReader.text(function, source) == "inject":
+
+            arguments = value.child_by_field_name("arguments")
+
+            named = [item for item in arguments.named_children if item.type == "identifier"] if arguments else []
+
+            return injectable.get(AstReader.text(named[0], source)) if named else None
+
+        if function.type != "member_expression":
             return None
 
         receiver = function.child_by_field_name("object")
@@ -268,158 +728,185 @@ class ApiCallExtractor:
         )
 
     # ------------------------------------------------------------------
-    # As chamadas
+    # A URL
     # ------------------------------------------------------------------
 
-    def _platform_call(
-        self,
-        node: Node,
-        source: bytes,
-        bindings: dict[str, str],
-    ) -> tuple[str, str, str, str] | None:
-        """`fetch(url, { method })` e `xhr.open(method, url)`."""
+    def _full_parts(self, shape: Shape, symbols: ModuleSymbols) -> list[Part]:
+        """Os pedaços da URL, com o que a embrulhadora põe antes."""
 
-        function = node.child_by_field_name("function")
+        parts = self._parts(shape.url, symbols, 0)
 
-        if not function:
+        head: list[Part] = [None] if shape.based else []
+
+        if shape.prefix:
+            head.append(shape.prefix)
+
+        # Embrulhadora do tipo `${base}${endpoint}`: quem chama passa o
+        # caminho relativo à base — `"parametro"` —, e a barra que os
+        # separa está na base.
+        elif shape.based and parts and isinstance(parts[0], str) and not (
+            parts[0].startswith("/") or parts[0].startswith("http")
+        ):
+            parts = ["/" + parts[0], *parts[1:]]
+
+        return head + parts
+
+    def _path(self, shape: Shape, symbols: ModuleSymbols) -> tuple[str, str] | None:
+        """O caminho do serviço e a correspondência, se for endpoint."""
+
+        parts = self._full_parts(shape, symbols)
+
+        # A base desconhecida no começo fica de fora: o caminho de um
+        # serviço não depende dela.
+        based = False
+
+        while parts and not isinstance(parts[0], str):
+            parts = parts[1:]
+            based = True
+
+        if not parts:
             return None
 
-        text = AstReader.text(function, source)
+        text = "".join(part if isinstance(part, str) else PARAM for part in parts)
 
-        arguments = self._arguments(node)
+        # `${base}.json`, `${nome}-x`: o que segue a base não é caminho.
+        if based and not text.startswith("/"):
+            return None
 
-        if text == http_clients.PLATFORM or text.endswith(
-            f".{http_clients.PLATFORM}"
-        ):
+        # A consulta e o fragmento não fazem parte da identidade da
+        # rota: `/gigs?page=2` e `/gigs` são o mesmo contrato.
+        path = text.split("?")[0].split("#")[0]
 
-            if not arguments:
-                return None
+        # Barra repetida e barra no fim não mudam o recurso:
+        # `/tercero/` e `/tercero` são o mesmo contrato.
+        path = re.sub(r"(?<!:)/{2,}", "/", path)
 
-            value = self.evaluator.evaluate(arguments[0], source)
+        if len(path) > 1:
+            path = path.rstrip("/") or "/"
 
-            if not value or not self._is_endpoint(value.url):
-                return None
+        if not self._is_endpoint(path):
+            return None
 
-            method = self._method_option(arguments, source) or "GET"
+        return path, (PATTERN if PARAM in path else "exact")
 
-            return method, value.url, value.match, "fetch"
+    def _parts(self, node: Node | None, symbols: ModuleSymbols, depth: int) -> list[Part]:
 
-        # xhr.open("GET", "/rota")
-        if function.type == "member_expression":
+        node = unwrap(node)
 
-            receiver = function.child_by_field_name("object")
-            name = function.child_by_field_name("property")
+        if node is None or depth > MAX_DEPTH:
+            return [None]
 
-            if not receiver or not name:
-                return None
+        if node.type == "string":
+            return [AstReader.strip_quotes(symbols.text(node))]
 
-            if AstReader.text(name, source) != "open":
-                return None
+        if node.type == "template_string":
+            return self._template_parts(node, symbols, depth)
 
-            if bindings.get(AstReader.text(receiver, source)) != (
-                http_clients.XHR_CONSTRUCTOR
-            ):
-                return None
+        if node.type == "binary_expression":
 
-            if len(arguments) < 2:
-                return None
+            operator = node.child_by_field_name("operator")
 
-            method = self.evaluator.evaluate(arguments[0], source)
-            value = self.evaluator.evaluate(arguments[1], source)
-
-            if not value or not self._is_endpoint(value.url):
-                return None
+            if operator is None or symbols.text(operator) != "+":
+                return [None]
 
             return (
-                (method.url if method else "?").upper(),
-                value.url,
-                value.match,
-                "xmlhttprequest",
+                self._parts(node.child_by_field_name("left"), symbols, depth)
+                + self._parts(node.child_by_field_name("right"), symbols, depth)
             )
 
-        return None
+        if node.type == "identifier":
 
-    def _client_call(
-        self,
-        node: Node,
-        source: bytes,
-        bindings: dict[str, str],
-    ) -> tuple[str, str, str, str] | None:
-        """`api.get(url)` e `axios({ url, method })`."""
+            parameter = parameter_of(node, symbols)
 
-        function = node.child_by_field_name("function")
+            if parameter is not None:
+                return [parameter]
 
-        if not function:
-            return None
+            value = declared_value(node, symbols.source)
 
-        arguments = self._arguments(node)
+            if value is not None:
+                return self._parts(value, symbols, depth + 1)
 
-        by_module = {item.module: item for item in http_clients.CLIENTS}
+        # `buildUrl(id)`: função do próprio projeto que só devolve a URL.
+        if node.type == "call_expression":
 
-        if function.type == "member_expression":
+            target = self.index.callee(node, symbols)
 
-            receiver = function.child_by_field_name("object")
-            name = function.child_by_field_name("property")
+            function = self.index.function(*target) if target else None
 
-            if not receiver or not name:
-                return None
+            returned = returned_expression(function.node) if function else None
 
-            module = bindings.get(AstReader.text(receiver, source))
+            if returned is not None:
+                owner = self.index.of(target[0])
+                return self._parts(returned, owner, depth + 1) if owner else [None]
 
-            client = by_module.get(module or "")
+        # Constante do repositório e `rota.replace(":id", id)`.
+        value = self.evaluator.evaluate(node, symbols.source)
 
-            if not client:
-                return None
+        if value is None:
+            return [None]
 
-            verb = AstReader.text(name, source)
+        return (
+            ([None] if value.based else [])
+            + [value.url]
+            + ([None] if value.match == PREFIX else [])
+        )
 
-            if verb not in client.methods:
-                return None
+    def _template_parts(self, node: Node, symbols: ModuleSymbols, depth: int) -> list[Part]:
 
-            if not arguments:
-                return None
+        parts: list[Part] = []
 
-            value = self.evaluator.evaluate(arguments[0], source)
+        position = node.start_byte + 1
 
-            if not value or not self._is_endpoint(value.url):
-                return None
+        for child in node.named_children:
 
-            method = (
-                self._method_option(arguments, source) or verb.upper()
-                if verb == "request"
-                else verb.upper()
-            )
+            if child.type != "template_substitution":
+                continue
 
-            return method, value.url, value.match, module
+            if child.start_byte > position:
+                parts.append(symbols.source[position:child.start_byte].decode("utf-8", "replace"))
 
-        # chamada direta na própria biblioteca: `axios({ url })`
-        if function.type == "identifier":
+            inner = [item for item in child.named_children if item.type != "comment"]
 
-            module = bindings.get(AstReader.text(function, source))
+            parts.extend(self._parts(inner[0], symbols, depth) if inner else [None])
 
-            client = by_module.get(module or "")
+            position = child.end_byte
 
-            if not client or not client.callable_directly or not arguments:
-                return None
+        if node.end_byte - 1 > position:
+            parts.append(symbols.source[position:node.end_byte - 1].decode("utf-8", "replace"))
 
-            value = self.evaluator.evaluate(arguments[0], source)
+        return parts
 
-            if value and self._is_endpoint(value.url):
-                method = self._method_option(arguments, source) or "GET"
-                return method, value.url, value.match, module
+    @staticmethod
+    def _encloses(function: Node, node: Node) -> bool:
 
-            url = self._option(arguments[0], "url", source)
+        current = node.parent
 
-            if not url or not self._is_endpoint(url):
-                return None
+        while current is not None:
 
-            method = self._option(arguments[0], "method", source)
+            if current.id == function.id:
+                return True
 
-            return (method or "GET").upper(), url, "exact", module
+            current = current.parent
 
-        return None
+        return False
 
     # ------------------------------------------------------------------
+
+    def _method(self, shape: Shape, symbols: ModuleSymbols) -> str:
+
+        if shape.method:
+            return shape.method
+
+        options = unwrap(shape.options) if shape.options is not None else None
+
+        if options is not None:
+
+            method = self._option(options, "method", symbols.source)
+
+            if method:
+                return method.upper()
+
+        return "GET"
 
     @staticmethod
     def _arguments(node: Node) -> list[Node]:
@@ -435,28 +922,8 @@ class ApiCallExtractor:
             if child.type != "comment"
         ]
 
-    def _method_option(
-        self,
-        arguments: list[Node],
-        source: bytes,
-    ) -> str | None:
-        """O verbo declarado no objeto de opções, quando houver."""
-
-        for argument in arguments[1:]:
-
-            value = self._option(argument, "method", source)
-
-            if value:
-                return value.upper()
-
-        return None
-
-    def _option(
-        self,
-        node: Node,
-        key: str,
-        source: bytes,
-    ) -> str | None:
+    @staticmethod
+    def _option_node(node: Node, key: str, source: bytes) -> Node | None:
 
         if node.type != "object":
             return None
@@ -469,32 +936,53 @@ class ApiCallExtractor:
             key_node = pair.child_by_field_name("key")
             value_node = pair.child_by_field_name("value")
 
-            if not key_node or not value_node:
-                continue
-
-            if AstReader.strip_quotes(
-                AstReader.text(key_node, source)
-            ) != key:
-                continue
-
-            value = self.evaluator.evaluate(value_node, source)
-
-            return value.url if value else None
+            if key_node and value_node and AstReader.strip_quotes(AstReader.text(key_node, source)) == key:
+                return value_node
 
         return None
+
+    def _option(self, node: Node, key: str, source: bytes) -> str | None:
+
+        value_node = self._option_node(node, key, source)
+
+        if value_node is None:
+            return None
+
+        value = self.evaluator.evaluate(value_node, source)
+
+        return value.url if value else None
 
     @staticmethod
     def _is_endpoint(value: str) -> bool:
         """
         Descarta o que claramente não é endereço de serviço.
 
-        Caminho relativo de módulo e string vazia entram no
-        avaliador pelos mesmos caminhos que uma URL; o filtro
-        evita que virem chamada de API.
+        Caminho relativo de módulo e string vazia entram pelos mesmos
+        caminhos que uma URL; o filtro evita que virem chamada de API.
         """
 
-        return bool(value) and (
-            value.startswith("/") or value.startswith("http")
+        if value.startswith("http"):
+
+            # URL absoluta toda literal nomeia o serviço pelo endereço.
+            if PARAM not in value:
+                return True
+
+            # Com trecho de runtime, quem nomeia é o caminho depois do
+            # host: `http://localhost:${porta}${url}` é um proxy, não
+            # um serviço.
+            _, _, rest = value.partition("://")
+            _, slash, path = rest.partition("/")
+            value = slash + path
+
+        if not value.startswith("/"):
+            return False
+
+        # Sem nenhum trecho literal — `/`, `/{param}` — o caminho não
+        # nomeia serviço nenhum, e juntaria chamadas sem relação numa
+        # rota só no `hammering-apis`.
+        return any(
+            segment.replace(PARAM, "")
+            for segment in value.split("/")
         )
 
     @staticmethod

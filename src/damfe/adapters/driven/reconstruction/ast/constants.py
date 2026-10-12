@@ -14,8 +14,15 @@ da ferramenta:
 
 1. A tabela é indexada pelo nome do identificador, globalmente.
    Dois arquivos com uma `const routes` diferente colidem.
-2. Só a forma `const X = {...}` é reconhecida.
+2. Só as formas `const X = {...}` e `const X = "literal"` são
+   reconhecidas.
 3. A resolução transitiva tem um teto de iterações.
+
+A constante simples — `const CART_KEY = "cart"` — segue a mesma
+indexação por nome, com uma proteção a mais: um nome declarado com
+valores diferentes em lugares diferentes não resolve. É o que torna
+seguro resolver também a constante importada de outro módulo sem
+seguir o import: se o nome só tem um valor no repositório, é ele.
 """
 
 from __future__ import annotations
@@ -37,6 +44,9 @@ class RouteConstantTable:
         # routes.CART = checkoutRoutes.CART
         self.pending: dict[tuple[str, str], str] = {}
 
+        #: `const X = "literal"` — nome → valores vistos
+        self.scalars: dict[str, set[str]] = {}
+
     def index_file(self, root: Node, source: bytes) -> None:
 
         for node in AstReader.find_all(root, "variable_declarator"):
@@ -50,12 +60,36 @@ class RouteConstantTable:
             if name_node.type != "identifier":
                 continue
 
+            # `{ ... } as const` e `{ ... } satisfies T`: a anotação do
+            # TypeScript embrulha o literal, que continua sendo o valor.
+            while value_node.type in ("as_expression", "satisfies_expression") and value_node.named_children:
+                value_node = value_node.named_children[0]
+
+            if value_node.type == "string" and self._is_const(node):
+                self.scalars.setdefault(AstReader.text(name_node, source), set()).add(
+                    AstReader.strip_quotes(AstReader.text(value_node, source))
+                )
+                continue
+
             if value_node.type != "object":
                 continue
 
             holder = AstReader.text(name_node, source)
 
             self._index_object(holder, value_node, source)
+
+    @staticmethod
+    def _is_const(declarator: Node) -> bool:
+        """Só `const`: `let` e `var` podem ser reatribuídos."""
+
+        declaration = declarator.parent
+
+        return (
+            declaration is not None
+            and declaration.type == "lexical_declaration"
+            and declaration.child(0) is not None
+            and declaration.child(0).type == "const"
+        )
 
     def _index_object(
         self,
@@ -138,5 +172,11 @@ class RouteConstantTable:
             holder, _, key = expression.rpartition(".")
 
             return self.table.get(holder, {}).get(key)
+
+        # constante simples: CART_KEY, só quando o nome tem um valor só
+        values = self.scalars.get(expression)
+
+        if values and len(values) == 1:
+            return next(iter(values))
 
         return None

@@ -17,10 +17,10 @@ from tree_sitter import Node
 
 from damfe.domain import Fragment, MicroFrontend, Screen
 from damfe.adapters.driven.reconstruction.routers import (
+    ReactRouteReader,
     AngularRouteReader,
 )
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable, ModuleResolver
-from damfe.adapters.driven.reconstruction.singlespa import jsx
 from damfe.adapters.driven.reconstruction.singlespa.context import Registration, ScanContext
 from damfe.adapters.driven.reconstruction.singlespa.reachability import (
     Reachability,
@@ -91,11 +91,24 @@ class MicroFrontendBuilder:
         # vivem no template, e o registro fica sem activeWhen algum.
         if not microfrontend.routes:
 
-            declared = self.context.layout_routes.get(registration.name)
+            declared = self.context.layout_routes_of(registration.name)
 
             if declared:
                 microfrontend.routes = declared
                 microfrontend.metadata["routes_from"] = "single-spa-layout"
+
+        # Terceira fonte, a do próprio Angular: o single-spa-angular
+        # manda declarar `APP_BASE_HREF` com o prefixo em que a
+        # aplicação é montada, para que o roteador interno funcione
+        # sob ele. É o `activeWhen` escrito do lado da aplicação — e
+        # existe mesmo quando o orquestrador não está no repositório.
+        if not microfrontend.routes:
+
+            base = self._base_href(self.context.package_dir(entrypoint))
+
+            if base:
+                microfrontend.routes = [base]
+                microfrontend.metadata["routes_from"] = "APP_BASE_HREF"
 
         # A forma do activeWhen viaja junto: rota vinda de função de
         # atividade não tem a mesma confiança de rota literal, e quem
@@ -183,6 +196,65 @@ class MicroFrontendBuilder:
 
         return None
 
+    def _base_href(self, directory: Path) -> str | None:
+        """
+        O prefixo de `{ provide: APP_BASE_HREF, useValue: "/x/" }`.
+
+        Só valor literal e único: mais de um prefixo distinto no mesmo
+        pacote não diz qual é o da montagem. `/` também não serve —
+        diz que a aplicação está na raiz, não que é dona dela.
+        """
+
+        found: set[str] = set()
+
+        for file_path in self.context.tree.source_files():
+
+            if directory not in file_path.parents:
+                continue
+
+            try:
+                root, source = self.context.reader.parse(file_path)
+            except Exception:
+                continue
+
+            if b"APP_BASE_HREF" not in source:
+                continue
+
+            for node in AstReader.find_all(root, "object"):
+
+                fields = {}
+
+                for pair in node.named_children:
+
+                    if pair.type != "pair":
+                        continue
+
+                    key = pair.child_by_field_name("key")
+                    value = pair.child_by_field_name("value")
+
+                    if key and value:
+                        fields[AstReader.text(key, source)] = value
+
+                provide = fields.get("provide")
+                value = fields.get("useValue")
+
+                if (
+                    provide is None
+                    or value is None
+                    or AstReader.text(provide, source) != "APP_BASE_HREF"
+                    or value.type != "string"
+                ):
+                    continue
+
+                route = "/" + AstReader.strip_quotes(
+                    AstReader.text(value, source)
+                ).strip("/")
+
+                if route != "/":
+                    found.add(route)
+
+        return found.pop() if len(found) == 1 else None
+
     @staticmethod
     def _by_convention(directory: Path, package_name: str) -> Path | None:
         """`@org/mfe-checkout` → `src/org-mfe-checkout.{js,jsx,ts,tsx}`."""
@@ -257,10 +329,27 @@ class MicroFrontendBuilder:
 
             if declaration:
 
-                for pattern in AstReader.find_all(
-                    declaration,
-                    "shorthand_property_identifier_pattern",
-                ):
+                # Só as variáveis que a própria declaração cria. Descer
+                # na árvore inteira pegava também as locais de dentro
+                # de funções exportadas — o `let el` de
+                # `export function domElementGetter() {...}` virava
+                # fragmento.
+                declarators = [
+                    child
+                    for child in declaration.named_children
+                    if child.type == "variable_declarator"
+                ]
+
+                patterns = [
+                    pattern
+                    for declarator in declarators
+                    if (target := declarator.child_by_field_name("name")) is not None
+                    for pattern in AstReader.find_all(
+                        target, "shorthand_property_identifier_pattern"
+                    )
+                ]
+
+                for pattern in patterns:
                     name = AstReader.text(pattern, source)
 
                     if name in LIFECYCLE_NAMES:
@@ -273,9 +362,7 @@ class MicroFrontendBuilder:
                 # vida um a um não é reconhecida como micro frontend, e
                 # um componente exportado assim não é reconhecido como
                 # fragmento.
-                for declarator in AstReader.find_all(
-                    declaration, "variable_declarator"
-                ):
+                for declarator in declarators:
                     name_node = declarator.child_by_field_name("name")
 
                     if not name_node or name_node.type != "identifier":
@@ -536,41 +623,24 @@ class MicroFrontendBuilder:
             self.context
         ).screens_in(file_path, application_id)
 
-        for element, opening in jsx.elements(root):
+        for entry in ReactRouteReader(self.context.routes).routes_in(root, source):
 
-            if jsx.tag_name(opening, source) != "Route":
-                continue
-
-            found = jsx.attributes(opening, source)
-
-            element_expression = found.get("element")
-
-            if not element_expression:
-                continue
-
-            component = jsx.component_name(element_expression)
-
-            if not component:
-                continue
-
-            expression = found.get("path", "")
-
-            target = imports.file_for(component)
+            target = (
+                ModuleResolver.resolve(entry.specifier, file_path)
+                if entry.specifier
+                else imports.file_for(entry.component)
+            )
 
             screens.append(
                 Screen(
-                    component=component,
+                    component=entry.component,
                     microfrontend=application_id,
-                    route=(
-                        self.context.routes.resolve(expression)
-                        if expression
-                        else None
-                    ),
-                    route_expression=expression,
+                    route=entry.route,
+                    route_expression=entry.expression,
                     file=(
                         self.context.relative(target) if target else None
                     ),
-                    line=element.start_point.row + 1,
+                    line=entry.line,
                 )
             )
 

@@ -34,6 +34,7 @@ from damfe.adapters.driven.storage import (
     JsonArtifactRepository,
     YamlSpecRepository,
 )
+from damfe.application.errors import UnsupportedPlatform
 from damfe.application.ports import (
     ArtifactRepository,
     Reconstructor,
@@ -100,6 +101,13 @@ class Container:
         organization_prefix: str | None = None,
     ) -> Reconstructor | None:
 
+        # Plataforma com integração própria sai da varredura em qualquer
+        # caso; se ela é o repositório inteiro, não sobra o que ler.
+        platform = reconstruction.unsupported(repository_path)
+
+        if platform:
+            raise UnsupportedPlatform(repository_path, platform)
+
         if framework:
             chosen = reconstruction.get(framework)
 
@@ -107,6 +115,18 @@ class Container:
             chosen = reconstruction.detect(repository_path)
 
             if not chosen:
+
+                # Nada reconhecido no que sobrou depois de tirar os
+                # pacotes de plataforma: o sistema é a plataforma.
+                excluded = reconstruction.excluded(repository_path)
+
+                if excluded:
+                    platforms = sorted(excluded.values())
+                    raise UnsupportedPlatform(
+                        repository_path,
+                        max(set(platforms), key=platforms.count),
+                    )
+
                 return None
 
         # O prefixo é opcional e específico de quem o suporta.
@@ -114,6 +134,11 @@ class Container:
             chosen.organization_prefix = organization_prefix
 
         return chosen
+
+    def excluded_packages(self, repository_path: Path) -> dict[str, str]:
+        """Pacotes fora da análise por serem de plataforma não suportada."""
+
+        return reconstruction.excluded(repository_path)
 
     def rules(self, names: list[str] | None) -> list[Rule]:
 

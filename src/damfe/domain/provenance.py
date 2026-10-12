@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 #: bug no extrator muda a ferramenta e não o esquema, e durante uma
 #: coleta longa é preciso poder dizer "todos os resultados são
 #: esquema 1.0.0" mesmo tendo trocado de versão no meio.
-SCHEMA_VERSION = "3.0.0"
+SCHEMA_VERSION = "3.3.0"
 
 
 @dataclass

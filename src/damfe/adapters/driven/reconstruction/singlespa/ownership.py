@@ -37,19 +37,36 @@ class Ownership:
             reverse=True,
         )
 
-    def of_file(self, file_path: Path) -> str:
+    def of_file(self, file_path: Path) -> str | None:
+        """
+        O micro frontend cujo diretório contém o arquivo, ou `None`.
+
+        Vence o diretório mais longo que contém o arquivo, com
+        fronteira de segmento. Olhar só a primeira pasta do caminho
+        errava em todo monorepo com as unidades um nível abaixo
+        (`apps/checkout`): o dono virava `apps`, que não é micro
+        frontend, e a aresta ficava com uma ponta que não existe.
+
+        `None` é resposta legítima: código fora de qualquer unidade —
+        pacote compartilhado, ferramenta, exemplo — não é de ninguém,
+        e quem pergunta decide descartá-lo.
+        """
 
         try:
-            relative = file_path.relative_to(self.repository)
+            relative = file_path.resolve().relative_to(self.repository.resolve())
         except ValueError:
-            return "?"
+            return None
 
-        if not relative.parts:
-            return "?"
+        parts = relative.parts
 
-        directory = relative.parts[0]
+        for size in range(len(parts) - 1, 0, -1):
 
-        return self.by_directory.get(directory, directory)
+            owner = self.by_directory.get("/".join(parts[:size]))
+
+            if owner:
+                return owner
+
+        return None
 
     def of_route(self, url: str) -> str | None:
         """

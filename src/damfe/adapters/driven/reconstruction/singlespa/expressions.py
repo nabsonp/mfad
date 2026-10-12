@@ -9,6 +9,13 @@ alternativa seria adivinhar.
 `exact` significa que a URL inteira foi determinada. `prefix`
 significa que só o começo dela é estático, porque o resto depende
 de valor de runtime.
+
+`based` diz que a URL começa depois de uma base desconhecida:
+`${API_URL}/users` vale `/users`. Chamada a serviço quase sempre é
+escrita assim — a base vem de variável de ambiente —, e descartar a
+expressão inteira deixava o sistema sem chamada externa nenhuma.
+Quem usa decide se a base importa: o caminho de um serviço não
+depende dela, a navegação depende.
 """
 
 from __future__ import annotations
@@ -32,6 +39,9 @@ class Value:
     url: str
     match: str
 
+    #: a URL vem depois de uma base que não se resolve
+    based: bool = False
+
 
 class ExpressionEvaluator:
 
@@ -45,6 +55,12 @@ class ExpressionEvaluator:
                 AstReader.strip_quotes(AstReader.text(node, source)),
                 EXACT,
             )
+
+        if node.type == "identifier":
+
+            url = self.constants.resolve(AstReader.text(node, source))
+
+            return Value(url, EXACT) if url else None
 
         if node.type == "member_expression":
 
@@ -76,12 +92,25 @@ class ExpressionEvaluator:
 
         inner = text[1:-1] if len(text) >= 2 else ""
 
-        head, marker, _ = inner.partition("${")
+        head, marker, rest = inner.partition("${")
 
-        if not head:
+        if head:
+            return Value(head, PREFIX if marker else EXACT)
+
+        if not marker:
             return None
 
-        return Value(head, PREFIX if marker else EXACT)
+        # `${base}/users/${id}`: a base é desconhecida, o caminho
+        # depois dela não. Só vale quando o que segue é caminho — o
+        # texto logo após a substituição começa com "/".
+        _, closed, after = rest.partition("}")
+
+        if not closed or not after.startswith("/"):
+            return None
+
+        path, marker, _ = after.partition("${")
+
+        return Value(path, PREFIX if marker else EXACT, based=True)
 
     def _concatenation(self, node: Node, source: bytes) -> Value | None:
 
@@ -97,7 +126,20 @@ class ExpressionEvaluator:
 
         value = self.evaluate(left, source)
 
-        return Value(value.url, PREFIX) if value else None
+        if value:
+            return Value(value.url, PREFIX, value.based)
+
+        # `API_URL + "/users"`: base desconhecida, caminho literal.
+        right = node.child_by_field_name("right")
+
+        if left.type in ("identifier", "member_expression") and right is not None:
+
+            tail = self.evaluate(right, source)
+
+            if tail and tail.url.startswith("/") and not tail.based:
+                return Value(tail.url, tail.match, based=True)
+
+        return None
 
     def _replace(self, node: Node, source: bytes) -> Value | None:
         """
