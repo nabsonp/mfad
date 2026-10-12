@@ -1,4 +1,4 @@
-# damfe — requirements
+# DAMFE — requirements
 
 Two kinds of requirement, told in the form each one deserves.
 
@@ -92,10 +92,10 @@ Platform primitives and known buses are recognised with no configuration; a proj
 
 ### RF-24 · Global state
 
-> **Given** a unit that reads a slice of shared state
-> **then** the access is recorded, and when two or more units read the same slice, undirected edges are derived between them.
+> **Given** a unit that reads a slice of shared state, or reads or writes a key of `localStorage`/`sessionStorage`
+> **then** the access is recorded, and when two or more units access the same slice, undirected edges are derived between them.
 
-Writes are deliberately excluded: the call site names the dispatched action, not the slice it changes, and recording both would mix two vocabularies. The derived edges belong in the graph because the coupling is real — two units reading the same slice depend on the same data shape without knowing each other.
+Library writes are deliberately excluded: the call site names the dispatched action, not the slice it changes, and recording both would mix two vocabularies. Web Storage writes are included, because there the call names the key itself. The derived edges belong in the graph because the coupling is real — two units reading the same slice depend on the same data shape without knowing each other.
 
 **Done.**
 
@@ -161,11 +161,13 @@ Rules can be applied in full or selected by name. Having none registered is repo
 
 ### RF-14 · Cyclic dependency
 
-> **Given** the fragment consumptions, the navigations and the communications
-> **when** an elementary cycle exists within **one** of those relations
-> **then** it is reported with the chain in the order it closes.
+> **Given** the fragment consumptions and the communications, each placed on the screens that reach it
+> **when** an elementary cycle exists within **one** of those relations **on one screen**
+> **then** it is reported once, with the chain in the order it closes and the screens it appears on.
 
-One cycle per relation rather than one per pair: importing a fragment and navigating are different couplings with different remedies. Symmetric edges are excluded — coupling through shared state has no direction, and looking for cycles in it finds one in every pair. The enumeration is capped so a dense graph cannot stall the run.
+A screen holds the code its component imports and the fragments it renders, at any depth. Micro frontends mounted alongside by the orchestrator, without the screen rendering them, are not on it. Navigation is out: it links one screen to another, and going back and forth between screens is product flow, not coupling. Over the whole-system graph, edges that never coexist chained into cycles, and large systems produced cycles by the hundred that no screen ever mounts.
+
+One cycle per relation rather than one per pair: importing a fragment and exchanging messages are different couplings with different remedies. Symmetric edges are excluded — coupling through shared state has no direction, and looking for cycles in it finds one in every pair. The enumeration is capped so a dense graph cannot stall the run.
 
 **Done.**
 
@@ -185,7 +187,7 @@ The count is of fragments, not of distinct providers: five from one provider con
 > **when** one unit touches **90% or more** of the others, in a system of at least **five**
 > **then** it is reported, separating how many it depends on from how many depend on it.
 
-Connection is counted without direction: being the centre is a problem either way. The orchestrator is excluded, reaching everything by definition. Systems below the minimum are not assessed, because being connected to everyone is normal in them.
+Connection is counted without direction: being the centre is a problem either way. The orchestrator is excluded, reaching everything by definition. Systems below the minimum are not assessed, because being connected to everyone is normal in them. Symmetric edges — global state — are left out: a token read by every unit links every unit to every other, with no centre, and `global-state-communication` already reports it.
 
 **Done.**
 
@@ -202,8 +204,10 @@ Grouping is by path, not by unit: it is the contract that is shared. This is the
 ### RF-18 · Global state as a channel
 
 > **Given** the global state accesses
-> **when** a slice is read by **two or more** units
-> **then** a single occurrence reports the practice, with the slices and who reads each.
+> **when** a slice is accessed by **two or more** units
+> **then** a single occurrence reports the practice, with the slices and who accesses each.
+
+A slice is library and path together — `localStorage:token`, `react-redux:cart` — so a storage key and a store slice that happen to share a name are not merged.
 
 One occurrence, not one per slice: what matters is whether the practice exists and who takes part, and emitting one per slice would say the same thing repeatedly.
 

@@ -92,6 +92,10 @@ The longest prefix wins, because a unit's name can contain a slash: `@org/app1/B
 
 This is how a host loads a remote page, and it is not an optional style. Fetching code at the moment of use is the point of the technology, and the framework requires a lazy boundary for it. Reading only static imports finds the shared libraries and misses exactly the pages — the consumption that defines the system. On the healthcare system it was the difference between 7 and 12 imports, with every remote page among the missing five.
 
+> **Given** a unit that exposes modules (a remote) and an import it makes
+> **when** the importing file is reachable only from the remote's own entry, and from none of its exposed modules or screens
+> **then** the import is not a composition: the host loads what the remote exposes, and the remote's entry runs only when it is opened standalone.
+
 ### 3.4 · Where a fragment appears
 
 > **Given** a fragment import

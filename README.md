@@ -1,11 +1,15 @@
-# damfe
+# DAMFE
 
 Análise estática de arquiteturas micro frontend. Extrai do código-fonte
 os artefatos que descrevem a arquitetura, detecta anti-padrões sobre eles
 e gera visualizações.
 
-Hoje reconhece **single-spa**. Outras tecnologias entram como extensão,
-sem alterar os demais módulos.
+Hoje reconhece **single-spa** e **Module Federation**. Outras tecnologias
+entram como extensão, sem alterar os demais módulos. Plataformas com
+integração própria sobre essas duas — OpenMRS 3 (`@openmrs/esm-framework`)
+e Open edX (`@edx/frontend-platform`) — ficam fora da análise: os pacotes
+construídos sobre elas são pulados, com aviso, e o repositório que é só
+isso é recusado, em vez de reconstruído errado.
 
 Nenhuma etapa da análise usa modelo de linguagem, rede ou execução do
 código analisado. Ver [docs/architecture.md](docs/architecture.md).
@@ -19,6 +23,19 @@ pipx install -e .
 
 O `-e` deixa a instalação editável: mudanças no código valem na hora. O
 comando `damfe` fica disponível globalmente.
+
+### Testes
+
+```bash
+cd damfe
+python -m venv .venv && .venv/bin/pip install -e ".[test]"
+.venv/bin/python -m pytest
+```
+
+Cada teste monta um repositório mínimo numa pasta temporária e roda a
+reconstrução inteira sobre ele. Os exemplos são escritos a partir da
+documentação de cada tecnologia, não copiados dos sistemas do estudo:
+o teste prova a regra, não a forma de um projeto.
 
 ## Uso em cinco minutos
 
@@ -48,8 +65,8 @@ Saída típica:
   e 0 comunicações entre micro frontends · 16 chamadas externas
   · 8 acessos ao estado global
 
-cyclic-dependency  [importação de fragmento]
-  Ciclo: mfe-checkout → mfe-products → mfe-checkout
+nano-frontend  [tamanho]
+  monolito tem 1 telas e 0 fragmentos, somando 1, no máximo 5 (piso absoluto).
 ```
 
 ## Os três módulos
@@ -116,6 +133,44 @@ damfe visualize [artifacts] [--format FORMATO] [--detections ARQUIVO] [--out ARQ
 |---|---|
 | `html` | relatório único, autocontido, sem CDN |
 | `features` | sumarização em Markdown do sistema |
+
+Os números do cabeçalho do `html` são também as abas da página. A
+primeira caixa, **Dashboard**, abre os grafos; cada número abre a tabela
+completa do que ele conta — micro frontends, telas, navegações,
+composições (com os fragmentos, numa tabela só), comunicações,
+endpoints de API e anti-padrões —, com filtro de texto e ordenação por coluna.
+As fatias do estado global compartilhado não têm aba: ficam no
+detalhe da detecção `global-state-communication`, com quem lê, quem
+grava e onde.
+A linha mostra só o que identifica o item; clicar nela abre o resto —
+arquivos e linhas, telas, mecanismo — e um atalho para o item no grafo.
+
+O dashboard tem um grafo por pergunta, cada um no seu card, um embaixo
+do outro, e só os que têm o que mostrar:
+
+| grafo | o que desenha |
+|---|---|
+| Visão geral | micro frontends e as relações entre pares: montagem, composição, navegação, comunicação |
+| Composição, Navegação, Comunicação | uma relação de cada vez, só com quem participa dela |
+| Estado global | cada fatia compartilhada como nó, ligada a quem a lê ou grava |
+| Backend | cada endpoint chamado por mais de um micro frontend, ligado a quem o chama |
+| Telas | em que tela cada composição, comunicação e navegação acontece, com recorte por micro frontend |
+
+A busca e os filtros do topo valem para todos os grafos. Passar o
+mouse num nó destaca as relações dele em todos os grafos; clicar fixa
+o destaque e abre os detalhes numa barra lateral à direita, que fecha
+no ×, no Esc ou num novo clique no mesmo nó. Na barra, o nome de outro micro
+frontend abre ele ali mesmo (o ← volta), e o ↗ ao lado de cada item
+leva à aba que o detalha, com a linha dele aberta. Cada card tem o próprio zoom (Ctrl/⌘ +
+roda ou os botões), e **ampliar** o deixa mais alto; arrastar o
+fundo move. `#view=screens&mfe=<id>&lang=en` no fim do endereço leva
+direto a um grafo, num recorte e num idioma; `#page=navigations` abre
+direto numa tabela.
+
+A página tem um seletor PT/EN no cabeçalho. Todo texto dela — e as
+mensagens das detecções — vem de
+`src/damfe/adapters/driven/i18n/texts.json`, com cada chave nos dois
+idiomas lado a lado. O título é `<nome da arquitetura> - DAMFE`.
 
 ### `setup-communication`
 
@@ -193,12 +248,25 @@ consumido por máquina. O porquê está em
 
 **Micro frontends** vêm do `registerApplication` do orquestrador — o
 contrato do single-spa. Isso encontra também aplicações sem pacote
-próprio.
+próprio. Quem não é registrado com nome literal é achado pelos ciclos de
+vida que exporta (`bootstrap`, `mount`, `unmount`).
+
+**Rotas** vêm do `activeWhen`; do **single-spa-layout**, tanto no
+`<template id="single-spa-layout">` da página quanto no arquivo
+`microfrontend-layout.html` que o `create-single-spa` gera; e, no
+Angular, do `APP_BASE_HREF` que o single-spa-angular manda declarar. O
+nome no layout é ligado ao pacote quando os dois são iguais ou iguais
+sem o escopo (`@org/catalog` ↔ `catalog`). O pacote que declara o layout
+é o orquestrador.
 
 **Fragmentos** são os exports do entrypoint que não fazem parte do
 contrato de lifecycle.
 
-**Telas** vêm das `<Route>` declaradas pelo `rootComponent`.
+**Telas** vêm do roteador de cada unidade: React Router v6/v7 em JSX
+(`element`), em objeto (`createBrowserRouter`, `useRoutes`, `lazy`) e v5
+(`component`, `render`, filho); @reach/router; e Angular Router. Rotas
+aninhadas somam o caminho do pai. Sem roteador, a tela é o componente
+raiz.
 
 **Tamanho** é medido durante a mesma varredura, com as linhas de
 comentário descontadas pela árvore sintática — não por prefixo de texto.
@@ -206,23 +274,61 @@ comentário descontadas pela árvore sintática — não por prefixo de texto.
 **Navegações** usam uma inversão: em vez de procurar chamadas de
 navegação, que variam por roteador, o extrator procura expressões que
 resolvem para uma rota de OUTRO micro frontend. O dono da rota vem do
-`activeWhen`, que é padronizado.
+`activeWhen`, que é padronizado. O destino de um link do React Router
+(`<Link to>`, `<NavLink to>`, `<Navigate to>`, `navigate()`,
+`history.push()`) parte do `basename` do roteador da unidade, como o
+React Router resolve: debaixo de `basename="/loja"`, `to="/"` é `/loja`.
 
-**Chamadas externas** são reconhecidas em três camadas: `fetch` e
+**Chamadas externas** são reconhecidas em camadas: `fetch` e
 `XMLHttpRequest`, que são API da plataforma web; clientes conhecidos
 — axios, ky, got, superagent — identificados pelo especificador do
-import, incluindo instâncias de `axios.create()`; e o caminho é
-resolvido pelo mesmo avaliador parcial das rotas. Cada chamada registra
-as telas que a alcançam seguindo os imports internos.
+import, incluindo instâncias de `axios.create()`, mesmo criadas noutro
+módulo do projeto; o `HttpClient` do Angular, identificado pelo tipo
+com que é injetado (`constructor(private http: HttpClient)` ou
+`inject(HttpClient)`); e as **funções do projeto que repassam um
+parâmetro como URL** a um desses clientes — `fetchApi(url)`,
+`this.request.get(endpoint)` —, seguidas em camadas, com o verbo vindo
+das opções que quem chama passa. URL que começa por uma base
+desconhecida — `` `${API_URL}/users` ``, `API_URL + "/users"` — vale o
+caminho depois dela; trecho de runtime no meio vira `{param}`
+(`/account/{param}/statement`), e a consulta (`?page=2`) não faz parte
+do caminho. A URL guardada numa variável ou devolvida por uma função
+do projeto (`const url = statementUrl(id)`) é seguida. Cada chamada
+registra as telas que a alcançam seguindo os imports internos — e, no
+Angular, os componentes que o template usa pelo seletor, que a tela
+renderiza sem importar.
+
+**Imports** seguem a resolução do bundler — extensão implícita e
+`/index` — e, para especificador sem ponto, o `baseUrl` e os `paths`
+do `tsconfig.json` ou `jsconfig.json` mais próximo, com `extends`.
+Apelido que aponta para outro pacote é fronteira, como import de pacote.
 
 **Estado global** vem de bibliotecas conhecidas pelo import — react-redux,
-zustand, jotai, recoil, mobx, pinia. Só **leitura**: o seletor percorre o
-caminho explicitamente, enquanto a escrita revela apenas o nome da ação.
+zustand, jotai, recoil, mobx, pinia — e do armazenamento do navegador,
+`localStorage` e `sessionStorage`. Nas bibliotecas, só **leitura**: o
+seletor percorre o caminho explicitamente, enquanto a escrita revela
+apenas o nome da ação. No armazenamento, leitura e escrita, porque as duas
+dizem a chave. Store Redux criado dentro da própria unidade é estado
+local dela e não entra. Função do projeto que repassa um parâmetro seu
+como chave — `setLocalStorageItem(key, value)`, um `LocalStorageService`
+injetado no Angular — vira acesso ao armazenamento, com a chave lida em
+quem chama, e o acesso é de quem chama: o utilitário pode morar num
+pacote comum. Acesso em função sem uso não conta.
+
+**Arquivos de teste não são lidos**: `*.spec.*`, `*.test.*` e as pastas
+`__tests__`, `__mocks__`, `cypress` e `e2e`.
 
 **Comunicação** tem três camadas: primitivas da plataforma
-(`CustomEvent` com `dispatchEvent`/`addEventListener`,
-`BroadcastChannel`), barramentos conhecidos por import, e o mecanismo
-declarado pelo usuário.
+(`CustomEvent` com `dispatchEvent`/`addEventListener` — também o evento
+criado numa variável antes de disparado —, `fromEvent(window, …)` do
+rxjs, `BroadcastChannel`), barramentos conhecidos por import, e o
+mecanismo declarado pelo usuário. Ponta dentro de função sem uso não
+conta: função não exportada que nada no arquivo referencia, ou função
+exportada de um arquivo que o projeto importa sem trazer esse nome.
+
+**Dono do código** é a unidade cujo diretório contém o arquivo, o mais
+longo que casar. Código fora de qualquer unidade — pacote compartilhado,
+ferramenta — não é de ninguém e não gera aresta.
 
 ---
 
@@ -265,24 +371,33 @@ Sete, de 27 do catálogo. A triagem completa está em
 
 ### `cyclic-dependency`
 
-Micro frontends que dependem uns dos outros em ciclo. Avalia as três
-relações **separadamente**, porque um ciclo significa coisas diferentes
-em cada uma: composição é acoplamento de build; navegação em ciclo
-costuma ser fluxo legítimo do produto.
+Micro frontends que dependem uns dos outros em ciclo **dentro de uma
+mesma tela**. Estar na tela é ser alcançado por ela: o código que o
+componente da tela importa e os fragmentos que ela renderiza, em
+qualquer profundidade. Num grafo do sistema inteiro, arestas de telas
+diferentes se encadeavam e, em sistema grande, os ciclos explodiam sem
+que nenhum fosse montado de fato.
+
+Avalia composição e comunicação **separadamente**, porque um ciclo
+significa coisas diferentes em cada uma. Navegação não entra: ela liga
+uma tela a outra, e ida e volta entre telas é fluxo do produto. Uma
+ocorrência por ciclo, com as telas em que ele aparece.
 
 ### `hub-like-dependency`
 
 Tela que instancia muitos fragmentos. O sinal é a quantidade de
-**fragmentos**, não de provedores: cinco fragmentos de um provedor só
-concentram tanta mudança de contrato quanto cinco de cinco. Padrão 5.
+**fragmentos distintos**, não de provedores nem de instanciações: cinco
+fragmentos de um provedor só concentram tanta mudança de contrato quanto
+cinco de cinco, e o mesmo fragmento repetido numa lista é um só. Padrão 5.
 
 ### `one-for-all`
 
 Micro frontend ligado a quase todos os demais. Conta vizinhos sem
 direção, mas registra separadamente de quem depende e por quem é
 dependido — gargalo compartilhado e excesso de conhecimento são
-problemas distintos. Exclui o orquestrador e se abstém em sistemas
-pequenos.
+problemas distintos. Exclui o orquestrador, se abstém em sistemas
+pequenos e ignora as arestas simétricas do estado global, que ligariam
+todos a todos — esse acoplamento é do `global-state-communication`.
 
 ### `hammering-apis`
 
@@ -292,8 +407,9 @@ mesmo recurso compartilham o mesmo contrato.
 
 ### `global-state-communication`
 
-Estado global lido por mais de um micro frontend. Ocorrência **única e
-binária**: o sistema usa estado como canal ou não usa.
+Estado global acessado por mais de um micro frontend — fatia de store ou
+chave de `localStorage`/`sessionStorage`. Ocorrência **única e binária**:
+o sistema usa estado como canal ou não usa.
 
 ### `mega-frontend`
 
@@ -303,10 +419,12 @@ prova: uma unidade grande e coesa não é um Mega Frontend.
 
 ### `nano-frontend`
 
-Micro frontend cujas telas somadas aos fragmentos ficam abaixo de
-`0.4×` a mediana do sistema. Indica fragmentação excessiva, mas não
-prova: uma unidade pequena é legítima quando constitui sozinha uma
-capacidade inteira.
+Micro frontend com poucas telas somadas a fragmentos — até 5, ou abaixo
+da cerca inferior de Tukey do sistema — **e** menos código que a
+mediana do sistema. A segunda condição é a mesma exigência dupla do
+`mega-frontend`: poucas telas com muito código é tela densa, não unidade
+pequena. Indica fragmentação excessiva, mas não prova: uma unidade
+pequena é legítima quando constitui sozinha uma capacidade inteira.
 
 ### Sem escala de severidade
 
@@ -319,11 +437,32 @@ arquitetural a produziu.
 ## Limitações conhecidas
 
 **Propagação de constantes** é indexada pelo nome do identificador,
-globalmente. Dois arquivos com uma `const routes` diferente colidem.
+globalmente. Dois arquivos com uma `const routes` diferente colidem. Na
+constante simples (`const KEY = "x"`), um nome com dois valores no
+repositório não resolve.
 
-**Descoberta por `registerApplication` literal.** Projetos que usam
-`single-spa-layout` geram os registros a partir de um layout e não têm a
-chamada no código.
+**Nome no layout diferente do pacote** só é ligado quando difere pelo
+escopo. `@org/argo-gestao` e um pacote `gestao` ficam sem ligação.
+
+**Vue Router e arquivos `.vue`** não são lidos.
+
+**Apelido de import do bundler** (`resolve.alias` e `resolve.modules`
+do webpack, `alias` do Vite) não é lido; só o do `tsconfig`/`jsconfig`.
+
+**Código morto** é descartado nas pontas de comunicação, nos acessos
+ao estado global e nas chamadas a API, só no nível de função. Arquivo
+que ninguém importa conta como vivo — pode ser entrada da aplicação ou
+módulo exposto —, e método de classe também.
+
+**Chave de storage por embrulhadora** só é seguida quando é o
+parâmetro, com no máximo texto fixo antes e depois. Chave dentro de
+objeto (`storage.get({ key })`), método escolhido em runtime
+(`storage[op](key)`) e utilitário importado pelo nome do pacote do
+workspace (`@org/utils`, sem `paths` no `tsconfig`) ficam de fora.
+
+**`basename` do roteador** vale para todos os links da unidade quando
+ela declara um só valor. Com dois roteadores de bases diferentes, o
+destino fica como está escrito.
 
 **`activeWhen` como função** não é resolvível estaticamente.
 
@@ -333,8 +472,10 @@ Literais, constantes, templates e `.replace(":id", …)` resolvem.
 **Navegação dentro de fragmento** é atribuída ao micro frontend que
 define o fragmento, não ao que o renderiza.
 
-**Fragmento instanciado fora do arquivo da tela** não é atribuído a ela
-pelo `hub-like-dependency`, que liga fragmento a tela pelo arquivo.
+**Unidades montadas lado a lado** pelo orquestrador, sem que uma
+renderize a outra, não estão na mesma tela para o `cyclic-dependency` —
+nem o `customProps`, que é emitido no registro. Fica de fora por
+definição.
 
 **Escrita no estado global** não é extraída: a chamada revela o nome da
 ação, não a fatia alterada.
@@ -342,6 +483,12 @@ ação, não a fatia alterada.
 **`baseURL` não resolve**, porque vem de variável de ambiente. Os
 caminhos ficam relativos, e dois micro frontends falando com serviços
 diferentes no mesmo caminho parecem iguais.
+
+**Função que embrulha um cliente** só é seguida quando a URL TERMINA no
+parâmetro, com no máximo base e texto antes (`${base}${url}`). Se o
+texto antes já é caminho (`"/api/" + endpoint`), a chamada fica onde
+está, como `/api/{param}`. Função guardada em variável, objeto de
+serviço montado em runtime e injeção sem tipo escrito não têm alvo.
 
 **GraphQL não cabe no modelo** de chamada externa: tudo vai para um
 endpoint só, e a unidade real é a operação.

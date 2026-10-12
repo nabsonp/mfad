@@ -1,4 +1,4 @@
-# damfe documentation
+# DAMFE documentation
 
 | | |
 |---|---|

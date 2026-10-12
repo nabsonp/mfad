@@ -2,7 +2,7 @@
 
 Triagem dos 27 anti-padrões do [catálogo de anti-padrões de micro
 frontends](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/)
-(ICOMP/UFAM) contra o que o damfe consegue observar por análise estática,
+(ICOMP/UFAM) contra o que o DAMFE consegue observar por análise estática,
 com a especificação de entrada, detecção e saída de cada um.
 
 | faixa | significado | quantidade |
@@ -47,13 +47,23 @@ uma.
 
 | | |
 |---|---|
-| **Entrada** | `Composition`, `Navigation`, `Communication` |
-| **Detecção** | Monta um grafo dirigido por relação, separadamente, e enumera os ciclos elementares de cada um. Teto de 200 ciclos, porque a enumeração cresce com a quantidade de ciclos, não com o tamanho do grafo. |
-| **Saída** | Uma ocorrência por ciclo. `dimension` diz qual relação o produziu; `chain` traz a sequência ordenada; `through` lista o que passa por cada aresta — fragmentos, rotas ou canais conforme a relação. |
+| **Entrada** | `Composition` (com `RenderLocation.screens` e `.fragments`), `Communication` (com `produced_on` e `consumed_on`) |
+| **Detecção** | Para cada tela, junta os fragmentos montados nela — os que ela renderiza e, em qualquer profundidade, os que esses renderizam. Monta um grafo dirigido por relação **e por tela**: entra a instanciação alcançada pela tela, e a comunicação cujas duas pontas estão no ar nela. Enumera os ciclos elementares de cada grafo. Teto de 200 ciclos distintos por relação, porque a enumeração cresce com a quantidade de ciclos, não com o tamanho do grafo. |
+| **Saída** | Uma ocorrência por ciclo, juntando as telas em que ele aparece. `dimension` diz qual relação o produziu; `chain` traz a sequência ordenada; `through` lista o que passa por cada aresta — fragmentos ou canais; `screens`, as telas. |
 
-As três relações são avaliadas em separado porque um ciclo significa
-coisas diferentes em cada uma. Ciclo de composição é acoplamento de
-build; ciclo de navegação costuma ser fluxo legítimo do produto.
+Composição e comunicação são avaliadas em separado porque um ciclo
+significa coisas diferentes em cada uma: composição é acoplamento de
+build; comunicação, de contrato.
+
+O recorte por tela existe porque, no grafo do sistema inteiro, arestas
+que nunca coexistem se encadeiam — a composição de uma tela com a de
+outra — e em sistema grande o número de ciclos explode sem que nenhum
+seja montado de fato. Navegação ficou de fora pelo mesmo motivo: ela
+liga uma tela a outra, e ida e volta entre telas é fluxo do produto.
+
+Micro frontends montados lado a lado pelo orquestrador, sem que a tela
+os renderize, não estão na tela — e unidade sem `<Route>` não tem tela
+nenhuma.
 
 ## [Hub-like Dependency](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hub-like%20Dependency)
 > Uma tela de um MFE integra fragmentos de vários outros MFEs.
@@ -64,10 +74,11 @@ build; ciclo de navegação costuma ser fluxo legítimo do produto.
 | **Detecção** | Agrupa as instanciações de fragmento por tela, usando as telas que o sítio de renderização registra. Acusa quando a tela instancia `min_fragments` fragmentos. Padrão 5. |
 | **Saída** | Uma ocorrência por tela. Metadados: tela, provedores, fragmentos instanciados. |
 
-O sinal é a quantidade de **fragmentos**, não de provedores: é o
-número de peças que a tela precisa montar que a torna um ponto de
-convergência, e cinco fragmentos de um provedor só concentram tanta
-mudança de contrato quanto cinco de cinco.
+O sinal é a quantidade de **fragmentos distintos**, não de provedores
+nem de instanciações: é o número de peças que a tela precisa montar
+que a torna um ponto de convergência, e cinco fragmentos de um provedor
+só concentram tanta mudança de contrato quanto cinco de cinco. O mesmo
+card repetido numa lista é uma peça só.
 
 Contar provedores distintos, como se fazia, punia o desenho normal:
 com biblioteca de componentes compartilhada, qualquer tela que usasse
@@ -95,8 +106,8 @@ o próprio componente da rota, a tela é aquela e só aquela.
 | | |
 |---|---|
 | **Entrada** | `StateAccess` |
-| **Detecção** | Agrupa os leitores por fatia e verifica se alguma é lida por `min_microfrontends` ou mais. Padrão 2. |
-| **Saída** | Ocorrência **única e binária** — o sistema usa estado global como canal ou não usa. Metadados: as fatias compartilhadas com quem lê cada uma, e as bibliotecas envolvidas. |
+| **Detecção** | Agrupa quem acessa cada fatia — biblioteca e caminho juntos — e verifica se alguma é acessada por `min_microfrontends` ou mais. Padrão 2. Inclui as chaves de `localStorage` e `sessionStorage`. |
+| **Saída** | Ocorrência **única e binária** — o sistema usa estado global como canal ou não usa. Metadados: as fatias compartilhadas com quem acessa cada uma, e as bibliotecas envolvidas. |
 
 Uma por fatia diria a mesma coisa várias vezes. O que interessa é se a
 prática existe e quem participa.
@@ -106,7 +117,7 @@ prática existe e quem participa.
 
 | | |
 |---|---|
-| **Entrada** | `Composition`, `Navigation`, `Communication` |
+| **Entrada** | `Composition`, `Navigation`, `Communication` (só as dirigidas) |
 | **Detecção** | Conta vizinhos distintos de cada MFE, somadas as relações, e acusa quem alcança `ratio` dos demais. Exclui o orquestrador do cálculo e se abstém abaixo de `min_microfrontends`. Padrões 0,9 e 5. |
 | **Saída** | Uma ocorrência por MFE. Metadados: cobertura, vizinhos, e a separação entre de quem depende e por quem é dependido. |
 
@@ -121,7 +132,9 @@ explicitamente que amplia a definição.
 O orquestrador é excluído porque alcançar todos é a função dele, e
 mantê-lo no cálculo inflaria o grau de todos os demais. O piso de
 tamanho existe porque num sistema pequeno estar ligado a todos é o
-normal, não o desvio.
+normal, não o desvio. Comunicação simétrica (estado global) não entra:
+liga todos os que tocam a fatia a todos, sem centro, e já é acusada pelo
+`global-state-communication`.
 
 ## [Mega Frontend](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Mega%20Frontend)
 > Um MFE assume várias responsabilidades que deveriam estar separadas.
@@ -162,7 +175,7 @@ menu; muito código e uma tela é uma biblioteca.
 | | |
 |---|---|
 | **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
-| **Detecção** | Telas somadas a fragmentos abaixo do **piso absoluto** `floor` **ou** da **cerca inferior de Tukey** (`Q1 - 1.5 × IQR`). Basta uma das duas. O orquestrador fica fora. |
+| **Detecção** | Telas somadas a fragmentos abaixo do **piso absoluto** `floor` **ou** da **cerca inferior de Tukey** (`Q1 - 1.5 × IQR`), **e** linhas de código abaixo da mediana do sistema. O orquestrador fica fora. |
 | **Saída** | Uma ocorrência por micro frontend, com as contagens e as medianas contra as quais foi comparado. |
 
 Telas e fragmentos somados porque as duas formas de entregar interface
@@ -175,11 +188,18 @@ construção. A premissa do piso é que abaixo dele a unidade é pequena
 demais para ser micro frontend, independentemente dos vizinhos.
 
 **O valor de `floor` é escolha declarada, não medida.** Em `5`, ele
-acusa **9 das 10 unidades** dos dois sistemas de referência — o
+acusava **9 das 10 unidades** dos dois sistemas de referência — o
 `healthcare-system` inteiro e três das quatro unidades do `nabstore`.
 Como ele vale em OU com o relativo, domina sempre que for mais frouxo
-que a mediana, que é o caso nos dois. Calibrar contra a base do estudo
-é pendência aberta.
+que a mediana.
+
+**Por isso a contagem não decide sozinha.** Telas e fragmentos dizem
+por onde a unidade é vista, não quanto ela faz: uma aplicação Angular
+com duas rotas e dezenas de abas tem poucas telas e está entre as
+maiores do sistema — no udistrital, a maior unidade em código era
+acusada de nano. A unidade precisa ter também menos código que a
+mediana dos pares. É a exigência dupla do `mega-frontend`, do lado
+oposto, e não usa número novo: a mediana é do próprio sistema.
 
 A regra assume que **tudo que recebe é micro frontend**. Separar
 biblioteca de unidade é decisão de quem aponta a ferramenta, e não

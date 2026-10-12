@@ -36,9 +36,17 @@ Every rule below consumes one of these. They are produced in this order, each fr
 
 Reading string literals is what makes both forms work, but it is coarser than the API. single-spa accepts `activeWhen` as a string, as an activity function `(location) => boolean`, or as an array mixing the two. A function is not interpreted: whatever string literals appear inside it are taken as routes. `pathToActiveWhen("/users")` and `(l) => l.pathname.startsWith("/users")` both yield `/users` by coincidence, while a function holding no literal yields nothing, and one testing a literal negatively yields a route it does not own.
 
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
+
 > **Given** a registration whose `activeWhen` is an activity function
 > **when** the function has a recognised shape — `pathname.startsWith("/x")`, `pathname === "/x"`, `pathname.includes("/x")`, or `pathToActiveWhen("/x")`
 > **then** the route is read from it and `metadata.active_when_form = "function"`.
+
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
 
 > **Given** a registration whose `activeWhen` is an activity function
 > **when** the shape is not recognised
@@ -47,6 +55,10 @@ Reading string literals is what makes both forms work, but it is coarser than th
 An arbitrary function does not resolve statically, but the ones written in practice are few and have fixed shapes. Recognising them is the difference between reading the right route and scanning literals hoping to hit it. `opaque` is the honest label for the rest: the routes there may be no routes at all, and the mark says so instead of letting them pass as equal to the others.
 
 A literal `activeWhen` sets no mark, so its presence always means "look closer here".
+
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
 
 > **Given** a registration
 > **when** it carries `customProps` as an object literal
@@ -58,15 +70,27 @@ A literal value is configuration written by hand and says something about the sy
 
 ### 1.2 · Entrypoint
 
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
+
 > **Given** a registration
 > **when** its loader carries a package specifier (`() => System.import("@org/mfe-x")`)
 > **then** the entrypoint is looked up, in this order, in the directory whose `package.json` declares that name, by the convention `src/{org}-{project}.{js,jsx,ts,tsx}`, and then through the manifest's `module`, `main` or `source` fields.
+
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
 
 > **Given** a registration
 > **when** its loader carries a relative path (`() => import("./monolith")`)
 > **then** the file is resolved against the file that declares the registration.
 
 This is how a monolith under migration enters the graph: it is a registered application like any other, and it would vanish if we only looked at the import map.
+
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
 
 > **Given** a registration
 > **when** no entrypoint file resolves from its loader
@@ -76,15 +100,39 @@ Applications registered with inline lifecycles in the shell do exist. Disappeari
 
 ### 1.3 · Routes declared in a layout
 
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
+
 > **Given** a registration with no routes, and the repository's HTML and template files
-> **when** a `<template id="single-spa-layout">` names that application inside one or more `<route path=…>`
+> **when** a layout — a `<template id="single-spa-layout">` in a page, or a markup file whose root is `<single-spa-router>` (the `microfrontend-layout.html` that `create-single-spa` generates) — names that application inside one or more `<route path=…>`
 > **then** those paths become its routes, concatenated through nesting, and `metadata.routes_from = "single-spa-layout"`.
+
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
 
 > **Given** a registration with no routes, and the repository's source files
 > **when** `constructRoutes({ routes: [...] })` is called with an object literal naming that application under `{ type: "route", path: … }` entries
 > **then** the same applies.
 
 Only an object literal is read. `constructRoutes(myConfig)` stays out: resolving it would mean evaluating the module, and what looks like a route there may be assembled at runtime.
+
+> **Given** an application inside `<route default>`
+> **when** reading its routes
+> **then** that route adds none: the default route owns no prefix.
+
+> **Given** a layout naming `@org/x` and a unit whose `package.json` is `x`
+> **when** no unit is named `@org/x`
+> **then** the layout's routes go to `x` — the single-spa convention is that the import-map specifier is `@org/<package>`. Any other similarity is not matched.
+
+> **Given** a package declaring a layout
+> **when** it is not itself a unit
+> **then** it becomes a `shell` that mounts the applications the layout names.
+
+> **Given** an Angular unit with no route from registration or layout
+> **when** its code declares `{ provide: APP_BASE_HREF, useValue: "/x/" }` with a single literal value other than `/`
+> **then** `/x` is its route and `metadata.routes_from = "APP_BASE_HREF"`, as single-spa-angular instructs.
 
 single-spa-layout moves route ownership out of the registration and into a template, and under it an application needs no `activeWhen` at all. Reading only the registration would return the application's name and no routes — a whole system with no route owners, no navigation and no screens, with nothing saying information was missing.
 
@@ -163,8 +211,8 @@ A **parcel** is single-spa's framework-agnostic component: one application expor
 ### 3.1 · Declared screens
 
 > **Given** the micro frontend directory
-> **when** any source file under it has `<Route path=… element=… />`
-> **then** each occurrence is a screen, taking the component from `element` and the route from `path`.
+> **when** any source file under it declares a route in one of the documented React forms — React Router v6/v7 `<Route path element>`, data-router objects (`{ path, element | Component | lazy }`, as passed to `createBrowserRouter` or `useRoutes`), v5 `<Route path component | render | child>`, or an element with `path` directly under @reach/router's `<Router>` — or an Angular route
+> **then** each occurrence is a screen, and a relative path is joined to its parent route's path (v6, data routers and @reach/router nest relatively).
 
 Every file is searched, not only the reachable ones: the question reconstruction answers is which screens the micro frontend **defines**.
 
@@ -216,10 +264,14 @@ An always-on `activeWhen` (`/`) is **not** used as a signal: two applications ca
 
 ## 4. Communication through `customProps`
 
+> **Given** a `registerApplication` call
+> **when** its name is not a string literal (`registerApplication(appName, …)` in a loop)
+> **then** the call is ignored; discovery by lifecycles finds the unit by its own package.
+
 > **Given** a registration carrying `customProps`, and the orchestrator that declares it
 > **then** one communication is recorded per key, from the orchestrator to the registered application, on the channel named by the key, directed.
 
-This is the channel single-spa itself recommends, and the only one in the tool that needs no pairing: the registration names **both** ends at once. Who injects is the orchestrator, who receives is the application named right there, and each key is a channel. Every other mechanism is born of two ends that have to meet over a channel name and may turn out symmetric; this one has source and target written into the declaration, so the edge is directed by construction — which is what lets `cyclic-dependency`, which counts only directed edges, read it.
+This is the channel single-spa itself recommends, and the only one in the tool that needs no pairing: the registration names **both** ends at once. Who injects is the orchestrator, who receives is the application named right there, and each key is a channel. Every other mechanism is born of two ends that have to meet over a channel name and may turn out symmetric; this one has source and target written into the declaration, so the edge is directed by construction. `cyclic-dependency` still does not read it: the edge is born in the registration, which no screen reaches, and that rule only counts edges whose two ends are on the same screen.
 
 The keys were already extracted into `metadata.custom_props` (§1.1); what was missing was emitting the edge. On nabstore it yields seven: the orchestrator injecting the redux actions — `addProductToCartAction`, `loginAction`, `selectEnderecoAction` — into the applications that use them.
 
@@ -231,7 +283,7 @@ When a repository holds more than one orchestrator, the edge comes from the one 
 
 ## 5. Beyond composition
 
-Navigation, external calls, global state and the remaining communication mechanisms — platform primitives, Web Storage, shared RxJS subjects, cross-window `postMessage`, known buses and the declared spec — do not depend on how the system is composed, and are described in [common.md](common.md).
+Navigation, external calls, global state and the remaining communication mechanisms — platform primitives, shared RxJS subjects, cross-window `postMessage`, known buses and the declared spec — do not depend on how the system is composed, and are described in [common.md](common.md).
 
 ---
 

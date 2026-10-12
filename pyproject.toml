@@ -19,6 +19,9 @@ dependencies = [
     "networkx>=3.0",
 ]
 
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
 [project.scripts]
 damfe = "damfe.adapters.driving.cli:main"
 
@@ -27,3 +30,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "damfe.adapters.driven.visualization.assets" = ["*.css", "*.js"]
+"damfe.adapters.driven.i18n" = ["*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
