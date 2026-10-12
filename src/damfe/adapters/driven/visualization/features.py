@@ -144,7 +144,7 @@ class FeaturesRenderer(Renderer):
 
         slices = sorted(
             {
-                access.path
+                f"{access.library}:{access.path}"
                 for access in architecture.state_accesses
                 if access.microfrontend == microfrontend.id
             }
@@ -152,7 +152,7 @@ class FeaturesRenderer(Renderer):
 
         if slices:
 
-            lines.append("### Estado global lido")
+            lines.append("### Estado global acessado")
             lines.append("")
             lines.extend(f"- `{item}`" for item in slices)
             lines.append("")

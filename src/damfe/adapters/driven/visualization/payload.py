@@ -9,24 +9,20 @@ nada em tempo de interação.
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict
 
-from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
+from damfe.adapters.driven import i18n
+from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture, Placement
 
 
-#: Perspectivas do grafo. A ordem é a das abas na página.
+#: Relações entre pares de micro frontends, na ordem das abas.
 RELATIONS = (
     ("composition", "Composição"),
     ("navigation", "Navegação"),
     ("communication", "Comunicação"),
-    ("shared_endpoint", "Backend"),
 )
 
-#: Relação DERIVADA: não é extraída do código, é calculada a
-#: partir das chamadas externas. Dois micro frontends que consomem
-#: o mesmo endpoint estão acoplados pelo backend, ainda que não se
-#: conheçam. Por não ter direção, é desenhada sem seta.
-DERIVED = "shared_endpoint"
 
 
 def build(
@@ -47,6 +43,9 @@ def build(
         "edges": _edges(architecture),
         "api_calls": _api_calls(architecture),
         "endpoints": _endpoints(architecture),
+        "slices": _slices(architecture),
+        "screens": _screens(architecture),
+        "screen_edges": _screen_edges(architecture),
         "detections": [
             _detection(index, item)
             for index, item in enumerate(detections)
@@ -210,9 +209,14 @@ def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
 
     edges.extend(_mounts(architecture))
 
-    edges.extend(_shared_endpoints(architecture))
-
     for item in architecture.communications:
+
+        # Estado global não é mensagem entre um par: é uma fatia que
+        # vários tocam. Como par, cada fatia com N leitores virava N²
+        # arestas — no udistrital, 4.436 —, e o grafo ficava ilegível.
+        # Ela aparece na sua própria visão, a partir dos acessos.
+        if not item.directed:
+            continue
 
         first = (item.produced_at or item.consumed_at or [None])[0]
 
@@ -226,7 +230,7 @@ def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
                 "file": first.file if first else None,
                 "line": first.line if first else 0,
                 "code": first.code if first else None,
-                "detail": f"mecanismo: {item.mechanism}",
+                "detail": i18n.ref("detail.mechanism", mechanism=item.mechanism),
             }
         )
 
@@ -265,7 +269,7 @@ def _mounts(architecture: MicroFrontendArchitecture) -> list[dict]:
                     "file": item.entrypoint or None,
                     "line": 0,
                     "code": None,
-                    "detail": "montado pelo orquestrador",
+                    "detail": i18n.ref("detail.mounted"),
                 }
             )
 
@@ -281,6 +285,7 @@ def _api_calls(architecture: MicroFrontendArchitecture) -> list[dict]:
             "path": item.path,
             "match": item.match,
             "client": item.client,
+            "screens": item.screens,
             "file": item.at.file,
             "line": item.at.line,
             "code": item.at.code,
@@ -323,50 +328,276 @@ def _endpoints(architecture: MicroFrontendArchitecture) -> list[dict]:
     )
 
 
-def _shared_endpoints(architecture: MicroFrontendArchitecture) -> list[dict]:
+# ----------------------------------------------------------------------
+# Estado global
+# ----------------------------------------------------------------------
+
+
+def _slices(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
-    Pares de micro frontends que consomem o mesmo endpoint.
+    Fatias do estado global tocadas por mais de um micro frontend.
 
-    Emitidos nos dois sentidos para que o desenho ligue o par
-    independentemente de qual lado for consultado; a ausência de
-    seta é o que comunica que a relação não tem direção.
+    A fatia é o nó, e cada micro frontend que a lê ou grava se liga
+    a ela. É o mesmo acoplamento das arestas de estado entre pares,
+    sem o produto cartesiano.
     """
 
-    callers: dict[str, set[str]] = {}
+    grouped: dict[tuple[str, str], list] = {}
 
-    for item in architecture.api_calls:
-        callers.setdefault(item.path, set()).add(item.microfrontend)
+    for item in architecture.state_accesses:
+        grouped.setdefault((item.library, item.path), []).append(item)
 
-    edges: list[dict] = []
+    slices = []
 
-    for path, consumers in sorted(callers.items()):
+    for (library, path), accesses in sorted(grouped.items()):
 
-        if len(consumers) < 2:
+        owners = sorted({item.microfrontend for item in accesses})
+
+        if len(owners) < 2:
             continue
 
-        ordered = sorted(consumers)
+        slices.append(
+            {
+                "id": f"{library}:{path}",
+                "library": library,
+                "path": path,
+                "microfrontends": owners,
+                "accesses": [
+                    {
+                        "microfrontend": item.microfrontend,
+                        "access": item.access,
+                        "file": item.at.file,
+                        "line": item.at.line,
+                        "code": item.at.code,
+                    }
+                    for item in sorted(
+                        accesses,
+                        key=lambda item: (item.microfrontend, item.at.file, item.at.line),
+                    )
+                ],
+            }
+        )
 
-        for source in ordered:
-            for target in ordered:
+    return slices
+
+
+# ----------------------------------------------------------------------
+# Telas
+# ----------------------------------------------------------------------
+
+
+def _screens(architecture: MicroFrontendArchitecture) -> dict[str, dict]:
+    """Telas e fragmentos por identificador, para o painel e o desenho."""
+
+    found: dict[str, dict] = {}
+
+    for microfrontend in architecture.microfrontends:
+
+        for screen in microfrontend.screens:
+            found[screen.id] = {
+                "id": screen.id,
+                "kind": "screen",
+                "microfrontend": microfrontend.id,
+                "name": screen.component,
+                "route": screen.route,
+                "file": screen.file,
+                "line": screen.line,
+            }
+
+        for fragment in microfrontend.fragments:
+            found[fragment.id] = {
+                "id": fragment.id,
+                "kind": "fragment",
+                "microfrontend": microfrontend.id,
+                "name": fragment.name,
+                "route": None,
+                "file": fragment.file,
+                "line": fragment.line,
+            }
+
+    return found
+
+
+def _screen_edges(architecture: MicroFrontendArchitecture) -> list[dict]:
+    """
+    As relações entre micro frontends no nível de tela.
+
+    - composição: a tela que instancia → o fragmento do provedor;
+    - comunicação: a tela da ponta que publica → a da que assina;
+    - navegação: a tela de onde se navega → a tela cuja rota recebe.
+
+    Quando o código não é alcançado por tela nenhuma — o orquestrador,
+    um utilitário montado à parte —, a ponta é o próprio micro
+    frontend: a relação existe, só não tem lugar na interface.
+    """
+
+    known = {item.id for item in architecture.microfrontends}
+
+    screens = _screens(architecture)
+
+    grouped: dict[tuple[str, str, str], dict] = {}
+
+    def add(sources, targets, relation, label, occurrence) -> None:
+
+        for source in sources:
+            for target in targets:
 
                 if source == target:
                     continue
 
-                edges.append(
+                entry = grouped.setdefault(
+                    (source, target, relation),
                     {
-                        "edge": edge_id(source, target, DERIVED),
-                        "relation": DERIVED,
+                        "id": f"{_slug(source)}--{_slug(target)}--{relation}",
+                        "relation": relation,
                         "source": source,
                         "target": target,
-                        "label": path,
-                        "file": None,
-                        "line": 0,
-                        "code": None,
-                        "detail": "mesmo endpoint consumido pelos dois",
-                    }
+                        "labels": [],
+                        "items": [],
+                    },
                 )
 
-    return edges
+                if label and label not in entry["labels"]:
+                    entry["labels"].append(label)
+
+                if occurrence not in entry["items"]:
+                    entry["items"].append(occurrence)
+
+    def places(placement: Placement, owner: str) -> list[str]:
+
+        found = [
+            item
+            for item in placement.screens + placement.fragments
+            if item in screens and screens[item]["microfrontend"] == owner
+        ]
+
+        return found or ([owner] if owner in known else [])
+
+    for item in architecture.compositions:
+
+        fragment = f"{item.provider}#{item.fragment}"
+
+        target = [fragment] if fragment in screens else [item.provider]
+
+        renders = item.renders or []
+
+        if not renders:
+            add(
+                [item.consumer], target, "composition", item.fragment,
+                _occurrence(item.imported_at.file, item.imported_at.line, item.imported_at.code, ""),
+            )
+
+        for render in renders:
+            add(
+                places(Placement(screens=render.screens, fragments=render.fragments), item.consumer),
+                target,
+                "composition",
+                item.fragment,
+                _occurrence(render.file, render.line, None, i18n.ref("detail.rendered_here")),
+            )
+
+    for item in architecture.communications:
+
+        if not item.directed:
+            continue
+
+        first = (item.produced_at or item.consumed_at or [None])[0]
+
+        add(
+            places(item.produced_on, item.source),
+            places(item.consumed_on, item.target),
+            "communication",
+            item.channel,
+            _occurrence(
+                first.file if first else None,
+                first.line if first else 0,
+                first.code if first else None,
+                f"{item.mechanism} · {item.channel}",
+            ),
+        )
+
+    for item in architecture.navigations:
+
+        landing = arrival(architecture, item.target, item.resolved_url)
+
+        add(
+            places(item.on, item.source),
+            [landing] if landing else [item.target],
+            "navigation",
+            item.resolved_url or item.expression,
+            _occurrence(item.at.file, item.at.line, item.at.code, item.expression),
+        )
+
+    return sorted(grouped.values(), key=lambda entry: entry["id"])
+
+
+def _occurrence(file, line, code, detail) -> dict:
+
+    return {"file": file, "line": line, "code": code, "detail": detail}
+
+
+#: Segmento de rota que aceita qualquer valor.
+_WILDCARD = re.compile(r"^(:.+|\*|\{.*\}|\[.*\])$")
+
+
+def arrival(
+    architecture: MicroFrontendArchitecture,
+    microfrontend: str,
+    url: str | None,
+) -> str | None:
+    """
+    A tela do micro frontend cuja rota recebe a URL.
+
+    A rota mais específica vence: `/loja/produto/:id` antes de
+    `/loja/*`. Segmento variável (`:id`, `*`, `{param}`) casa com
+    qualquer valor; `*` no fim casa com o resto do caminho.
+    """
+
+    owner = architecture.microfrontend(microfrontend)
+
+    if owner is None or not url:
+        return None
+
+    wanted = [part for part in url.split("?")[0].split("/") if part]
+
+    best: tuple[int, str] | None = None
+
+    for screen in owner.screens:
+
+        if screen.route is None:
+            continue
+
+        pattern = [part for part in screen.route.split("/") if part]
+
+        score = _route_score(pattern, wanted)
+
+        if score is not None and (best is None or score > best[0]):
+            best = (score, screen.id)
+
+    return best[1] if best else None
+
+
+def _route_score(pattern: list[str], wanted: list[str]) -> int | None:
+
+    literal = 0
+
+    for index, part in enumerate(pattern):
+
+        if part == "*" and index == len(pattern) - 1:
+            return literal
+
+        if index >= len(wanted):
+            return None
+
+        if _WILDCARD.match(part) or _WILDCARD.match(wanted[index]):
+            continue
+
+        if part != wanted[index]:
+            return None
+
+        literal += 2
+
+    return literal + 1 if len(pattern) == len(wanted) else None
 
 
 def _detection(index: int, item: AntiPatternDetection) -> dict:

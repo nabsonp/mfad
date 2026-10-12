@@ -11,6 +11,11 @@ A página é organizada em quatro níveis de leitura: números,
 mapa, anti-padrões e inventário. A arquitetura vem primeiro
 porque os anti-padrões são uma camada de anotação sobre ela, e
 não o contrário.
+
+Todo texto da página vem de `i18n/texts.json`. O HTML sai em
+português, com cada texto marcado pela chave; o botão de idioma
+refaz as frases em inglês a partir das mesmas chaves, sem voltar
+ao Python.
 """
 
 from __future__ import annotations
@@ -19,16 +24,11 @@ import html
 import json
 from importlib import resources
 
-from damfe.adapters.driven.visualization import layout, payload
+from damfe.adapters.driven import i18n
+from damfe.adapters.driven.i18n import mark, marker
+from damfe.adapters.driven.visualization import payload, tables, views
 from damfe.application.ports import Renderer
 from damfe.domain import AntiPatternDetection, MicroFrontendArchitecture
-
-
-RELATION_LABELS = {
-    "composition": "composição",
-    "navigation": "navegação",
-    "communication": "comunicação",
-}
 
 
 def _asset(name: str) -> str:
@@ -38,6 +38,12 @@ def _asset(name: str) -> str:
         .joinpath(name)
         .read_text(encoding="utf-8")
     )
+
+
+def _json(value) -> str:
+    """JSON dentro de `<script>`: `</` fecharia a tag antes da hora."""
+
+    return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
 
 
 class HtmlRenderer(Renderer):
@@ -59,54 +65,163 @@ class HtmlRenderer(Renderer):
 
         data = payload.build(architecture, detections)
 
-        flagged = {
-            subject
-            for detection in detections
-            for subject in detection.subjects
-        }
+        flagged: dict[str, int] = {}
+
+        for detection in detections:
+            for subject in detection.subjects:
+                flagged[subject] = flagged.get(subject, 0) + 1
+
+        found = views.build(data, flagged)
+
+        project = architecture.project or i18n.t("page.project")
 
         return TEMPLATE.format(
             css=_asset("report.css"),
             js=_asset("report.js"),
-            project=html.escape(architecture.project or "projeto"),
-            metrics=self._metrics(architecture, detections),
-            tabs=self._tabs(data),
-            svg=self._svg(architecture, data, flagged),
-            legend=self._legend(),
-            endpoints=self._endpoints(data["endpoints"]),
-            endpoints_count=len(data["endpoints"]),
-            detections=self._detections(data["detections"]),
-            detections_count=len(detections),
-            inventory=self._inventory(data),
-            microfrontends_count=len(architecture.microfrontends),
-            data=json.dumps(data, ensure_ascii=False),
+            # O nome da arquitetura é o mesmo nos dois idiomas.
+            title=html.escape(f"{project} - DAMFE"),
+            project=html.escape(project),
+            language=self._language(),
+            eyebrow=mark("page.eyebrow", "span", ' class="eyebrow"'),
+            metrics=self._metrics(architecture, detections, data),
+            controls=self._controls(),
+            leave_focus=mark("map.leave_focus", "button", ' id="clear-focus"'),
+            views=self._views(found),
+            pages=self._pages(architecture, data, detections),
+            hint=(
+                f'<p class="hint"{marker("side.placeholder")} data-t-html="1">'
+                f'{i18n.t("side.placeholder")}</p>'
+            ),
+            close=(
+                f'<button class="drawer-close" id="side-close"{marker("side.close", "aria-label")} '
+                f'aria-label="{html.escape(i18n.t("side.close"))}">×</button>'
+            ),
+            back=(
+                f'<button class="drawer-back hidden" id="side-back"{marker("side.back", "aria-label")} '
+                f'aria-label="{html.escape(i18n.t("side.back"))}">←</button>'
+            ),
+            # A cor de cada anti-padrão, para a barra lateral usar a mesma.
+            data=_json({**data, "colors": {item["anti_pattern"]: tables.color_of(item["anti_pattern"]) for item in data["detections"]}}),
+            texts=_json(i18n.texts()),
+        )
+
+    @staticmethod
+    def _language() -> str:
+        """O seletor de idioma do cabeçalho."""
+
+        return (
+            f'<div class="language" role="group"{marker("page.language", "aria-label")} '
+            f'aria-label="{html.escape(i18n.t("page.language"))}">'
+            + "".join(
+                f'<button data-lang="{language}" '
+                f'aria-pressed="{"true" if language == i18n.DEFAULT else "false"}">'
+                f"{i18n.LABELS[language]}</button>"
+                for language in i18n.LANGUAGES
+            )
+            + "</div>"
         )
 
     # ------------------------------------------------------------------
     # Nível 1 — números
     # ------------------------------------------------------------------
 
+    #: Os números do cabeçalho, na ordem.
+    METRICS = (
+        "microfrontends",
+        "screens",
+        "navigations",
+        "compositions",
+        "communications",
+        "api_calls",
+        "detections",
+    )
+
+    #: A aba que cada número abre. Fragmentos e composições são a
+    #: mesma tabela, então há uma aba só, a de composições: duas
+    #: caixas para a mesma tabela ficavam selecionadas juntas.
+    OPENS = {"compositions": "fragments"}
+
+    #: As páginas além da inicial.
+    PAGES = (
+        "microfrontends",
+        "screens",
+        "navigations",
+        "fragments",
+        "communications",
+        "api_calls",
+        "detections",
+    )
+
     @staticmethod
     def _metrics(
         architecture: MicroFrontendArchitecture,
         detections: list[AntiPatternDetection],
+        data: dict,
     ) -> str:
+        """
+        Os números, que são também as abas da página.
 
-        cards = [
-            (len(architecture.microfrontends), "micro frontends", False),
-            (len(architecture.screens), "telas", False),
-            (len(architecture.fragments), "fragmentos", False),
-            (len(architecture.compositions), "composições", False),
-            (len(architecture.navigations), "navegações", False),
-            (len(architecture.communications), "comunicações", False),
-            (len(architecture.api_calls), "chamadas externas", False),
-            (len(detections), "anti-padrões", bool(detections)),
-        ]
+        A primeira caixa leva ao mapa; cada número leva à tabela que
+        o soma.
+        """
+
+        counts = {
+            "microfrontends": len(architecture.microfrontends),
+            "screens": len(architecture.screens),
+            "compositions": len(architecture.compositions),
+            "navigations": len(architecture.navigations),
+            "communications": sum(1 for item in architecture.communications if item.directed),
+            # Endpoint é método e caminho: GET e POST no mesmo caminho
+            # são dois.
+            "api_calls": len({(item.method, item.path) for item in architecture.api_calls}),
+            "detections": len(detections),
+        }
+
+        home = (
+            '<button class="metric home" role="tab" data-page="home" aria-selected="true">'
+            '<strong><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">'
+            '<path d="M3 11 12 3l9 8v10h-6v-6H9v6H3z" fill="currentColor"/></svg></strong>'
+            + mark("page.home")
+            + "</button>"
+        )
+
+        return home + "".join(
+            f'<button class="metric{" alert" if metric == "detections" and counts[metric] else ""}" '
+            f'role="tab" data-page="{HtmlRenderer.OPENS.get(metric, metric)}" aria-selected="false">'
+            f"<strong>{counts[metric]}</strong>{mark(f'metric.{metric}')}</button>"
+            for metric in HtmlRenderer.METRICS
+        )
+
+    def _pages(
+        self,
+        architecture: MicroFrontendArchitecture,
+        data: dict,
+        detections: list[AntiPatternDetection],
+    ) -> str:
+        """Uma página por aba do cabeçalho, além da inicial."""
+
+        content = {
+            "microfrontends": tables.microfrontends(data),
+            "screens": tables.screens(architecture, data),
+            "fragments": tables.fragments(architecture),
+            "navigations": tables.navigations(architecture),
+            "communications": tables.communications(architecture),
+            # Uma tabela só: cada chamada está no detalhe do endpoint.
+            "api_calls": tables.endpoints(data, architecture),
+            "detections": self._detections(data, architecture),
+        }
+
+        titles = {page: f"page.title.{page}" for page in self.PAGES}
+        titles["detections"] = "section.detections"
 
         return "".join(
-            f'<div class="metric{" alert" if alert else ""}">'
-            f"<strong>{value}</strong><span>{label}</span></div>"
-            for value, label, alert in cards
+            f'<div class="page hidden" data-page="{page}" role="tabpanel">'
+            '<section class="block">'
+            f"<header>{mark(titles[page], 'h2')}</header>"
+            + mark(f"page.hint.{page}", "p", ' class="hint"')
+            + content[page]
+            + "</section></div>"
+            for page in self.PAGES
         )
 
     # ------------------------------------------------------------------
@@ -114,449 +229,239 @@ class HtmlRenderer(Renderer):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _tabs(data: dict) -> str:
+    def _controls() -> str:
         """
-        Só as perspectivas que têm o que mostrar.
-
-        Uma aba que abre num desenho vazio não informa que a
-        relação não existe — parece defeito. A ausência da aba diz
-        a mesma coisa sem ocupar espaço.
+        Busca e filtros do dashboard: valem para todos os grafos de uma
+        vez. O zoom é de cada grafo e fica no card dele.
         """
-
-        present = {edge["relation"] for edge in data["edges"]}
-
-        tabs = [("all", "Todas")] + [
-            (key, label)
-            for key, label in payload.RELATIONS
-            if key in present
-        ]
-
-        return "".join(
-            f'<button class="tab" data-perspective="{key}" '
-            f'aria-pressed="{"true" if key == "all" else "false"}">'
-            f"{label}</button>"
-            for key, label in tabs
-        )
-
-    def _svg(
-        self,
-        architecture: MicroFrontendArchitecture,
-        data: dict,
-        flagged: set[str],
-    ) -> str:
-
-        graph_nodes = [item["id"] for item in data["microfrontends"]]
-
-        points = layout.positions_for(graph_nodes)
-
-        if not points:
-            return "<p class='empty body'>Nenhum micro frontend encontrado.</p>"
-
-        parts = [
-            f'<svg viewBox="0 0 {layout.WIDTH} {layout.HEIGHT}" '
-            f'role="img" aria-label="Mapa da arquitetura">',
-            self._markers(),
-        ]
-
-        parts.extend(self._edges(data, points))
-        parts.extend(self._nodes(data, points, flagged))
-
-        parts.append("</svg>")
-
-        return "".join(parts)
-
-    @staticmethod
-    def _markers() -> str:
-
-        colors = {
-            "composition": "#1d4ed8",
-            "navigation": "#059669",
-            "communication": "#be123c",
-        }
-
-        return "<defs>" + "".join(
-            f'<marker id="arrow-{key}" viewBox="0 0 10 10" refX="9" '
-            f'refY="5" markerWidth="7" markerHeight="7" '
-            f'orient="auto-start-reverse">'
-            f'<path d="M 0 0 L 10 5 L 0 10 z" fill="{color}" /></marker>'
-            for key, color in colors.items()
-        ) + "</defs>"
-
-    @staticmethod
-    def _edges(data: dict, points: dict) -> list[str]:
-        """
-        Uma trilha por par de nós e relação.
-
-        O traço fino recebe a cor; um traço transparente e largo
-        por cima amplia a área de clique, que num arco de 2 px
-        seria impossível de acertar.
-        """
-
-        grouped: dict[tuple[str, str, str], list[str]] = {}
-
-        for edge in data["edges"]:
-
-            key = (edge["source"], edge["target"], edge["relation"])
-
-            grouped.setdefault(key, []).append(edge["label"] or "")
-
-        bows = {
-            "composition": 0.16,
-            "navigation": 0.26,
-            "communication": 0.36,
-            payload.DERIVED: 0.46,
-        }
-
-        parts = []
-
-        for (source, target, relation), labels in sorted(grouped.items()):
-
-            if source not in points or target not in points:
-                continue
-
-            path = layout.curve(
-                points[source],
-                points[target],
-                bows.get(relation, 0.2),
-            )
-
-            edge_id = payload.edge_id(source, target, relation)
-
-            title = html.escape(
-                f"{payload.short(source)} → {payload.short(target)}: "
-                + ", ".join(item for item in labels if item)
-            )
-
-            parts.append(
-                f'<g class="edge-group" data-edge="{edge_id}" '
-                f'data-relation="{relation}" '
-                f'data-source="{html.escape(source)}" '
-                f'data-target="{html.escape(target)}">'
-                f'<path class="edge-hit" d="{path}" />'
-                f'<path class="edge {relation}" d="{path}" '
-                f'marker-end="url(#arrow-{relation})" />'
-                f"<title>{title}</title>"
-                f"</g>"
-            )
-
-        return parts
-
-    @staticmethod
-    def _nodes(data: dict, points: dict, flagged: set[str]) -> list[str]:
-
-        parts = []
-
-        for item in data["microfrontends"]:
-
-            point = points.get(item["id"])
-
-            if not point:
-                continue
-
-            classes = ["node"]
-
-            if item["role"] == "shell":
-                classes.append("shell")
-
-            if item["id"] in flagged:
-                classes.append("flagged")
-
-            parts.append(
-                f'<g class="{" ".join(classes)}" '
-                f'data-id="{html.escape(item["id"])}" tabindex="0">'
-                f'<circle cx="{point.x:.1f}" cy="{point.y:.1f}" '
-                f'r="{layout.RADIUS}" />'
-                f'<text x="{point.x:.1f}" y="{point.y - 5:.1f}">'
-                f"{html.escape(item['short'])}</text>"
-                f'<text class="meta" x="{point.x:.1f}" '
-                f'y="{point.y + 11:.1f}">{len(item["screens"])} telas</text>'
-                f'<text class="meta" x="{point.x:.1f}" '
-                f'y="{point.y + 25:.1f}">'
-                f'{len(item["fragments"])} frag.</text>'
-                + (
-                    f'<text class="role" x="{point.x:.1f}" '
-                    f'y="{point.y - layout.RADIUS + 13:.1f}">'
-                    f"orquestrador</text>"
-                    if item["role"] == "shell"
-                    else ""
-                )
-                + f"</g>"
-            )
-
-        return parts
-
-    @staticmethod
-    def _legend() -> str:
-
-        keys = "".join(
-            f'<span class="key">'
-            f'<span class="swatch {key}" '
-            f'style="border-bottom-color:{color}"></span>{label}</span>'
-            for key, label, color in (
-                ("mount", "montagem", "#6b7280"),
-                ("composition", "composição", "#1d4ed8"),
-                ("navigation", "navegação", "#059669"),
-                ("communication", "comunicação", "#be123c"),
-                (payload.DERIVED, "backend compartilhado", "#b45309"),
-            )
-        )
 
         return (
-            f'<div class="legend">{keys}'
-            f'<span class="key" style="margin-left:auto">'
-            f"contorno vermelho: aparece em alguma detecção · "
-            f"roxo: orquestrador</span></div>"
+            f'<input type="search" id="search"{marker("map.search", "placeholder")} '
+            f'placeholder="{html.escape(i18n.t("map.search"))}">'
+            f'<label><input type="checkbox" id="only-flagged"> {mark("map.only_flagged")}</label>'
+            f'<label class="mount-toggle"><input type="checkbox" id="show-mount" checked> '
+            f'{mark("map.mount")}</label>'
+        )
+
+    @staticmethod
+    def _zoom() -> str:
+        """Os botões de zoom de um card; o último amplia o card."""
+
+        def button(action: str, key: str, symbol: str | None = None) -> str:
+            # Com símbolo, o texto vai no `title`; sem, o texto é o rótulo.
+            if symbol:
+                return (
+                    f'<button class="ghost" data-zoom="{action}"{marker(key, "title")} '
+                    f'title="{html.escape(i18n.t(key))}">{symbol}</button>'
+                )
+            return mark(key, "button", f' class="ghost" data-zoom="{action}"')
+
+        return (
+            '<span class="zoom">'
+            + button("out", "map.zoom_out", "−")
+            + button("fit", "map.fit")
+            + button("in", "map.zoom_in", "+")
+            + button("expand", "map.expand")
+            + "</span>"
+        )
+
+    @staticmethod
+    def _views(found: list[views.View]) -> str:
+        """
+        Um card por grafo, um embaixo do outro e todos à vista: o
+        dashboard responde às perguntas sem abas para alternar. Só os grafos que
+        têm o que mostrar entram — um card vazio pareceria defeito.
+        """
+
+        if not found:
+            return mark("map.empty", "p", ' class="empty body"')
+
+        return "".join(
+            f'<section class="block view" data-view="{view.id}">'
+            f"<header>{mark(view.label, 'h2')}{HtmlRenderer._zoom()}</header>"
+            + HtmlRenderer._variants(view)
+            + f'<div class="viewport">{view.svg}</div>'
+            + (mark(view.caption, "p", ' class="caption"') if view.caption else "")
+            + view.legend
+            + "</section>"
+            for view in found
+        )
+
+    @staticmethod
+    def _variants(view: views.View) -> str:
+        """
+        O seletor de recorte e os desenhos de cada recorte.
+
+        Os recortes vão em `<template>`: o navegador não os desenha
+        até alguém escolher um, e a página com dezenas deles abre tão
+        rápido quanto sem.
+        """
+
+        if not view.variants:
+            return ""
+
+        options = "".join(
+            f'<option value="{html.escape(key)}">{html.escape(payload.short(key))}</option>'
+            for key in sorted(view.variants, key=payload.short)
+        )
+
+        templates = "".join(
+            f'<template data-variant="{html.escape(key)}">{svg}</template>'
+            for key, svg in sorted(view.variants.items())
+        )
+
+        everything = mark("variant.all", "option", ' value=""')
+
+        return (
+            f'<div class="variant-bar"><label>{mark("variant.label")} '
+            f'<select class="variant">{everything}{options}</select>'
+            f"</label>{mark('variant.hint')}</div>"
+            + templates
         )
 
     # ------------------------------------------------------------------
     # Nível 3 — anti-padrões
     # ------------------------------------------------------------------
 
-    def _detections(self, detections: list[dict]) -> str:
+    def _detections(self, data: dict, architecture: MicroFrontendArchitecture) -> str:
+        """
+        Uma linha por detecção: o anti-padrão e quem está envolvido. O
+        detalhe traz os dados que a regra declarou, cada um num campo,
+        o porquê e o código, agrupado por micro frontend e arquivo.
+
+        As detecções de rota (`metadata.path`) do mesmo anti-padrão
+        viram uma linha só, com um bloco por rota: são uma por rota
+        compartilhada, e dezenas de linhas iguais escondiam as outras.
+        """
+
+        detections = data["detections"]
 
         if not detections:
-            return (
-                "<div class='body'><p class='empty'>"
-                "Nenhum anti-padrão detectado.</p></div>"
-            )
+            return "<div class='body'>" + mark("empty.detections", "p", ' class="empty"') + "</div>"
 
-        return "<div class='body'>" + "".join(
-            self._detection(item) for item in detections
-        ) + "</div>"
+        directories = {item["id"]: item["directory"] for item in data["microfrontends"]}
 
-    def _detection(self, item: dict) -> str:
-        """
-        A ordem das seções é fixa e deliberada:
+        columns = [
+            tables.Column("detection.anti_pattern"),
+            tables.Column("detection.subjects"),
+            tables.Column("detection.why", summary=False, wide=True),
+            tables.Column("detection.code", summary=False, wide=True),
+        ]
 
-            o que → onde → evidência → por quê → código
+        # Na ordem da primeira de cada grupo; as outras ficam numa só.
+        groups: list[list[dict]] = []
+        routes: dict[str, list[dict]] = {}
 
-        Ela conduz da identificação do anti-padrão até o ponto no
-        código-fonte, que é onde a rastreabilidade se fecha.
-        """
+        for item in detections:
 
-        metadata = item.get("metadata") or {}
-
-        chain = self._chain(metadata.get("chain") or [])
-
-        return (
-            f'<article class="detection">'
-            # o que
-            f"<header>"
-            f"<h3>{html.escape(item['rule'])}</h3>"
-            + (
-                f'<span class="dimension">'
-                f"{html.escape(item['dimension'])}</span>"
-                if item.get("dimension")
-                else ""
-            )
-            + f"</header>"
-            # onde — a cadeia substitui a mensagem quando existe,
-            # porque a mensagem a repetiria em prosa
-            + (
-                f'<p class="chain">{chain}</p>'
-                if chain
-                else f"<p>{html.escape(item['message'])}</p>"
-            )
-            # evidência
-            + self._measures(item, metadata)
-            # por quê
-            + (
-                f'<div class="why"><h4>Por que foi detectado</h4>'
-                f"<p>{html.escape(item['explanation'])}</p></div>"
-                if item.get("explanation")
-                else ""
-            )
-            # código
-            + self._locations(item)
-            + f"<footer>"
-            f'<button data-focus="{item["index"]}">Ver no grafo →</button>'
-            f"</footer>"
-            f"</article>"
-        )
-
-    @staticmethod
-    def _chain(nodes: list) -> str:
-        """Só as regras que declaram uma sequência ordenada."""
-
-        return " → ".join(
-            html.escape(payload.short(node)) for node in nodes
-        )
-
-    @staticmethod
-    def _measures(item: dict, metadata: dict) -> str:
-        """
-        A evidência em números, numa linha só.
-
-        O conteúdo vem do `metadata` que a regra declarou — por isso
-        cada anti-padrão mostra o que lhe é próprio sem que a página
-        conheça regra nenhuma.
-        """
-
-        measures = []
-
-        subjects = item.get("subjects") or []
-
-        if subjects:
-            measures.append(f"{len(subjects)} micro frontends")
-
-        if metadata.get("through"):
-            # O que passa pela aresta muda com a relação: fragmento
-            # na composição, rota na navegação, canal na comunicação.
-            through = {
-                "composition": "fragmentos",
-                "navigation": "rotas",
-                "communication": "canais",
-            }.get(metadata.get("relation"), "itens")
-
-            measures.append(f"{len(metadata['through'])} {through}")
-
-        if metadata.get("path"):
-            measures.append(f"rota {metadata['path']}")
-
-        if metadata.get("methods"):
-            measures.append(", ".join(metadata["methods"]))
-
-        if metadata.get("chain"):
-            measures.append(f"{len(metadata['chain']) - 1} relações")
-
-        if "coverage" in metadata:
-            measures.append(
-                f"centralidade {round(metadata['coverage'] * 100)}% "
-                f"({metadata.get('neighbours')} de {metadata.get('others')})"
-            )
-
-        if metadata.get("providers"):
-            measures.append(f"{len(metadata['providers'])} provedores")
-
-        if metadata.get("screen"):
-            measures.append(f"tela {metadata['screen']}")
-
-        if not measures:
-            return ""
-
-        return (
-            '<div class="measures"><h4>Evidência</h4><p>'
-            + " · ".join(html.escape(item) for item in measures)
-            + "</p></div>"
-        )
-
-    @staticmethod
-    def _locations(item: dict) -> str:
-
-        locations = item.get("locations") or []
-
-        if not locations:
-            return ""
-
-        shown = locations[:6]
-
-        rest = len(locations) - len(shown)
-
-        return (
-            '<div class="where"><h4>Código</h4><ul>'
-            + "".join(
-                f"<li><code>{html.escape(location['file'])}:"
-                f"{location['line']}</code></li>"
-                for location in shown
-            )
-            + (f"<li>e mais {rest}…</li>" if rest > 0 else "")
-            + "</ul></div>"
-        )
-
-    @staticmethod
-    def _endpoints(endpoints: list[dict]) -> str:
-        """
-        Endpoints ordenados por número de consumidores.
-
-        Os compartilhados vêm primeiro: são o acoplamento por
-        backend, que não aparece em nenhum dos outros grafos.
-        """
-
-        if not endpoints:
-            return (
-                "<div class='body'><p class='empty'>"
-                "Nenhuma chamada externa encontrada.</p></div>"
-            )
+            if not (item.get("metadata") or {}).get("path"):
+                groups.append([item])
+            elif item["anti_pattern"] in routes:
+                routes[item["anti_pattern"]].append(item)
+            else:
+                routes[item["anti_pattern"]] = [item]
+                groups.append(routes[item["anti_pattern"]])
 
         rows = []
 
-        for entry in endpoints:
+        for group in groups:
 
-            shared = len(entry["callers"]) > 1
+            item = group[0]
 
-            callers = ", ".join(
-                payload.short(caller) for caller in entry["callers"]
-            )
+            metadata = item.get("metadata") or {}
 
-            rows.append(
-                f"<tr>"
-                f'<td class="mono">'
-                f'{html.escape(", ".join(entry["methods"]))}</td>'
-                f'<td class="name mono">{html.escape(entry["path"])}'
-                + (
-                    f'<span class="badge alert">compartilhado por '
-                    f'{len(entry["callers"])}</span>'
-                    if shared
-                    else ""
+            subjects = sorted({subject for entry in group for subject in entry.get("subjects") or []})
+
+            if metadata.get("path"):
+                paths = [entry["metadata"]["path"] for entry in group]
+                fields = [(mark("fact.routes"), str(len(paths)))]
+                evidence = (mark("fact.route_list"), tables.shared_endpoints(paths, data, architecture), True)
+            else:
+                facts = (metadata.get("text") or {}).get("facts")
+                fields = (
+                    [(mark(fact["label"]), self._value(fact["value"])) for fact in facts]
+                    if facts
+                    # Artefato de antes dos campos: a frase, como está.
+                    else [(mark("detection.evidence"), self._text(item, "message", "span"))]
                 )
-                + f"</td>"
-                f"<td>{html.escape(callers)}</td>"
-                f'<td class="num">{len(entry["callers"])}</td>'
-                f"</tr>"
-            )
+                # As fatias são a evidência da detecção de estado global, e
+                # mais legíveis que a lista de acessos: o código vai dentro
+                # de cada uma.
+                slices = [entry for entry in data["slices"] if entry["id"] in (metadata.get("slices") or {})]
+                evidence = (
+                    (mark("fact.slice_list"), tables.state_slices(slices, directories), True)
+                    if slices
+                    else None
+                )
 
-        return (
-            '<table class="inventory"><thead><tr>'
-            "<th>método</th><th>endpoint</th><th>consumido por</th>"
-            '<th class="num">consumidores</th>'
-            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
-        )
+            # Nas rotas, quem chama está em cada uma; a lista de todos,
+            # junta, não diz quem martela qual.
+            if len(subjects) > 3 and not metadata.get("path"):
+                fields.insert(0, (mark("detection.subjects"), tables.names(subjects), True))
 
-    # ------------------------------------------------------------------
-    # Nível 4 — inventário
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _inventory(data: dict) -> str:
-        """
-        Tabela, e não cartões: com dezenas de micro frontends,
-        localizar um no grafo só visualmente deixa de funcionar.
-        Entrada e saída aparecem aqui porque são a leitura que o
-        desenho não dá de imediato.
-        """
-
-        rows = []
-
-        for item in data["microfrontends"]:
-
-            found = item["detections"]
-
-            role = (
-                '<span class="badge shell">shell</span>'
-                if item["role"] == "shell"
-                else ""
-            )
+            if evidence:
+                # O porquê antes da lista: com dezenas de rotas ou de
+                # fatias, depois dela ficava longe demais.
+                if item.get("explanation"):
+                    fields.append((mark("detection.why"), self._text(item, "explanation", "span"), True))
+                fields.append(evidence)
 
             rows.append(
-                f'<tr data-select="{html.escape(item["id"])}">'
-                f'<td class="name">{html.escape(item["short"])}{role}</td>'
-                f'<td>{len(item["screens"])}</td>'
-                f'<td>{len(item["fragments"])}</td>'
-                f'<td>{item["degree"]["in"]}</td>'
-                f'<td>{item["degree"]["out"]}</td>'
-                f'<td>{item["size"]["code_lines"]}</td>'
-                f'<td class="flags">{found or "—"}</td>'
-                f"</tr>"
+                tables.Row(
+                    [
+                        tables.anti_pattern(item["anti_pattern"]),
+                        tables.few(subjects),
+                        None if evidence else (self._text(item, "explanation", "span") if item.get("explanation") else "—"),
+                        # Sem localização (nano, mega: a evidência é o
+                        # tamanho), o campo não aparece vazio.
+                        None
+                        if evidence or not item.get("locations")
+                        else tables.grouped(
+                            [
+                                (tables.owner_of(location["file"], directories), location["file"], location["line"], "")
+                                for location in item.get("locations") or []
+                            ],
+                            directories,
+                        ),
+                    ],
+                    fields=fields,
+                    # Os índices das detecções da linha: a barra lateral
+                    # leva a ela por qualquer um.
+                    attrs={"data-key": " ".join([str(entry["index"]) for entry in group] + subjects)},
+                    action=mark(
+                        "detection.focus",
+                        "button",
+                        ' class="link-button go" data-focus="'
+                        + ",".join(str(entry["index"]) for entry in group)
+                        + '"',
+                    ),
+                )
             )
 
-        return (
-            '<table class="inventory"><thead><tr>'
-            "<th>micro frontend</th>"
-            '<th class="num">telas</th><th class="num">fragmentos</th>'
-            '<th class="num">entradas</th><th class="num">saídas</th>'
-            '<th class="num">linhas</th><th class="num">anti-padrões</th>' 
-            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
-        )
+        return tables.table(columns, rows)
+
+    @staticmethod
+    def _value(value) -> str:
+        """O valor de um campo: texto traduzível, quando é referência."""
+
+        if isinstance(value, dict) and "key" in value:
+            return mark(value)
+
+        return html.escape(str(value))
+
+    @staticmethod
+    def _text(item: dict, field: str, tag: str, attrs: str = "") -> str:
+        """
+        Um texto da detecção: pela referência, quando a regra a deixou
+        no `metadata`, e traduzível; senão, a frase gravada, como está.
+        """
+
+        reference = ((item.get("metadata") or {}).get("text") or {}).get(field)
+
+        if reference:
+            return mark(reference, tag, attrs)
+
+        return f"<{tag}{attrs}>{html.escape(item.get(field) or '')}</{tag}>"
 
 
 TEMPLATE = """<!doctype html>
@@ -564,84 +469,50 @@ TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>damfe — arquitetura</title>
+<title>{title}</title>
 <style>{css}</style>
 </head>
 <body>
 
 <header class="topbar">
   <div>
-    <span class="eyebrow">Arquitetura</span>
+    {eyebrow}
     <h1>{project}</h1>
   </div>
-  <span class="stamp">reconstruída por análise estática pelo damfe</span>
+  {language}
 </header>
 
-<div class="metrics">{metrics}</div>
+<nav class="metrics" role="tablist">{metrics}</nav>
 
+<div class="page" data-page="home" role="tabpanel">
 <div class="layout">
   <div class="column">
 
-    <section class="block">
-      <header>
-        <h2>Mapa arquitetural</h2>
-        <div class="tabs">{tabs}</div>
-      </header>
-      <div class="controls">
-        <input type="search" id="search" placeholder="buscar micro frontend">
-        <label><input type="checkbox" id="only-flagged">
-          só com anti-padrão</label>
-        <span class="spacer"></span>
-        <button class="ghost" id="reset-view">reposicionar</button>
+    <section class="block toolbar">
+      <div class="controls">{controls}</div>
+      {hint}
+      <div class="focus-banner" id="focus-banner">
+        <span id="focus-text"></span>
+        {leave_focus}
       </div>
-      <div class="stage" id="stage">
-        <div class="focus-banner" id="focus-banner">
-          <span id="focus-text"></span>
-          <button id="clear-focus">sair do foco</button>
-        </div>
-        {svg}
-      </div>
-      {legend}
     </section>
 
-    <section class="block">
-      <header>
-        <h2>Anti-padrões detectados</h2>
-        <span class="count">{detections_count}</span>
-      </header>
-      {detections}
-    </section>
-
-    <section class="block">
-      <header>
-        <h2>Serviços externos</h2>
-        <span class="count">{endpoints_count}</span>
-      </header>
-      {endpoints}
-    </section>
-
-    <section class="block">
-      <header>
-        <h2>Micro frontends</h2>
-        <span class="count">{microfrontends_count}</span>
-      </header>
-      {inventory}
-    </section>
+    <div class="dashboard" id="stage">{views}</div>
 
   </div>
-
-  <aside class="block side" id="side">
-    <div class="body">
-      <p class="placeholder">
-        Clique num micro frontend ou numa relação do mapa para ver os
-        detalhes. Use <strong>Ver no grafo</strong> numa detecção para
-        isolar a evidência.
-      </p>
-    </div>
-  </aside>
+</div>
 </div>
 
+<!-- Os detalhes do que foi clicado: fechada até o primeiro clique. -->
+<aside class="block side drawer" id="side" aria-hidden="true">
+  <div class="drawer-bar">{back}{close}</div>
+  <div id="side-body"></div>
+</aside>
+
+<div class="pages">{pages}</div>
+
 <script type="application/json" id="damfe-data">{data}</script>
+<script type="application/json" id="damfe-texts">{texts}</script>
 <script>{js}</script>
 </body>
 </html>
