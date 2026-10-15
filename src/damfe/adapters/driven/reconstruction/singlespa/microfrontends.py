@@ -22,6 +22,9 @@ from damfe.adapters.driven.reconstruction.routers import (
 )
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable, ModuleResolver
 from damfe.adapters.driven.reconstruction.singlespa.context import Registration, ScanContext
+from damfe.adapters.driven.reconstruction.singlespa import jsx
+from damfe.adapters.driven.reconstruction.singlespa.declarations import relocate
+from damfe.adapters.driven.reconstruction.singlespa.exported_values import ExportedValues
 from damfe.adapters.driven.reconstruction.singlespa.reachability import (
     Reachability,
 )
@@ -72,9 +75,16 @@ class MicroFrontendBuilder:
 
         microfrontend.metadata["lifecycles"] = sorted(lifecycles)
 
+        values = ExportedValues(self.context.reader)
+
         for name, line in exported:
 
-            target = imports.file_for(name)
+            # Texto, lista, tipo: sai pelo `export`, mas ninguém monta.
+            if values.is_data(entrypoint, name):
+                continue
+
+            # `export { Card } from "./Card"` não importa: segue o reexport.
+            target = imports.file_for(name) or values.origin(entrypoint, name)
 
             microfrontend.fragments.append(
                 Fragment(
@@ -134,6 +144,8 @@ class MicroFrontendBuilder:
 
         if not microfrontend.screens and root_component:
             self._root_without_router(root_component, microfrontend)
+
+        relocate(self.context, microfrontend)
 
         return microfrontend
 
@@ -521,14 +533,68 @@ class MicroFrontendBuilder:
 
             return
 
+        # O raiz que só monta providers em volta de um componente do
+        # projeto não é a tela: a tela é o que ele envolve.
+        name, content = self._content_of(root_component)
+
         microfrontend.screens = [
             Screen(
                 component=name,
                 microfrontend=microfrontend.id,
                 route=microfrontend.routes[0] if microfrontend.routes else None,
-                file=self.context.relative(root_component),
+                file=self.context.relative(content),
             )
         ]
+
+    def _content_of(self, root_component: Path) -> tuple[str, Path]:
+        """
+        O componente que o raiz mostra, descendo pelos que só envolvem.
+
+        Um componente só envolve quando o que ele renderiza são
+        componentes de pacote (`<Provider>`, `<LocationProvider>`, o
+        `<Suspense>` do React) e um único componente do projeto, sem
+        elemento HTML próprio. A tela é o primeiro que não é assim.
+        """
+
+        name, current = root_component.stem, root_component
+
+        for _ in range(4):
+
+            try:
+                root, source = self.context.reader.parse(current)
+            except Exception:
+                break
+
+            imports = ImportTable(root, source, current)
+
+            own: list[tuple[str, Path]] = []
+            has_markup = False
+
+            for _, opening in jsx.elements(root):
+
+                tag = jsx.tag_name(opening, source) or ""
+
+                # `<>...</>` não tem nome e não é conteúdo.
+                if not tag:
+                    continue
+
+                if not tag[0].isupper():
+                    has_markup = True
+                    break
+
+                target = imports.file_for(tag.split(".")[0])
+
+                if target is not None:
+                    own.append((tag, target))
+
+            components = {item for item in own}
+
+            if has_markup or len(components) != 1:
+                break
+
+            name, current = next(iter(components))
+
+        return name, current
 
     @staticmethod
     def _is_fragment(microfrontend: MicroFrontend) -> bool:

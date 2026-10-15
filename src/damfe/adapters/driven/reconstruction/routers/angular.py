@@ -59,20 +59,156 @@ class AngularRouteReader:
 
         found: list[Screen] = []
 
-        for array in AstReader.find_all(root, "array"):
+        # O arquivo que um `loadChildren` carrega responde abaixo da
+        # rota que o carrega, não da raiz.
+        prefixes = sorted(self._mounts().get(file_path.resolve(), {""}))
 
-            # Um array aninhado é visitado de novo pela varredura, e
-            # já foi percorrido como `children` do pai. Só os de
-            # primeiro nível entram.
-            if self._inside_route_array(array):
+        for array in self._route_arrays(root, source):
+            for prefix in prefixes:
+                found.extend(
+                    self._walk(array, source, imports, file_path, owner, prefix)
+                )
+
+        return found
+
+    def _route_arrays(self, root: Node, source: bytes) -> list[Node]:
+
+        # Um array aninhado é visitado de novo pela varredura, e
+        # já foi percorrido como `children` do pai. Só os de
+        # primeiro nível entram.
+        return [
+            array
+            for array in AstReader.find_all(root, "array")
+            if not self._inside_route_array(array) and self._is_route_array(array, source)
+        ]
+
+    # ------------------------------------------------------------------
+    # loadChildren
+    # ------------------------------------------------------------------
+
+    def _mounts(self) -> dict[Path, set[str]]:
+        """
+        Arquivo → os caminhos em que um `loadChildren` o monta.
+
+        `{ path: 'admin', loadChildren: () => import('./admin.routes') }`
+        põe as rotas de `admin.routes` sob `/admin`
+        (https://angular.dev/guide/ngmodules/lazy-loading). O carregado
+        pode ser o arquivo das rotas ou o `NgModule` que as registra com
+        `RouterModule.forChild`; neste caso, o prefixo passa aos arquivos
+        de rotas que o módulo importa. Carregamentos encadeados somam os
+        prefixos.
+        """
+
+        if self.context._angular_mounts is not None:
+            return self.context._angular_mounts
+
+        edges: list[tuple[Path, Path, str]] = []
+
+        for file_path in self.context.tree.source_files():
+
+            try:
+                text = file_path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
                 continue
 
-            if not self._is_route_array(array, source):
+            if "loadChildren" not in text:
                 continue
 
-            found.extend(
-                self._walk(array, source, imports, file_path, owner, "")
-            )
+            try:
+                root, source = self.context.reader.parse(file_path)
+            except Exception:
+                continue
+
+            for array in self._route_arrays(root, source):
+                for target, route in self._lazy_children(array, source, file_path, ""):
+                    edges.append((file_path.resolve(), target, route))
+
+        # O `NgModule` carregado sem rotas próprias passa o prefixo a
+        # quem ele importa e tem rotas.
+        for _, target, _ in list(edges):
+
+            try:
+                root, source = self.context.reader.parse(target)
+            except Exception:
+                continue
+
+            if self._route_arrays(root, source):
+                continue
+
+            imports = ImportTable(root, source, target)
+
+            for local in imports.bindings:
+
+                imported = imports.file_for(local)
+
+                if imported is None:
+                    continue
+
+                try:
+                    child_root, child_source = self.context.reader.parse(imported)
+                except Exception:
+                    continue
+
+                if self._route_arrays(child_root, child_source):
+                    edges.append((target, imported.resolve(), ""))
+
+        mounts: dict[Path, set[str]] = {}
+
+        for _ in range(10):
+
+            changed = False
+
+            for origin, target, route in edges:
+
+                for base in mounts.get(origin, {""}):
+
+                    joined = self._join(base, route) or ""
+
+                    if joined not in mounts.setdefault(target, set()):
+                        mounts[target].add(joined)
+                        changed = True
+
+            if not changed:
+                break
+
+        self.context._angular_mounts = mounts
+
+        return mounts
+
+    def _lazy_children(self, array: Node, source: bytes, file_path: Path, prefix: str) -> list[tuple[Path, str]]:
+        """(arquivo carregado, rota) de cada `loadChildren` do array, com os `children` dentro."""
+
+        found: list[tuple[Path, str]] = []
+
+        for entry in array.named_children:
+
+            if entry.type != "object":
+                continue
+
+            fields = self._fields(entry, source)
+
+            route = self._join(prefix, self._literal(fields.get("path"), source)) or ""
+
+            lazy = fields.get("loadChildren")
+
+            if lazy is not None:
+
+                # A forma antiga, em texto: `'./admin/admin.module#AdminModule'`.
+                specifier = (
+                    self._literal(lazy, source).split("#")[0]
+                    if lazy.type == "string"
+                    else self._lazy_specifier(lazy, source)
+                )
+
+                target = ModuleResolver.resolve(specifier, file_path) if specifier else None
+
+                if target is not None:
+                    found.append((target.resolve(), route))
+
+            children = fields.get("children")
+
+            if children is not None and children.type == "array":
+                found.extend(self._lazy_children(children, source, file_path, route))
 
         return found
 

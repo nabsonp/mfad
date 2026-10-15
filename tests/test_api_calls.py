@@ -36,17 +36,17 @@ def test_url_after_an_environment_base_keeps_its_path(system):
     calls = sorted((call.microfrontend, call.path, call.match) for call in architecture.api_calls)
 
     assert calls == [
-        ("@org/catalog", "/products", "exact"),
+        ("catalog", "/products", "exact"),
         # O trecho de runtime vira `{param}`: o recurso continua
         # identificado pelo que vem depois dele.
-        ("@org/catalog", "/users/{param}", "pattern"),
-        ("@org/checkout", "/products", "exact"),
+        ("catalog", "/users/{param}", "pattern"),
+        ("checkout", "/products", "exact"),
     ]
 
     [found] = HammeringApis().check(architecture)
 
     assert found.metadata["path"] == "/products"
-    assert found.metadata["callers"] == ["@org/catalog", "@org/checkout"]
+    assert found.metadata["callers"] == ["catalog", "checkout"]
 
 
 def test_unknown_base_is_never_a_navigation(system):

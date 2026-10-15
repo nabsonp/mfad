@@ -45,7 +45,7 @@ def test_event_created_before_being_dispatched(system):
         prefix="@org/",
     )
 
-    assert channels(architecture) == [("@org/catalog", "@org/checkout", "cart:add")]
+    assert channels(architecture) == [("catalog", "checkout", "cart:add")]
 
 
 def test_rxjs_from_event_on_window_listens(system):
@@ -68,7 +68,7 @@ def test_rxjs_from_event_on_window_listens(system):
         prefix="@org/",
     )
 
-    assert channels(architecture) == [("@org/catalog", "@org/checkout", "lang")]
+    assert channels(architecture) == [("catalog", "checkout", "lang")]
 
 
 def test_event_name_from_a_shared_constant(system):
@@ -91,7 +91,7 @@ def test_event_name_from_a_shared_constant(system):
         prefix="@org/",
     )
 
-    assert channels(architecture) == [("@org/catalog", "@org/checkout", "cart:updated")]
+    assert channels(architecture) == [("catalog", "checkout", "cart:updated")]
 
 
 # ----------------------------------------------------------------------
@@ -120,8 +120,8 @@ def test_storage_key_in_a_constant(system):
     )
 
     assert sorted((item.microfrontend, item.path, item.access) for item in architecture.state_accesses) == [
-        ("@org/catalog", "cart", "write"),
-        ("@org/checkout", "cart", "read"),
+        ("catalog", "cart", "write"),
+        ("checkout", "cart", "read"),
     ]
 
 
@@ -182,7 +182,7 @@ def test_route_declarations_and_fetch_are_not_navigations(system):
         'to="/checkout"',
     ]
     assert {(item.source, item.target) for item in architecture.navigations} == {
-        ("@org/catalog", "@org/checkout")
+        ("catalog", "checkout")
     }
 
 
@@ -210,7 +210,7 @@ def test_locals_inside_exported_functions_are_not_fragments(system):
         prefix="@org/",
     )
 
-    assert [fragment.name for fragment in by_id(architecture, "@org/catalog").fragments] == ["CatalogCard"]
+    assert [fragment.name for fragment in by_id(architecture, "catalog").fragments] == ["CatalogCard"]
 
 
 def test_shorthand_custom_props_are_channels(system):
@@ -233,7 +233,7 @@ def test_shorthand_custom_props_are_channels(system):
         prefix="@org/",
     )
 
-    assert by_id(architecture, "@org/catalog").metadata["custom_props"] == {"store": "", "theme": "dark"}
+    assert by_id(architecture, "catalog").metadata["custom_props"] == {"store": "", "theme": "dark"}
 
 
 def test_registration_with_a_runtime_name_is_not_an_application(system):
@@ -295,8 +295,8 @@ def test_redux_store_injected_by_the_shell_is_shared(system):
     )
 
     assert sorted((item.microfrontend, item.path) for item in architecture.state_accesses) == [
-        ("@org/catalog", "cart"),
-        ("@org/checkout", "cart"),
+        ("catalog", "cart"),
+        ("checkout", "cart"),
     ]
 
 
@@ -343,7 +343,7 @@ def test_typescript_as_const_object_resolves(system):
     )
 
     assert [(item.source, item.target, item.resolved_url) for item in architecture.navigations] == [
-        ("@org/drawer", "@org/auth", "/auth")
+        ("drawer", "auth", "/auth")
     ]
 
 
@@ -382,7 +382,7 @@ def test_event_from_a_function_nobody_calls_is_not_a_channel(system):
         prefix="@org/",
     )
 
-    assert channels(architecture) == [("@org/catalog", "@org/checkout", "account:loaded")]
+    assert channels(architecture) == [("catalog", "checkout", "account:loaded")]
 
 
 def test_typed_event_is_still_the_event(system):
@@ -409,7 +409,7 @@ def test_typed_event_is_still_the_event(system):
         prefix="@org/",
     )
 
-    assert channels(architecture) == [("@org/catalog", "@org/checkout", "account:changed")]
+    assert channels(architecture) == [("catalog", "checkout", "account:changed")]
 
 
 def test_navigation_knows_the_screen_it_leaves_from(system):

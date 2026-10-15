@@ -37,6 +37,7 @@ from damfe.application.use_cases.reconstruction.extract_state_accesses import (
 )
 from damfe import __version__
 from damfe.domain import MicroFrontendArchitecture, Provenance, edges_from_state
+from damfe.domain.naming import by_directory
 
 
 class ReconstructUseCase(UseCase[ReconstructionResult]):
@@ -115,6 +116,9 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
             state_accesses=state_accesses,
         )
 
+        # Quem lê procura o micro frontend pelo repositório, não pelo
+        # nome com que ele é registrado.
+        by_directory(architecture)
 
         written = (
             self.repository.save(architecture, self.destination)

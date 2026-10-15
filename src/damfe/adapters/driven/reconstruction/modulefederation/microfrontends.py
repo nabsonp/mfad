@@ -25,6 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from damfe.domain import Fragment, MicroFrontend, Screen
+from damfe.adapters.driven.reconstruction.singlespa.declarations import relocate
 from damfe.adapters.driven.reconstruction.ast import AstReader, ImportTable, ModuleResolver
 from damfe.adapters.driven.reconstruction.routers import (
     AngularRouteReader,
@@ -175,6 +176,8 @@ class FederatedBuilder:
         microfrontend.routes = sorted(
             {screen.route for screen in microfrontend.screens if screen.route}
         )
+
+        relocate(self.context, microfrontend)
 
         return microfrontend
 

@@ -49,8 +49,8 @@ def test_function_that_forwards_the_key_is_storage(system):
     )
 
     assert accesses(architecture) == [
-        ("@org/catalog", "localStorage", "accountId", "write", "catalog/src/root.component.js"),
-        ("@org/checkout", "localStorage", "accountId", "read", "checkout/src/root.component.js"),
+        ("catalog", "localStorage", "accountId", "write", "catalog/src/root.component.js"),
+        ("checkout", "localStorage", "accountId", "read", "checkout/src/root.component.js"),
     ]
 
 
@@ -90,8 +90,8 @@ def test_shared_helper_is_attributed_to_each_caller(system):
     )
 
     assert accesses(architecture) == [
-        ("@org/catalog", "sessionStorage", "token", "write", "catalog/src/root.component.js"),
-        ("@org/checkout", "sessionStorage", "token", "read", "checkout/src/root.component.js"),
+        ("catalog", "sessionStorage", "token", "write", "catalog/src/root.component.js"),
+        ("checkout", "sessionStorage", "token", "read", "checkout/src/root.component.js"),
     ]
 
 
@@ -121,7 +121,7 @@ def test_layers_and_a_literal_prefix_in_the_key(system):
     )
 
     assert accesses(architecture) == [
-        ("@org/catalog", "localStorage", "app:pref.theme", "read", "catalog/src/root.component.js"),
+        ("catalog", "localStorage", "app:pref.theme", "read", "catalog/src/root.component.js"),
     ]
 
 
@@ -221,5 +221,5 @@ def test_storage_access_in_a_function_nobody_calls_is_not_counted(system):
     )
 
     assert accesses(architecture) == [
-        ("@org/catalog", "localStorage", "token", "read", "catalog/src/auth.js"),
+        ("catalog", "localStorage", "token", "read", "catalog/src/auth.js"),
     ]

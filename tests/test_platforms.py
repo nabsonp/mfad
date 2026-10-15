@@ -50,5 +50,5 @@ def test_platform_packages_are_left_out_and_the_rest_is_reconstructed(tmp_path):
 
     architecture = reconstruct(tmp_path, prefix="@org/")
 
-    assert [item.microfrontend for item in architecture.state_accesses] == ["@org/catalog"]
+    assert [item.microfrontend for item in architecture.state_accesses] == ["catalog"]
     assert Container().excluded_packages(tmp_path) == {"lab": "OpenMRS 3 (esm-framework)"}

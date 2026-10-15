@@ -115,6 +115,22 @@ class Wrapper:
     method_from: int | None = None
 
 
+def extracted(context: ScanContext, microfrontends: list[MicroFrontend]) -> tuple[list[ApiCall], set[tuple[str, int]]]:
+    """
+    As chamadas HTTP e onde está cada requisição, memorizadas no
+    contexto: a navegação precisa das requisições, e a extração é cara.
+    """
+
+    key = tuple(item.id for item in microfrontends)
+
+    if key not in context._api:
+        extractor = ApiCallExtractor(context, microfrontends)
+        calls = extractor.extract()
+        context._api[key] = (calls, extractor.requests)
+
+    return context._api[key]
+
+
 class ApiCallExtractor:
 
     def __init__(
@@ -141,6 +157,11 @@ class ApiCallExtractor:
         self._wrapper_names: set[str] = set()
 
         self.callers = self._callers(microfrontends)
+
+        #: (arquivo, início) de toda chamada que é requisição HTTP, viva
+        #: ou não, com caminho resolvido ou não: a URL que ela recebe é
+        #: recurso a buscar, nunca destino de navegação.
+        self.requests: set[tuple[str, int]] = set()
 
     def extract(self) -> list[ApiCall]:
 
@@ -237,6 +258,8 @@ class ApiCallExtractor:
 
             if shape is None:
                 continue
+
+            self.requests.add((relative, node.start_byte))
 
             path = self._path(shape, symbols)
 

@@ -70,7 +70,7 @@ def by_lifecycles(
 
         directory = context.package_dir(file_path).resolve()
 
-        if directory in taken:
+        if directory in taken or not _installable(directory):
             continue
 
         name = _package_name(directory) or directory.name
@@ -105,3 +105,27 @@ def _package_name(directory: Path) -> str | None:
         return json.loads(manifest.read_text(encoding="utf-8")).get("name")
     except Exception:
         return None
+
+
+def _installable(directory: Path) -> bool:
+    """
+    Se o pacote pode ser instalado e construído: sem `package.json` vale
+    o diretório, mas um `package.json` que não é JSON (o modelo de um
+    gerador, com `"name": "<%= name %>"`) o npm recusa
+    (https://docs.npmjs.com/cli/configuring-npm/package-json). É molde
+    de micro frontend, não um.
+    """
+
+    import json
+
+    manifest = directory / "package.json"
+
+    if not manifest.is_file():
+        return True
+
+    try:
+        json.loads(manifest.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+
+    return True

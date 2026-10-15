@@ -81,6 +81,58 @@ def _tag(opening: Node | None) -> str | None:
 
     return name.text.decode("utf-8", "replace") if name is not None else None
 
+#: Módulos nativos do Node (`module.builtinModules`) que não existem no
+#: navegador: o webpack 5 e o Vite não os embutem no pacote do cliente.
+#: Ficam de fora os que têm pacote de mesmo nome para o navegador
+#: (`events`, `buffer`, `util`, `url`, `process`, `assert`...), que o
+#: código do cliente importa de verdade.
+NODE_ONLY_MODULES = frozenset({
+    "child_process", "cluster", "dgram", "diagnostics_channel", "dns", "dns/promises",
+    "fs", "fs/promises", "http", "http2", "https", "inspector", "module", "net", "os",
+    "path", "path/posix", "path/win32", "perf_hooks", "readline", "readline/promises",
+    "repl", "tls", "trace_events", "tty", "v8", "vm", "wasi", "worker_threads",
+})
+
+
+def _callee(node: Node, source: bytes) -> str | None:
+
+    function = node.child_by_field_name("function")
+
+    return AstReader.text(function, source) if function is not None else None
+
+
+def _runs_on_node(root: Node, source: bytes) -> bool:
+    """
+    Se o módulo roda no Node, e não no navegador: importa um módulo
+    nativo que só existe lá (`import fs from "fs"`, `require("node:path")`).
+
+    É o servidor que entrega o pacote, não o micro frontend: o
+    `app.get("/")` do Express declara a rota que ele atende.
+    """
+
+    for node in AstReader.walk(root):
+
+        if node.type == "import_statement":
+            specifier = node.child_by_field_name("source")
+
+        elif node.type == "call_expression" and _callee(node, source) == "require":
+            arguments = node.child_by_field_name("arguments")
+            specifier = arguments.named_children[0] if arguments is not None and arguments.named_children else None
+
+        else:
+            continue
+
+        if specifier is None or specifier.type != "string":
+            continue
+
+        name = AstReader.strip_quotes(AstReader.text(specifier, source))
+
+        if name.startswith("node:") or name in NODE_ONLY_MODULES:
+            return True
+
+    return False
+
+
 #: Chamadas que recebem URL sem navegar.
 NOT_NAVIGATION_CALLS = frozenset({"fetch"})
 
@@ -106,6 +158,17 @@ ROUTER_COMPONENTS = frozenset(
 #: Fábricas de roteador de dados, com `basename` nas opções.
 ROUTER_FACTORIES = frozenset({"createBrowserRouter", "createHashRouter", "createMemoryRouter"})
 
+#: Funções que COMPARAM um padrão com a URL atual, sem ir a ela:
+#: `useMatch`, `matchPath` e `matchRoutes` do React Router v6
+#: (https://reactrouter.com/en/main/hooks/use-match), `useRouteMatch` do
+#: v5, e `pathToActiveWhen` do single-spa
+#: (https://single-spa.js.org/docs/api#pathtoactivewhen).
+MATCHERS = {
+    "react-router": frozenset({"useMatch", "matchPath", "matchRoutes", "useRouteMatch"}),
+    "react-router-dom": frozenset({"useMatch", "matchPath", "matchRoutes", "useRouteMatch"}),
+    "single-spa": frozenset({"pathToActiveWhen"}),
+}
+
 #: Ganchos que devolvem quem navega pelo roteador: a função do v6 e
 #: o histórico do v5.
 ROUTER_HOOKS = {"useNavigate": None, "useHistory": ("push", "replace")}
@@ -117,10 +180,16 @@ class NavigationExtractor:
         self,
         context: ScanContext,
         microfrontends: list[MicroFrontend],
+        requests: set[tuple[str, int]] | None = None,
     ):
         self.context = context
 
         self.microfrontends = microfrontends
+
+        #: (arquivo, início) das chamadas que são requisição HTTP: o
+        #: argumento delas é recurso a buscar, não destino, mesmo que o
+        #: caminho coincida com a rota de outra aplicação.
+        self.requests = requests or set()
 
         self.ownership = Ownership(context.repository, microfrontends)
 
@@ -177,8 +246,9 @@ class NavigationExtractor:
 
         origin = self.ownership.of_file(file_path)
 
-        # Código fora de qualquer unidade não navega de ninguém.
-        if not origin:
+        # Código fora de qualquer unidade não navega de ninguém, e o
+        # que roda no servidor não navega no navegador.
+        if not origin or _runs_on_node(root, source):
             return []
 
         relative = self.context.relative(file_path)
@@ -187,7 +257,12 @@ class NavigationExtractor:
 
         routed = self._router_targets(root, source)
 
+        matchers = self._matcher_names(root, source)
+
         for node in self._candidates(root):
+
+            if self._is_request_argument(relative, node) or self._is_matcher_argument(node, source, matchers):
+                continue
 
             value = self.evaluator.evaluate(node, source)
 
@@ -225,6 +300,35 @@ class NavigationExtractor:
             )
 
         return found
+
+    @staticmethod
+    def _matcher_names(root: Node, source: bytes) -> set[str]:
+        """Os nomes locais das funções de `MATCHERS` importadas no módulo."""
+
+        return {
+            record.local_name
+            for record in ImportTable.records(root, source)
+            if record.imported_name in MATCHERS.get(record.module, ())
+        }
+
+    @staticmethod
+    def _is_matcher_argument(node: Node, source: bytes, matchers: set[str]) -> bool:
+
+        arguments = node.parent
+
+        if not matchers or arguments is None or arguments.type != "arguments" or arguments.parent is None:
+            return False
+
+        return _callee(arguments.parent, source) in matchers
+
+    def _is_request_argument(self, relative: str, node: Node) -> bool:
+
+        arguments = node.parent
+
+        if arguments is None or arguments.type != "arguments" or arguments.parent is None:
+            return False
+
+        return (relative, arguments.parent.start_byte) in self.requests
 
     # ------------------------------------------------------------------
     # A base do roteador de cada unidade

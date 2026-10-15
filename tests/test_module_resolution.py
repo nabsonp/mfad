@@ -61,7 +61,7 @@ def test_paths_without_base_url_are_relative_to_the_config(tmp_path):
     ).resolve()
 
 
-TSCONFIG = '{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"], "@org/tracking": ["../checkout/src/track.ts"] } } }'
+TSCONFIG = '{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"], "tracking": ["../checkout/src/track.ts"] } } }'
 
 
 def test_aliased_imports_are_followed_inside_the_unit(system):
@@ -102,9 +102,9 @@ def test_aliased_imports_are_followed_inside_the_unit(system):
 
     [telemetry] = [call for call in architecture.api_calls if call.path == "/telemetry"]
 
-    assert telemetry.microfrontend == "@org/checkout"
+    assert telemetry.microfrontend == "checkout"
     assert "Orders" not in telemetry.screens
 
-    [screen] = architecture.microfrontend("@org/catalog").screens
+    [screen] = architecture.microfrontend("catalog").screens
 
     assert screen.file == "catalog/src/pages/Orders.tsx"

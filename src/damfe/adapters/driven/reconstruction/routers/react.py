@@ -52,6 +52,13 @@ _RENDER = "render"  # v5: função que devolve o elemento
 _OBJECT_TARGETS = ("element", "Component", "lazy")
 
 
+#: Elementos que, renderizados por uma rota, mandam para outra: o
+#: `<Redirect>` do v5 (https://v5.reactrouter.com/web/api/Redirect) e o
+#: `<Navigate>` do v6 (https://reactrouter.com/6.30.0/components/navigate).
+#: A rota que só redireciona não mostra tela nenhuma.
+_REDIRECTS = frozenset({"Redirect", "Navigate"})
+
+
 @dataclass
 class RouteEntry:
     """Um par caminho → componente, ainda sem dono nem arquivo."""
@@ -120,7 +127,7 @@ class ReactRouteReader:
             or self._child_component(element, source)
         )
 
-        if not component:
+        if not component or component in _REDIRECTS:
             return None
 
         expression = attributes.get("path", "")
@@ -307,7 +314,7 @@ class ReactRouteReader:
 
             component, specifier = self._object_target(fields, source)
 
-            if component and any(key in fields for key in _OBJECT_TARGETS):
+            if component and component not in _REDIRECTS and any(key in fields for key in _OBJECT_TARGETS):
                 found.append(
                     RouteEntry(
                         component=component,

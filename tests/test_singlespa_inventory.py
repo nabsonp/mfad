@@ -17,8 +17,8 @@ def test_registered_applications_get_their_routes(system):
         prefix="@org/",
     )
 
-    assert by_id(architecture, "@org/catalog").routes == ["/catalog"]
-    assert by_id(architecture, "@org/checkout").routes == ["/checkout"]
+    assert by_id(architecture, "catalog").routes == ["/catalog"]
+    assert by_id(architecture, "checkout").routes == ["/checkout"]
 
 
 def test_root_component_named_with_dotted_suffix_is_the_screen(system):
@@ -32,7 +32,7 @@ def test_root_component_named_with_dotted_suffix_is_the_screen(system):
         prefix="@org/",
     )
 
-    screens = by_id(architecture, "@org/catalog").screens
+    screens = by_id(architecture, "catalog").screens
 
     assert [screen.file for screen in screens] == ["catalog/src/root.component.js"]
 
@@ -79,11 +79,11 @@ def test_units_nested_in_a_monorepo_folder_own_their_code(system):
     )
 
     assert [(item.source, item.target) for item in architecture.navigations] == [
-        ("@org/catalog", "@org/checkout")
+        ("catalog", "checkout")
     ]
     assert sorted(item.microfrontend for item in architecture.state_accesses) == [
-        "@org/catalog",
-        "@org/checkout",
+        "catalog",
+        "checkout",
     ]
     # Código fora de qualquer unidade não vira consumidor fantasma.
     assert architecture.api_calls == []

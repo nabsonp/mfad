@@ -154,7 +154,7 @@ def test_v5_routes_become_screens_of_the_unit(system):
         prefix="@org/",
     )
 
-    screens = sorted((screen.component, screen.route, screen.file) for screen in by_id(architecture, "@org/property").screens)
+    screens = sorted((screen.component, screen.route, screen.file) for screen in by_id(architecture, "property").screens)
 
     assert screens == [
         ("NewProperty", "/property/new", "property/src/views/new-property.js"),

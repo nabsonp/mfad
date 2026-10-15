@@ -58,9 +58,9 @@ def test_function_that_forwards_the_url_is_a_client(system):
     )
 
     assert calls_of(architecture) == [
-        ("@org/catalog", "GET", "/accounts", "fetch"),
+        ("catalog", "GET", "/accounts", "fetch"),
         # O verbo vem das opções que quem chama passou e a função repassou.
-        ("@org/checkout", "POST", "/accounts", "fetch"),
+        ("checkout", "POST", "/accounts", "fetch"),
     ]
 
     [found] = HammeringApis().check(architecture)
@@ -102,8 +102,8 @@ def test_wrappers_are_followed_in_layers_and_through_local_values(system):
     )
 
     assert calls_of(architecture) == [
-        ("@org/catalog", "DELETE", "/statement/42", "fetch"),
-        ("@org/catalog", "GET", "/account/{param}/statement", "fetch"),
+        ("catalog", "DELETE", "/statement/42", "fetch"),
+        ("catalog", "GET", "/account/{param}/statement", "fetch"),
     ]
 
 
@@ -140,8 +140,8 @@ def test_wrapper_members_of_a_default_export_and_of_a_namespace(system):
     )
 
     assert calls_of(architecture) == [
-        ("@org/catalog", "GET", "/gigs", "fetch"),
-        ("@org/catalog", "POST", "/gigs/apply", "fetch"),
+        ("catalog", "GET", "/gigs", "fetch"),
+        ("catalog", "POST", "/gigs/apply", "fetch"),
     ]
 
 
@@ -166,7 +166,7 @@ def test_client_instance_created_in_another_module(system):
         prefix="@org/",
     )
 
-    assert calls_of(architecture) == [("@org/catalog", "GET", "/members/{param}", "axios")]
+    assert calls_of(architecture) == [("catalog", "GET", "/members/{param}", "axios")]
 
 
 def test_prefix_that_is_already_a_path_stays_a_call_of_its_own(system):
@@ -186,7 +186,7 @@ def test_prefix_that_is_already_a_path_stays_a_call_of_its_own(system):
         prefix="@org/",
     )
 
-    assert calls_of(architecture) == [("@org/catalog", "GET", "/api/{param}", "fetch")]
+    assert calls_of(architecture) == [("catalog", "GET", "/api/{param}", "fetch")]
 
 
 def test_angular_http_client_injected_by_type(system):
@@ -318,4 +318,4 @@ def test_call_in_a_function_nobody_calls_is_not_counted(system):
         prefix="@org/",
     )
 
-    assert calls_of(architecture) == [("@org/catalog", "GET", "/accounts", "fetch")]
+    assert calls_of(architecture) == [("catalog", "GET", "/accounts", "fetch")]

@@ -25,9 +25,7 @@ from damfe.adapters.driven.reconstruction.singlespa import discovery
 from damfe.adapters.driven.reconstruction.singlespa.compositions import (
     CompositionExtractor,
 )
-from damfe.adapters.driven.reconstruction.singlespa.api_calls import (
-    ApiCallExtractor,
-)
+from damfe.adapters.driven.reconstruction.singlespa import api_calls
 from damfe.adapters.driven.reconstruction.singlespa.communications import (
     CommunicationExtractor,
 )
@@ -160,9 +158,12 @@ class SingleSpaReconstructor(Reconstructor):
         microfrontends: list[MicroFrontend],
     ) -> list[Navigation]:
 
+        context = self._context(repository)
+
         return NavigationExtractor(
-            self._context(repository),
+            context,
             microfrontends,
+            requests=api_calls.extracted(context, microfrontends)[1],
         ).extract()
 
     def state_accesses(
@@ -182,10 +183,7 @@ class SingleSpaReconstructor(Reconstructor):
         microfrontends: list[MicroFrontend],
     ) -> list[ApiCall]:
 
-        return ApiCallExtractor(
-            self._context(repository),
-            microfrontends,
-        ).extract()
+        return api_calls.extracted(self._context(repository), microfrontends)[0]
 
     def communications(
         self,

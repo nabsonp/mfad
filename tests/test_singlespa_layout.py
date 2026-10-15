@@ -63,13 +63,13 @@ def test_layout_file_from_the_generator_gives_routes(system):
         prefix="@org/",
     )
 
-    assert by_id(architecture, "@org/catalog").routes == ["/catalog"]
+    assert by_id(architecture, "catalog").routes == ["/catalog"]
     # Rotas aninhadas concatenam.
-    assert by_id(architecture, "@org/orders").routes == ["/account/orders"]
+    assert by_id(architecture, "orders").routes == ["/account/orders"]
     # Fora de qualquer rota: sempre montada, dona de URL nenhuma.
-    assert by_id(architecture, "@org/navbar").routes == []
+    assert by_id(architecture, "navbar").routes == []
     # A rota padrão não é dona de prefixo nenhum.
-    assert by_id(architecture, "@org/not-found").routes == []
+    assert by_id(architecture, "not-found").routes == []
 
 
 def test_the_package_declaring_the_layout_is_the_shell(system):
@@ -82,10 +82,10 @@ def test_the_package_declaring_the_layout_is_the_shell(system):
         prefix="@org/",
     )
 
-    shell = by_id(architecture, "@org/root-config")
+    shell = by_id(architecture, "root-config")
 
     assert shell.role == "shell"
-    assert "@org/catalog" in shell.mounts
+    assert "catalog" in shell.mounts
 
 
 def test_layout_inside_the_page_template(system):
@@ -113,7 +113,7 @@ def test_layout_inside_the_page_template(system):
         prefix="@org/",
     )
 
-    assert by_id(architecture, "@org/catalog").routes == ["/catalog"]
+    assert by_id(architecture, "catalog").routes == ["/catalog"]
 
 
 def test_layout_name_matches_the_package_without_its_scope(system):
@@ -125,7 +125,7 @@ def test_layout_name_matches_the_package_without_its_scope(system):
     architecture = system({**LAYOUT_ROOT, **unscoped})
 
     assert by_id(architecture, "catalog").routes == ["/catalog"]
-    assert "catalog" in by_id(architecture, "@org/root-config").mounts
+    assert "catalog" in by_id(architecture, "root-config").mounts
 
 
 ANGULAR_ENTRY = """

@@ -55,7 +55,7 @@ def test_links_under_the_router_basename_stay_in_the_unit(system):
     )
 
     # O `<a href>` não passa pelo roteador: `/blog` é absoluto.
-    assert pairs(architecture) == [("@org/shop", "@org/blog", "/blog")]
+    assert pairs(architecture) == [("shop", "blog", "/blog")]
 
 
 def test_data_router_basename_and_the_v5_history(system):
@@ -101,4 +101,4 @@ def test_without_basename_the_link_leaves_the_unit(system):
         prefix="@org/",
     )
 
-    assert pairs(architecture) == [("@org/shop", "@org/home", "/")]
+    assert pairs(architecture) == [("shop", "home", "/")]

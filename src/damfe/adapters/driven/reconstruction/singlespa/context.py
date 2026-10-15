@@ -92,6 +92,14 @@ class ScanContext:
 
     _symbols: SymbolIndex | None = field(default=None, repr=False)
 
+    #: chamadas HTTP já extraídas, por conjunto de unidades: a
+    #: navegação também precisa delas (`api_calls.requests_of`)
+    _api: dict = field(default_factory=dict, repr=False)
+
+    #: arquivo de rotas do Angular → prefixos sob os quais um
+    #: `loadChildren` o monta (`routers.angular`)
+    _angular_mounts: dict | None = field(default=None, repr=False)
+
     @classmethod
     def build(cls, repository: Path) -> "ScanContext":
 

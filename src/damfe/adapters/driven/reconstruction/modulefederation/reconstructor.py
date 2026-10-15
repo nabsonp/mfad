@@ -34,9 +34,7 @@ from damfe.adapters.driven.reconstruction.singlespa.navigations import (
 from damfe.adapters.driven.reconstruction.singlespa.global_state import (
     GlobalStateExtractor,
 )
-from damfe.adapters.driven.reconstruction.singlespa.api_calls import (
-    ApiCallExtractor,
-)
+from damfe.adapters.driven.reconstruction.singlespa import api_calls
 from damfe.adapters.driven.reconstruction.singlespa.communications import (
     CommunicationExtractor,
 )
@@ -124,9 +122,12 @@ class ModuleFederationReconstructor(Reconstructor):
         microfrontends: list[MicroFrontend],
     ) -> list[Navigation]:
 
+        context = self._context(repository)
+
         return NavigationExtractor(
-            self._context(repository),
+            context,
             microfrontends,
+            requests=api_calls.extracted(context, microfrontends)[1],
         ).extract()
 
     def state_accesses(
@@ -146,10 +147,7 @@ class ModuleFederationReconstructor(Reconstructor):
         microfrontends: list[MicroFrontend],
     ) -> list[ApiCall]:
 
-        return ApiCallExtractor(
-            self._context(repository),
-            microfrontends,
-        ).extract()
+        return api_calls.extracted(self._context(repository), microfrontends)[0]
 
     def communications(
         self,
