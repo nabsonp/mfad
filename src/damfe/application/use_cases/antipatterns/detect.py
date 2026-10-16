@@ -43,11 +43,14 @@ class DetectUseCase(UseCase[DetectionResult]):
                 else ArtifactsNotFound(self.source)
             )
 
-        detections = [
-            detection
-            for rule in self.rules
-            for detection in rule.check(architecture)
-        ]
+        detections = []
+
+        for rule in self.rules:
+            for detection in rule.check(architecture):
+                # A ocorrência leva a referência do catálogo: quem a lê
+                # sem conhecer o anti-padrão tem onde consultar a definição.
+                detection.reference = detection.reference or rule.anti_pattern.reference
+                detections.append(detection)
 
         # Sem severidade, a ordem é a estável: regra e mensagem.
         detections.sort(key=lambda item: (item.anti_pattern, item.message))

@@ -621,3 +621,34 @@ def test_endpoint_count_is_method_and_path():
     [metric] = re.findall(r'data-page="api_calls"[^>]*><strong>(\d+)</strong>', page)
 
     assert metric == "2"
+
+
+def test_each_detection_links_to_its_definition_in_the_catalog(tmp_path):
+    """
+    Quem avalia a ocorrência sem conhecer o anti-padrão consulta a
+    definição: a detecção leva a referência do catálogo, e a página a
+    mostra como link no detalhe da linha.
+    """
+
+    from damfe.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
+    from damfe.application.use_cases.antipatterns.detect import DetectUseCase
+    from damfe.adapters.driven.storage.json_repository import JsonArtifactRepository
+
+    rule = GlobalStateCommunication()
+
+    result = DetectUseCase(
+        source=tmp_path,
+        destination=tmp_path,
+        rules=[rule],
+        repository=JsonArtifactRepository(),
+        architecture=architecture(),
+    ).execute()
+
+    [found] = result.detections
+
+    assert found.reference == rule.anti_pattern.reference
+    assert found.reference.startswith("https://mfe-anti-patterns.online/")
+
+    page = HtmlRenderer().render(architecture(), result.detections)
+
+    assert f'href="{found.reference}"' in page

@@ -399,6 +399,15 @@ class HtmlRenderer(Renderer):
             if len(subjects) > 3 and not metadata.get("path"):
                 fields.insert(0, (mark("detection.subjects"), tables.names(subjects), True))
 
+            # A definição do anti-padrão, para quem o avalia sem conhecê-lo.
+            if item.get("reference"):
+                fields.insert(0, (
+                    mark("detection.catalog"),
+                    f'<a href="{html.escape(item["reference"], quote=True)}" target="_blank" rel="noopener">'
+                    + mark("detection.catalog_link")
+                    + "</a>",
+                ))
+
             if evidence:
                 # O porquê antes da lista: com dezenas de rotas ou de
                 # fatias, depois dela ficava longe demais.

@@ -85,6 +85,8 @@
 
   "detection.evidence": {"pt": "Evidência", "en": "Evidence"},
   "detection.why": {"pt": "Por que foi detectado", "en": "Why it was detected"},
+  "detection.catalog": {"pt": "Referência", "en": "Reference"},
+  "detection.catalog_link": {"pt": "Catalog of Micro Frontends Anti-patterns ↗", "en": "Catalog of Micro Frontends Anti-patterns ↗"},
   "detection.code": {"pt": "Código", "en": "Code"},
   "detection.focus": {"pt": "Ver no grafo →", "en": "Show in graph →"},
   "detection.more": {"pt": "e mais {n}…", "en": "and {n} more…"},

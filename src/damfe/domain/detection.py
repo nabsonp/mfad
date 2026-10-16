@@ -64,3 +64,7 @@ class AntiPatternDetection:
     subjects: list[str] = field(default_factory=list)
     locations: list[SourceLocation] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
+
+    #: onde o anti-padrão está descrito no catálogo: a definição para
+    #: quem avalia a ocorrência sem conhecê-lo
+    reference: str = ""
