@@ -7,9 +7,9 @@ os testes olham o que vai para a página, não pixels.
 
 import re
 
-from damfe.adapters.driven.visualization import layout, payload, views
-from damfe.adapters.driven.visualization.html import HtmlRenderer
-from damfe.domain import (
+from mfad.adapters.driven.visualization import layout, payload, views
+from mfad.adapters.driven.visualization.html import HtmlRenderer
+from mfad.domain import (
     Communication,
     Composition,
     Fragment,
@@ -242,7 +242,7 @@ def test_legend_says_what_the_arrow_means():
 def test_every_text_has_both_languages_with_the_same_slots():
     """Uma tradução que esquece `{n}` mostraria a frase sem o número."""
 
-    from damfe.adapters.driven import i18n
+    from mfad.adapters.driven import i18n
 
     for key, entry in i18n.texts().items():
 
@@ -259,7 +259,7 @@ def test_every_text_has_both_languages_with_the_same_slots():
 
 def test_every_marked_text_on_the_page_exists():
 
-    from damfe.adapters.driven import i18n
+    from mfad.adapters.driven import i18n
 
     page = HtmlRenderer().render(architecture(), [])
 
@@ -273,14 +273,14 @@ def test_page_title_is_the_architecture_name():
 
     page = HtmlRenderer().render(architecture(), [])
 
-    assert "<title>loja - DAMFE</title>" in page
+    assert "<title>loja - MFAD</title>" in page
 
 
 def test_detection_text_is_kept_as_a_reference_for_the_page():
     """A regra grava a frase em português e a referência, que a página traduz."""
 
-    from damfe.adapters.driven import i18n
-    from damfe.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
+    from mfad.adapters.driven import i18n
+    from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
 
     [found] = GlobalStateCommunication().check(architecture())
 
@@ -373,7 +373,7 @@ def test_fragment_rows_show_who_mounts_them_and_on_which_screens():
 def test_external_call_detail_says_where_it_is_called_from():
     """Além do micro frontend: a tela ou o fragmento, e o arquivo."""
 
-    from damfe.domain import ApiCall
+    from mfad.domain import ApiCall
 
     system = architecture()
 
@@ -410,7 +410,7 @@ def test_locations_are_grouped_by_micro_frontend_without_its_directory():
         StateAccess(microfrontend="cart", library="localStorage", path="token", at=at("cart/b.js", 4), access="write"),
     ]
 
-    from damfe.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
+    from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
 
     page = HtmlRenderer().render(system, GlobalStateCommunication().check(system))
 
@@ -440,7 +440,7 @@ def test_locations_in_the_same_file_are_one_line():
 def test_detections_are_rows_with_one_field_per_fact():
     """A frase cheia de números vira campos; a dimensão não aparece."""
 
-    from damfe.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
+    from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
 
     system = architecture()
 
@@ -467,8 +467,8 @@ def test_detections_are_rows_with_one_field_per_fact():
 def test_route_detections_of_one_anti_pattern_are_one_row_with_a_block_per_route():
     """Uma linha para o hammering, com um bloco que abre por rota."""
 
-    from damfe.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
-    from damfe.domain import ApiCall
+    from mfad.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
+    from mfad.domain import ApiCall
 
     system = architecture()
 
@@ -507,7 +507,7 @@ def test_route_detections_of_one_anti_pattern_are_one_row_with_a_block_per_route
 def test_same_label_in_one_file_is_shown_once_with_its_lines():
     """Três chamadas iguais no mesmo arquivo: a etiqueta uma vez, as três linhas juntas."""
 
-    from damfe.adapters.driven.visualization import tables
+    from mfad.adapters.driven.visualization import tables
 
     rendered = tables.grouped(
         [
@@ -526,7 +526,7 @@ def test_same_label_in_one_file_is_shown_once_with_its_lines():
 def test_detection_without_locations_has_no_code_field():
     """Nano e mega não apontam linha: o campo de código não aparece vazio."""
 
-    from damfe.domain import AntiPatternDetection
+    from mfad.domain import AntiPatternDetection
 
     found = AntiPatternDetection(
         anti_pattern="mega-frontend", dimension="", explanation="", message="grande",
@@ -590,8 +590,8 @@ def test_table_rows_carry_keys_for_the_sidebar_links():
 def test_each_anti_pattern_is_a_tag_with_its_own_color():
     """Na tabela de detecções, o nome é uma etiqueta colorida, uma cor por anti-padrão."""
 
-    from damfe.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
-    from damfe.adapters.driven.visualization import tables
+    from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
+    from mfad.adapters.driven.visualization import tables
 
     system = architecture()
 
@@ -607,7 +607,7 @@ def test_each_anti_pattern_is_a_tag_with_its_own_color():
 def test_endpoint_count_is_method_and_path():
     """GET e POST no mesmo caminho são dois endpoints; duas chamadas iguais, um."""
 
-    from damfe.domain import ApiCall
+    from mfad.domain import ApiCall
 
     system = architecture()
 
@@ -630,9 +630,9 @@ def test_each_detection_links_to_its_definition_in_the_catalog(tmp_path):
     mostra como link no detalhe da linha.
     """
 
-    from damfe.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
-    from damfe.application.use_cases.antipatterns.detect import DetectUseCase
-    from damfe.adapters.driven.storage.json_repository import JsonArtifactRepository
+    from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
+    from mfad.application.use_cases.antipatterns.detect import DetectUseCase
+    from mfad.adapters.driven.storage.json_repository import JsonArtifactRepository
 
     rule = GlobalStateCommunication()
 

@@ -1,4 +1,4 @@
-# DAMFE — requirements
+# MFAD — requirements
 
 Two kinds of requirement, told in the form each one deserves.
 
@@ -244,7 +244,7 @@ A unit whose entrypoint did not resolve is left out of both criteria — an extr
 
 One per command. Each says who runs it, what they want and why, followed by what the command does today.
 
-### US-01 · `damfe analyze`
+### US-01 · `mfad analyze`
 
 > As an **analyst**, I want one command that takes a repository and gives me the report, so that I need not learn how the stages fit together.
 
@@ -254,7 +254,7 @@ The chaining it hides is real: `detect` reads what `reconstruct` wrote, and `vis
 
 **Done.**
 
-### US-02 · `damfe reconstruct`
+### US-02 · `mfad reconstruct`
 
 > As an **analyst**, I want to extract the artefacts and stop there, so that I can inspect the model or feed it to something other than the report.
 
@@ -262,7 +262,7 @@ Recognises the technology, extracts every collection and writes one JSON file pe
 
 **Done.**
 
-### US-03 · `damfe detect`
+### US-03 · `mfad detect`
 
 > As an **analyst**, I want to run the rules over artefacts I already have, so that I can change a threshold without reading the code again.
 
@@ -270,7 +270,7 @@ Reads the artefacts, applies every registered rule or those named with `--rule`,
 
 **Done.**
 
-### US-04 · `damfe visualize`
+### US-04 · `mfad visualize`
 
 > As an **analyst**, I want the report on its own, so that I can regenerate it after editing a declaration without redoing the extraction.
 
@@ -278,11 +278,11 @@ Writes `architecture.html` into the artefacts directory. `--detections` overlays
 
 **Done.**
 
-### US-07 · `damfe setup-communication`
+### US-07 · `mfad setup-communication`
 
 > As an **analyst**, I want a template of the declaration, so that I can fill it in by hand without learning the schema from documentation.
 
-Writes a commented template to `.damfe/` in the analysed repository — input to the analysis, not output, which is why it does not live among the artefacts and survives deleting them.
+Writes a commented template to `.mfad/` in the analysed repository — input to the analysis, not output, which is why it does not live among the artefacts and survives deleting them.
 
 **Done.**
 

@@ -6,8 +6,8 @@ import pytest
 
 from conftest import by_id, mfe, root_config
 
-from damfe.adapters.driven.reconstruction.ast import AstReader, RouteConstantTable
-from damfe.adapters.driven.reconstruction.routers import ReactRouteReader
+from mfad.adapters.driven.reconstruction.ast import AstReader, RouteConstantTable
+from mfad.adapters.driven.reconstruction.routers import ReactRouteReader
 
 
 @pytest.fixture

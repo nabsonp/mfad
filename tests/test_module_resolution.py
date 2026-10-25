@@ -9,7 +9,7 @@ segue o mesmo formato.
 
 from conftest import mfe, root_config, write
 
-from damfe.adapters.driven.reconstruction.ast import ModuleResolver
+from mfad.adapters.driven.reconstruction.ast import ModuleResolver
 
 
 def test_paths_with_comments_and_extends(tmp_path):

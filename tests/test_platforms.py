@@ -9,8 +9,8 @@ import pytest
 
 from conftest import mfe, package, reconstruct, root_config, write
 
-from damfe.application.errors import UnsupportedPlatform
-from damfe.composition import Container
+from mfad.application.errors import UnsupportedPlatform
+from mfad.composition import Container
 
 
 @pytest.mark.parametrize(

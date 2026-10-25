@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from damfe.composition import Container
-from damfe.domain import MicroFrontendArchitecture
+from mfad.composition import Container
+from mfad.domain import MicroFrontendArchitecture
 
 
 def write(root: Path, files: dict[str, str | dict]) -> Path:

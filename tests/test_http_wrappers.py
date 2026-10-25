@@ -10,7 +10,7 @@ também. Os exemplos seguem a documentação do `fetch`
 
 from conftest import angular_unit, mfe, root_config
 
-from damfe.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
+from mfad.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
 
 
 ROOT = root_config({"@org/catalog": "/catalog", "@org/checkout": "/checkout"})

@@ -5,14 +5,14 @@ A detecção só lê artefatos, então os casos são escritos direto no
 modelo: o teste prova a regra sem depender de extrator nenhum.
 """
 
-from damfe.adapters.driven.antipatterns.rules.cyclic_dependency import CyclicDependency
-from damfe.adapters.driven.antipatterns.rules.global_state_communication import (
+from mfad.adapters.driven.antipatterns.rules.cyclic_dependency import CyclicDependency
+from mfad.adapters.driven.antipatterns.rules.global_state_communication import (
     GlobalStateCommunication,
 )
-from damfe.adapters.driven.antipatterns.rules.hub_like_dependency import HubLikeDependency
-from damfe.adapters.driven.antipatterns.rules.nano_frontend import NanoFrontend
-from damfe.adapters.driven.antipatterns.rules.one_for_all import OneForAll
-from damfe.domain import (
+from mfad.adapters.driven.antipatterns.rules.hub_like_dependency import HubLikeDependency
+from mfad.adapters.driven.antipatterns.rules.nano_frontend import NanoFrontend
+from mfad.adapters.driven.antipatterns.rules.one_for_all import OneForAll
+from mfad.domain import (
     CodeSize,
     Communication,
     Composition,

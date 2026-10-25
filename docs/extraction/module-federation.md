@@ -2,7 +2,7 @@
 
 What the Module Federation reconstructor reads from source, and under which conditions. Each rule as *given / when / then*.
 
-Written from the implementation in `src/damfe/adapters/driven/reconstruction/modulefederation/`, and checked against a real system: [diego-coronado/microfrontend-healthcare-system](https://github.com/diego-coronado/diego-coronado-microfrontend-healthcare-system), seven Vite units.
+Written from the implementation in `src/mfad/adapters/driven/reconstruction/modulefederation/`, and checked against a real system: [diego-coronado/microfrontend-healthcare-system](https://github.com/diego-coronado/diego-coronado-microfrontend-healthcare-system), seven Vite units.
 
 No rule executes the analysed code, reaches the network, or consults a language model.
 
@@ -12,7 +12,7 @@ No rule executes the analysed code, reaches the network, or consults a language 
 
 | input | what it is | example |
 |---|---|---|
-| **repository** | the directory handed to `damfe reconstruct`, minus generated trees | `healthcare-system/` |
+| **repository** | the directory handed to `mfad reconstruct`, minus generated trees | `healthcare-system/` |
 | **federation config** | a source file whose name starts with `webpack.config`, `vite.config`, `rspack.config`, `module-federation.config`, `federation.config` or `next.config` | `pharmacy/vite.config.ts` |
 | **federation declaration** | the object given to the federation builder, read into `name`, `exposes`, `remotes` and `shared` | `{ name: "hs-pharmacy", exposes: { "./Pharmacy": "./src/pages/Pharmacy.tsx" } }` |
 | **unit directory** | the directory whose `package.json` contains the config | `pharmacy/` |

@@ -170,7 +170,11 @@ def test_angular_storage_service_injected_by_type(system):
 
 
 def test_methods_named_like_storage_are_not_storage(system):
-    """`cache.getItem(key)` de uma classe qualquer, e chave de runtime."""
+    """
+    `cache.getItem(key)` de uma classe qualquer não é armazenamento. A
+    chave de runtime repassada à embrulhadora é: o trecho variável vira
+    `{param}`, como nas URLs.
+    """
 
     architecture = system(
         {
@@ -196,7 +200,9 @@ def test_methods_named_like_storage_are_not_storage(system):
         prefix="@org/",
     )
 
-    assert accesses(architecture) == []
+    assert accesses(architecture) == [
+        ("catalog", "localStorage", "cart_{param}", "write", "catalog/src/root.component.js"),
+    ]
 
 
 def test_storage_access_in_a_function_nobody_calls_is_not_counted(system):

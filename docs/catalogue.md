@@ -2,7 +2,7 @@
 
 Triagem dos 27 anti-padrões do [catálogo de anti-padrões de micro
 frontends](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/)
-(ICOMP/UFAM) contra o que o DAMFE consegue observar por análise estática,
+(ICOMP/UFAM) contra o que o MFAD consegue observar por análise estática,
 com a especificação de entrada, detecção e saída de cada um.
 
 | faixa | significado | quantidade |

@@ -1,4 +1,4 @@
-# DAMFE
+# MFAD
 
 Análise estática de arquiteturas micro frontend. Extrai do código-fonte
 os artefatos que descrevem a arquitetura, detecta anti-padrões sobre eles
@@ -17,17 +17,17 @@ código analisado. Ver [docs/architecture.md](docs/architecture.md).
 ## Instalação
 
 ```bash
-cd damfe
+cd mfad
 pipx install -e .
 ```
 
 O `-e` deixa a instalação editável: mudanças no código valem na hora. O
-comando `damfe` fica disponível globalmente.
+comando `mfad` fica disponível globalmente.
 
 ### Testes
 
 ```bash
-cd damfe
+cd mfad
 python -m venv .venv && .venv/bin/pip install -e ".[test]"
 .venv/bin/python -m pytest
 ```
@@ -40,22 +40,22 @@ o teste prova a regra, não a forma de um projeto.
 ## Uso em cinco minutos
 
 ```bash
-damfe analyze /caminho/do/repo --prefix @sua-org/
+mfad analyze /caminho/do/repo --prefix @sua-org/
 ```
 
 Reconstrói, detecta e visualiza numa passada, gravando em `artifacts/`.
 Os três passos também existem em separado, para quem precisa deles:
 
 ```bash
-damfe reconstruct /caminho/do/repo --prefix @sua-org/ --out artifacts
-damfe detect artifacts --out artifacts
-damfe visualize artifacts --detections artifacts
+mfad reconstruct /caminho/do/repo --prefix @sua-org/ --out artifacts
+mfad detect artifacts --out artifacts
+mfad visualize artifacts --detections artifacts
 ```
 
 Para depurar um extrator, `--only` recorta uma coleção:
 
 ```bash
-damfe reconstruct /caminho/do/repo --prefix @sua-org/ --only navigations
+mfad reconstruct /caminho/do/repo --prefix @sua-org/ --only navigations
 ```
 
 Saída típica:
@@ -87,7 +87,7 @@ modelo de artefatos, e por isso independem da tecnologia de origem.
 ### `reconstruct` — extrai todos os artefatos
 
 ```bash
-damfe reconstruct <repo> [--prefix PREFIX] [--framework FRAMEWORK] [--out DIR]
+mfad reconstruct <repo> [--prefix PREFIX] [--framework FRAMEWORK] [--out DIR]
 ```
 
 | opção | padrão | descrição |
@@ -101,12 +101,12 @@ damfe reconstruct <repo> [--prefix PREFIX] [--framework FRAMEWORK] [--out DIR]
 Cada etapa roda sozinha e imprime no terminal, sem gravar:
 
 ```bash
-damfe microfrontends <repo>     # inventário: rotas, telas, fragmentos, tamanho
-damfe compositions <repo>        # quem usa componente de quem
-damfe navigations <repo>        # quem leva o usuário para onde
-damfe api-calls <repo>          # quem chama qual serviço externo
-damfe global-state <repo>       # quem lê qual fatia do estado global
-damfe communications <repo>     # quem manda mensagem para quem
+mfad microfrontends <repo>     # inventário: rotas, telas, fragmentos, tamanho
+mfad compositions <repo>        # quem usa componente de quem
+mfad navigations <repo>        # quem leva o usuário para onde
+mfad api-calls <repo>          # quem chama qual serviço externo
+mfad global-state <repo>       # quem lê qual fatia do estado global
+mfad communications <repo>     # quem manda mensagem para quem
 ```
 
 Todas aceitam `--prefix` e `--framework`.
@@ -114,7 +114,7 @@ Todas aceitam `--prefix` e `--framework`.
 ### `detect` — aplica as regras
 
 ```bash
-damfe detect [artifacts] [--rule NOME] [--out DIR]
+mfad detect [artifacts] [--rule NOME] [--out DIR]
 ```
 
 | opção | padrão | descrição |
@@ -126,7 +126,7 @@ damfe detect [artifacts] [--rule NOME] [--out DIR]
 ### `visualize` — desenha
 
 ```bash
-damfe visualize [artifacts] [--format FORMATO] [--detections ARQUIVO] [--out ARQUIVO]
+mfad visualize [artifacts] [--format FORMATO] [--detections ARQUIVO] [--out ARQUIVO]
 ```
 
 | formato | saída |
@@ -169,13 +169,13 @@ direto numa tabela.
 
 A página tem um seletor PT/EN no cabeçalho. Todo texto dela — e as
 mensagens das detecções — vem de
-`src/damfe/adapters/driven/i18n/texts.json`, com cada chave nos dois
-idiomas lado a lado. O título é `<nome da arquitetura> - DAMFE`.
+`src/mfad/adapters/driven/i18n/texts.json`, com cada chave nos dois
+idiomas lado a lado. O título é `<nome da arquitetura> - MFAD`.
 
 ### `setup-communication`
 
 ```bash
-damfe setup-communication <repo>   # gera .damfe/communication.yml
+mfad setup-communication <repo>   # gera .mfad/communication.yml
 ```
 
 ---
@@ -204,7 +204,7 @@ resultado reproduzível:
 
 ```json
 {
-  "damfe": "1.0.0",
+  "mfad": "1.0.0",
   "tool_version": "0.1.0",
   "generated_at": "2026-10-03T14:22:10Z",
   "project": "mfe-hands-on",
@@ -223,14 +223,14 @@ resultado reproduzível:
 }
 ```
 
-`damfe` é a versão do **esquema** dos artefatos e sobe quando a forma
+`mfad` é a versão do **esquema** dos artefatos e sobe quando a forma
 dos arquivos quebra quem os lê; `tool_version` é a da **ferramenta**.
 São separadas porque corrigir um bug num extrator muda a segunda e não
 a primeira — e uma coleta longa precisa poder afirmar que todos os
 resultados seguem o mesmo esquema.
 
 `sources[]` lista os repositórios lidos, procurados até dois níveis
-abaixo da raiz — é como o `damfe setup` é usado, numa pasta com vários
+abaixo da raiz — é como o `mfad setup` é usado, numa pasta com vários
 clones. O `commit` é o que permite repetir a análise sobre exatamente o
 mesmo código; `dirty` avisa que havia alteração não commitada e que,
 portanto, o `commit` *não* identifica o que foi lido. Credencial
@@ -239,7 +239,7 @@ embutida na URL de origem é removida antes de gravar.
 Sem git instalado ou fora de um repositório, `sources` vem vazio e a
 análise segue normalmente.
 
-A saída é JSON e a entrada é YAML, de propósito: `.damfe/*.yml` é
+A saída é JSON e a entrada é YAML, de propósito: `.mfad/*.yml` é
 escrito à mão e ganha comentários; `artifacts/*.json` é gerado e
 consumido por máquina. O porquê está em
 [docs/decisions.md](docs/decisions.md), seção 9.
@@ -334,10 +334,10 @@ ferramenta — não é de ninguém e não gera aresta.
 
 ## Declarações por projeto
 
-Ficam em `.damfe/`, na raiz do repositório analisado — versionadas com
+Ficam em `.mfad/`, na raiz do repositório analisado — versionadas com
 ele, e imunes à limpeza da pasta de saída.
 
-### `.damfe/communication.yml`
+### `.mfad/communication.yml`
 
 Rotas e fragmentos são extraídos sem configuração porque a tecnologia
 padroniza esses contratos. Comunicação por mecanismo próprio não tem

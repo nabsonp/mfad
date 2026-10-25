@@ -1,4 +1,4 @@
-# Decisões de projeto do DAMFE
+# Decisões de projeto do MFAD
 
 Documento vivo. Uma entrada por decisão, com a razão. Decisão
 revertida fica registrada como revertida, não some.
@@ -85,13 +85,13 @@ analisado.** É o que torna o resultado reproduzível e auditável.
 
 **LLM confinado a etapas de autoria.** Ele ajuda a *escrever* um
 arquivo — mapa de domínios, spec de comunicação — que é revisado e
-versionado. O DAMFE lê o arquivo, não o modelo.
+versionado. O MFAD lê o arquivo, não o modelo.
 
 **Artefato gerado por LLM rejeitado como entrada.** Um `features.md`
-produzido por modelo não é artefato que o DAMFE gera, logo não pode
+produzido por modelo não é artefato que o MFAD gera, logo não pode
 fazer parte do caminho de análise.
 
-**Chave de API em `~/.config/damfe/`, nunca em `.damfe/`.** A segunda é
+**Chave de API em `~/.config/mfad/`, nunca em `.mfad/`.** A segunda é
 versionada junto com o projeto analisado. Arquivo criado com modo
 `0600`; a chave nunca é exibida por inteiro.
 
@@ -305,7 +305,7 @@ executar código gerado por modelo; trinta linhas de YAML são revisáveis
 de verdade, trezentas de extrator não são; e quem replica a pesquisa lê
 a spec.
 
-**A spec fica em `.damfe/`**, versionada com o projeto analisado, junto
+**A spec fica em `.mfad/`**, versionada com o projeto analisado, junto
 do `domains.yml`. Quem clona o repositório reconstrói sem refazer a
 entrevista.
 
@@ -323,7 +323,7 @@ própria chamada; `registerApplication(config)` com o objeto montado
 noutro lugar fica de fora. Começar pequeno: sem relato de cobertura,
 sem aviso. Se virar problema na prática, RF-25 trata.
 
-**Falta um detector de tecnologia.** Hoje o DAMFE pressupõe single-spa
+**Falta um detector de tecnologia.** Hoje o MFAD pressupõe single-spa
 em vez de descobrir. O registry de reconstrutores existe, mas ninguém
 escolhe entre eles.
 
@@ -554,7 +554,7 @@ detecção seguinte lia dado errado sem qualquer aviso.
 
 ## 9. Formato e versionamento dos artefatos
 
-**A saída continua em JSON; só a entrada é YAML.** `.damfe/*.yml`
+**A saída continua em JSON; só a entrada é YAML.** `.mfad/*.yml`
 (`communication.yml`, `domains.yml`) é escrito à mão e ganha
 comentários. `artifacts/*.json` é gerado e consumido por máquina.
 Converter a saída para YAML foi considerado e rejeitado por três
@@ -567,7 +567,7 @@ entre versões, enquanto emissor de YAML varia com versão da
 biblioteca, largura de linha e estilo de quoting — e a avaliação
 empírica precisa ser reproduzível. Ferramental: `jq` sobre os
 artefatos é o uso diário na análise. Legibilidade, o único argumento a
-favor, já é resolvida pelo `damfe visualize`.
+favor, já é resolvida pelo `mfad visualize`.
 
 **O `manifest.json` é um envelope versionado.** Era
 `{"project": "..."}`. Passou a carregar versão do esquema, versão da
@@ -575,7 +575,7 @@ ferramenta, instante de geração, extrator usado, a revisão de cada
 repositório lido e o índice de coleções com a contagem de cada uma.
 
 **Versão do esquema separada da versão da ferramenta.** A chave
-`damfe` é o esquema dos artefatos e sobe quando a forma dos arquivos
+`mfad` é o esquema dos artefatos e sobe quando a forma dos arquivos
 quebra quem os lê; `tool_version` é a da ferramenta. Separadas porque
 corrigir um bug num extrator muda a segunda e não a primeira, e uma
 coleta longa precisa poder afirmar que todos os resultados seguem o
@@ -597,7 +597,7 @@ publicaria a credencial, porque a saída é versionada. A sonda remove
 **A procedência vem de uma porta, `SourceProbe`.** Ler o estado do git
 é I/O e não pode morar no caso de uso. A implementação `GitSourceProbe`
 procura repositórios até dois níveis abaixo da raiz — é como o
-`damfe setup` é usado, numa pasta com vários clones — e para de descer
+`mfad setup` é usado, numa pasta com vários clones — e para de descer
 ao encontrar um. Nada ali falha a análise: sem git, a procedência fica
 mais pobre e o resto segue.
 
@@ -606,7 +606,7 @@ arquivo é detalhe de quem persiste. O domínio tem `Provenance` e
 `SourceRepository`; o `JsonArtifactRepository` é quem sabe que
 microfrontends vão em `microfrontends.json`.
 
-**Manifesto sem a chave `damfe` é aceito na leitura.** Artefato
+**Manifesto sem a chave `mfad` é aceito na leitura.** Artefato
 anterior ao esquema 1.0.0 carrega procedência vazia em vez de ser
 recusado — quem precisa da revisão exata checa o campo e encontra
 vazio.
@@ -614,7 +614,7 @@ vazio.
 **O Open Microfrontends foi avaliado como fonte de inspiração, não
 como fundamento.** É uma spec declarativa e prescritiva — o servidor
 declara à mão os MFEs que expõe, para que um host saiba carregá-los —
-enquanto o DAMFE descreve o que foi recuperado do código. Dela vieram
+enquanto o MFAD descreve o que foi recuperado do código. Dela vieram
 o envelope versionado e a ideia de esquema publicado. Dela *não* vem o
 modelo conceitual: ela não tem roteamento, não tem composição, não tem
 o conceito de tela e não declara aresta entre MFEs (as mensagens são
@@ -651,9 +651,9 @@ A variável acompanhou: `artifacts` virou `architecture` em todo lugar onde segu
 
 ## 12. A v0: sem IA e sem domínio
 
-**Nada de modelo de linguagem, em etapa nenhuma.** Saíram o `damfe setup` com a página web, o `damfe setup-llm`, o repositório de credenciais em `~/.config/damfe/` e os prompts de autoria. O determinismo deixa de ser uma propriedade defendida por convenção e passa a ser estrutural: não há caminho no código que chame um modelo.
+**Nada de modelo de linguagem, em etapa nenhuma.** Saíram o `mfad setup` com a página web, o `mfad setup-llm`, o repositório de credenciais em `~/.config/mfad/` e os prompts de autoria. O determinismo deixa de ser uma propriedade defendida por convenção e passa a ser estrutural: não há caminho no código que chame um modelo.
 
-**O domínio de negócio saiu inteiro.** Foram embora `Domain`, `DomainMap`, `DomainDeclaration`, o `.damfe/domains.yml`, o `domains.json` e a resolução que os cruzava com os artefatos. Era a única entrada que exigia conhecimento externo ao repositório, e sustentá-la custava uma etapa de autoria inteira.
+**O domínio de negócio saiu inteiro.** Foram embora `Domain`, `DomainMap`, `DomainDeclaration`, o `.mfad/domains.yml`, o `domains.json` e a resolução que os cruzava com os artefatos. Era a única entrada que exigia conhecimento externo ao repositório, e sustentá-la custava uma etapa de autoria inteira.
 
 **`access-to-different-domains` foi removida.** Era a única regra que dependia só do mapa e, sem ele, devolvia vazio. Restam sete das oito.
 
@@ -663,7 +663,7 @@ O mega exige telas **e** linhas acima do limiar, não qualquer uma: muitas telas
 
 **Efeito medido:** o nabstore passou de 3 para 4 ocorrências. A nova é `nano-frontend` no `monolito`, com 1 tela contra mediana de 3 — correta pela regra nova, e antes suprimida pelo modo por domínio.
 
-**O `.damfe/communication.yml` fica.** É declaração determinística, escrita e revisada à mão, e o `setup-communication` que gera o template não usa modelo nenhum.
+**O `.mfad/communication.yml` fica.** É declaração determinística, escrita e revisada à mão, e o `setup-communication` que gera o template não usa modelo nenhum.
 
 ---
 
@@ -680,6 +680,6 @@ O mega exige telas **e** linhas acima do limiar, não qualquer uma: muitas telas
 | — | esquema JSON publicado dos artefatos, para validação externa |
 | — | mover o leitor de React Router para `routers/`, unificando as duas cópias |
 | — | `loadChildren` do Angular: seguir a tabela de rotas do outro módulo |
-| — | `damfe export --format open-microfrontends` |
+| — | `mfad export --format open-microfrontends` |
 | — | calibrar `nano-frontend.floor` contra a base do estudo: em 5 ele acusa 9 das 10 unidades de referência |
 | — | `MIN_SAMPLE = 8` para a cerca de Tukey é convenção, não medida |

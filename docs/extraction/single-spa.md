@@ -2,7 +2,7 @@
 
 What the single-spa reconstructor reads from source, and under which conditions. Each rule as *given / when / then*.
 
-Written from the implementation in `src/damfe/adapters/driven/reconstruction/singlespa/`. It exists so you can check what the tool does without rereading the code, and so you can write a reconstructor for another technology from a known baseline.
+Written from the implementation in `src/mfad/adapters/driven/reconstruction/singlespa/`. It exists so you can check what the tool does without rereading the code, and so you can write a reconstructor for another technology from a known baseline.
 
 No rule executes the analysed code, reaches the network, or consults a language model.
 
@@ -14,7 +14,7 @@ Every rule below consumes one of these. They are produced in this order, each fr
 
 | input | what it is | example |
 |---|---|---|
-| **repository** | the directory handed to `damfe reconstruct`, minus `node_modules`, `dist`, `build` and other generated trees | `mfe-hands-on/` |
+| **repository** | the directory handed to `mfad reconstruct`, minus `node_modules`, `dist`, `build` and other generated trees | `mfe-hands-on/` |
 | **orchestrator file** | the source file containing calls to `registerApplication`. Found by scanning the repository; there is usually one | `root-config/src/nabstore-root-config.js` |
 | **registration** | one `registerApplication` call, read into `name`, `activeWhen`, the loader's `specifier`, the file it was declared in, how `activeWhen` was written, and the keys of `customProps` | `{ name: "@nabstore/mfe-users", activeWhen: ["/users"], specifier: "@nabstore/mfe-users" }` |
 | **entrypoint file** | the source file the registration's loader resolves to — the micro frontend's first module, the one exporting its lifecycles | `mfe-users/src/nabstore-mfe-users.js` |
@@ -22,7 +22,7 @@ Every rule below consumes one of these. They are produced in this order, each fr
 | **root component file** | the file holding the component passed as `rootComponent` to the single-spa adapter, resolved through the entrypoint's imports | `mfe-users/src/root.component.js` |
 | **fragment catalogue** | every fragment of every micro frontend, gathered before any consumption is looked for. Cross-micro-frontend, so it needs all of §1 and §2.1 done first | `{ "@nabstore/mfe-products": ["BestOffersFragment", …] }` |
 | **route table** | every micro frontend's `activeWhen`, sorted longest prefix first | `["/checkout", "/products", "/users", "/"]` |
-| **communication spec** | `.damfe/communication.yml` in the analysed repository, when it exists | — |
+| **communication spec** | `.mfad/communication.yml` in the analysed repository, when it exists | — |
 
 ---
 

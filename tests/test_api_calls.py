@@ -2,7 +2,7 @@
 
 from conftest import mfe, root_config
 
-from damfe.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
+from mfad.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
 
 
 ROOT = root_config({"@org/catalog": "/catalog", "@org/checkout": "/checkout"})
@@ -68,8 +68,11 @@ def test_unknown_base_is_never_a_navigation(system):
     assert architecture.navigations == []
 
 
-def test_storage_key_built_at_runtime_is_not_a_slice(system):
-    """`"cart_" + id` não diz qual fatia é; o começo não é a chave."""
+def test_storage_key_built_at_runtime_keeps_its_format(system):
+    """
+    `"cart_" + id` é a mesma fatia para todo id: a chave vira
+    `cart_{param}`. Sem nenhum texto conhecido, não há chave.
+    """
 
     architecture = system(
         {
@@ -77,6 +80,7 @@ def test_storage_key_built_at_runtime_is_not_a_slice(system):
             **mfe("catalog", "@org/catalog", """
                 export default function Root() {
                   localStorage.getItem("cart_" + userId);
+                  localStorage.getItem(key);
                   localStorage.getItem("theme");
                   return null;
                 }
@@ -85,7 +89,7 @@ def test_storage_key_built_at_runtime_is_not_a_slice(system):
         prefix="@org/",
     )
 
-    assert [access.path for access in architecture.state_accesses] == ["theme"]
+    assert [access.path for access in architecture.state_accesses] == ["cart_{param}", "theme"]
 
 
 def test_path_without_a_literal_segment_is_not_an_endpoint(system):
