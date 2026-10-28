@@ -1,11 +1,11 @@
-// Interação do relatório.
+// Report interaction.
 //
-// Os SVGs chegam prontos do gerador: posições, curvas e rótulos foram
-// calculados em Python, um desenho por visão, todos à vista no
-// dashboard. Este script só transforma o que já está na página —
-// destaca vizinhos em todos os grafos, ajusta o zoom de cada um e
-// preenche o painel a partir do JSON embutido. Sem ele a página
-// continua mostrando os grafos; perde a exploração, não o conteúdo.
+// The SVGs arrive ready from the generator: positions, curves and labels were
+// computed in Python, one drawing per view, all in view on the
+// dashboard. This script only transforms what is already on the page:
+// it highlights neighbors in every graph, adjusts the zoom of each one and
+// fills the panel from the embedded JSON. Without it the page
+// still shows the graphs; it loses the exploration, not the content.
 
 (function () {
   "use strict";
@@ -13,7 +13,7 @@
   var DATA = JSON.parse(document.getElementById("mfad-data").textContent);
 
   var stage = document.getElementById("stage");
-  // A barra lateral e o miolo dela, que cada `show…` preenche.
+  // The sidebar and its body, which each `show…` fills.
   var drawer = document.getElementById("side");
   var side = document.getElementById("side-body");
   var banner = document.getElementById("focus-banner");
@@ -42,26 +42,28 @@
     });
   });
 
-  // ------------------------------------------------------------ idioma
+  // ------------------------------------------------------------ language
   //
-  // Todo texto vem de `texts.json`, embutido na página. O HTML chega
-  // em português com cada texto marcado pela chave (`data-t`) e pelos
-  // valores (`data-a`); trocar de idioma refaz as frases a partir
-  // deles. O painel é montado aqui e usa as mesmas chaves.
+  // Every text comes from `texts.json`, embedded in the page. The HTML arrives
+  // in English with each text marked by its key (`data-t`) and its
+  // values (`data-a`); switching language rebuilds the sentences from
+  // them. The panel is built here and uses the same keys.
 
   var TEXTS = JSON.parse(document.getElementById("mfad-texts").textContent);
   var LANGUAGES = ["pt", "en"];
-  var language = "pt";
+  // The language the HTML arrives in: the same as `i18n.DEFAULT`.
+  var DEFAULT = "en";
+  var language = DEFAULT;
 
-  // A escolha fica no navegador de quem lê. Sem armazenamento — aba
-  // anônima, preview —, volta ao português, e a página funciona igual.
+  // The choice stays in the reader's browser. Without storage (private
+  // tab, preview), it falls back to English, and the page works the same.
   try {
     var saved = localStorage.getItem("mfad-language");
     if (LANGUAGES.indexOf(saved) !== -1) language = saved;
-  } catch (error) { /* sem armazenamento */ }
+  } catch (error) { /* no storage */ }
 
-  // `lang=en` no endereço vence a escolha guardada: o link compartilhado
-  // abre no idioma de quem o mandou.
+  // `lang=pt` in the address beats the stored choice: a shared link
+  // opens in the language of whoever sent it.
   var linked = (location.hash.match(/lang=(\w+)/) || [])[1];
   if (LANGUAGES.indexOf(linked) !== -1) language = linked;
 
@@ -74,7 +76,7 @@
       var value = args[name];
       values[name] = value && typeof value === "object" && value.key ? t(value) : value;
     });
-    var template = entry[language] || entry.pt;
+    var template = entry[language] || entry[DEFAULT];
     if (typeof template === "object") {
       template = template[values[entry.plural || "n"] === 1 ? "one" : "other"];
     }
@@ -87,15 +89,15 @@
     return Number(value).toLocaleString(language === "pt" ? "pt-BR" : "en");
   }
 
-  // O que a seta quer dizer, com os nomes de verdade. O mesmo texto
-  // da legenda, para o painel não deixar dúvida de quem é quem.
+  // What the arrow means, with the real names. The same text
+  // as the legend, so the panel leaves no doubt about who is who.
   function meaning(relation, a, b, screens) {
     return t((screens ? "screen_direction." : "direction.") + relation, { a: a, b: b });
   }
 
   function relationName(relation) { return t("relation." + relation); }
 
-  // Texto de ocorrência: referência de texto ou trecho do código.
+  // Occurrence text: a text reference or a code snippet.
   function detailText(detail) {
     return detail && typeof detail === "object" ? t(detail) : detail;
   }
@@ -109,16 +111,16 @@
     });
   }
 
-  // O painel aberto se redesenha no idioma novo.
+  // The open panel redraws itself in the new language.
   var redraw = null;
 
   function setLanguage(next) {
     language = next;
-    try { localStorage.setItem("mfad-language", next); } catch (error) { /* sem armazenamento */ }
+    try { localStorage.setItem("mfad-language", next); } catch (error) { /* no storage */ }
     document.documentElement.lang = next === "pt" ? "pt-BR" : "en";
     translate(document);
-    // Os recortes guardados em <template> e o desenho trocado por um
-    // recorte também: senão voltariam no idioma antigo.
+    // The slices kept in <template> and the drawing swapped for a
+    // slice too: otherwise they would come back in the old language.
     document.querySelectorAll("template").forEach(function (template) {
       translate(template.content);
     });
@@ -131,11 +133,11 @@
     if (state.focusIndex != null) bannerText.textContent = bannerOf(state.focusIndex);
   }
 
-  // ------------------------------------------------------------ visões
+  // ------------------------------------------------------------ views
   //
-  // Todos os grafos estão à vista, cada um no seu card. `state.view`
-  // é o último a que se foi — por um atalho, uma detecção ou o
-  // endereço —, que o card marca e o link guarda.
+  // All graphs are in view, each in its own card. `state.view`
+  // is the last one visited (through a shortcut, a detection or the
+  // address), which the card marks and the link keeps.
 
   function views() { return document.querySelectorAll(".view"); }
 
@@ -156,14 +158,14 @@
     });
   }
 
-  // Leva o card da visão escolhida para o meio da tela.
+  // Brings the card of the chosen view to the middle of the screen.
   function reveal() {
     var view = current();
     if (view) view.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
-  // O endereço guarda onde se está — aba, visão, recorte e idioma —
-  // para o link compartilhado abrir no mesmo lugar.
+  // The address keeps where one is (tab, view, slice and language)
+  // so a shared link opens at the same place.
   function remember() {
     if (!history.replaceState) return;
     var parts = [];
@@ -172,14 +174,14 @@
       parts.push("view=" + state.view);
       if (state.variant[state.view]) parts.push("mfe=" + encodeURIComponent(state.variant[state.view]));
     }
-    if (language !== "pt") parts.push("lang=" + language);
+    if (language !== DEFAULT) parts.push("lang=" + language);
     history.replaceState(null, "", parts.length ? "#" + parts.join("&") : location.pathname + location.search);
   }
 
-  // ------------------------------------------------------------ páginas
+  // ------------------------------------------------------------ pages
   //
-  // Os números do cabeçalho são as abas: a primeira caixa é o mapa, e
-  // cada número abre a tabela que ele soma.
+  // The header numbers are the tabs: the first box is the map, and
+  // each number opens the table it adds up.
 
   function showPage(page) {
     if (!document.querySelector('.page[data-page="' + page + '"]')) return;
@@ -190,8 +192,8 @@
     document.querySelectorAll(".metric[data-page]").forEach(function (tab) {
       tab.setAttribute("aria-selected", tab.dataset.page === page);
     });
-    // O dashboard escondido não tem largura: o zoom calculado
-    // enquanto ele estava oculto não vale, e é refeito ao voltar.
+    // The hidden dashboard has no width: the zoom computed
+    // while it was hidden is not valid, and is redone on return.
     if (page === "home" && state.hiddenFit) {
       state.hiddenFit = false;
       fitAll();
@@ -207,9 +209,9 @@
     });
   });
 
-  // Filtro, ordenação e abertura das linhas. Cada item são duas
-  // linhas — o resumo e o detalhe —, que andam juntas: o filtro olha o
-  // texto das duas, e a ordenação move o par.
+  // Filtering, sorting and opening of rows. Each item is two
+  // rows (the summary and the detail) that move together: the filter looks at
+  // the text of both, and sorting moves the pair.
   function pairs(tbody) {
     var found = [];
     Array.prototype.forEach.call(tbody.rows, function (row) {
@@ -267,9 +269,9 @@
     row.nextElementSibling.classList.toggle("hidden", !open);
   }
 
-  // Abre a aba com as linhas da chave abertas e à vista; com `only`,
-  // mostra só elas, fechadas — as telas de um micro frontend, não
-  // todas abertas de uma vez. Digitar no filtro volta a mostrar tudo.
+  // Opens the tab with the key's rows open and in view; with `only`,
+  // shows only them, closed: the screens of a micro frontend, not
+  // all open at once. Typing in the filter shows everything again.
   function openRow(page, key, only) {
     showPage(page);
     var element = document.querySelector('.page[data-page="' + page + '"]');
@@ -305,10 +307,10 @@
   document.querySelectorAll("table.data tbody").forEach(function (tbody) {
     tbody.addEventListener("click", function (event) {
       var go = event.target.closest("button.go");
-      // O botão de detecção tem o próprio ouvinte (`data-focus`).
+      // The detection button has its own listener (`data-focus`).
       if (go) { if (go.dataset.goKind) goTo(go.dataset); return; }
       var row = event.target.closest("tr.item");
-      // Selecionar texto no detalhe não fecha a linha.
+      // Selecting text in the detail does not close the row.
       if (row) toggle(row);
     });
     tbody.addEventListener("keydown", function (event) {
@@ -317,8 +319,8 @@
     });
   });
 
-  // O atalho da linha para o mapa: o micro frontend selecionado, a
-  // relação com o painel aberto, a fatia, o endpoint ou a tela.
+  // The row's shortcut to the map: the selected micro frontend, the
+  // relation with its panel open, the slice, the endpoint or the screen.
   function goTo(data) {
     showPage("home");
     var kind = data.goKind;
@@ -348,9 +350,9 @@
 
   // -------------------------------------------------------------- zoom
   //
-  // O desenho é mostrado no tamanho natural e rola dentro da janela:
-  // texto legível vale mais que caber tudo de uma vez. O zoom muda o
-  // tamanho do SVG; arrastar o fundo rola.
+  // The drawing is shown at natural size and scrolls inside the window:
+  // legible text is worth more than fitting everything at once. Zoom changes the
+  // SVG size; dragging the background scrolls.
 
   function applyZoom(view) {
     var svg = svgOf(view);
@@ -360,13 +362,13 @@
     svg.setAttribute("height", Math.round(svg.dataset.height * z));
   }
 
-  // Grafo abre inteiro à vista no card, ampliado se for pequeno; lista
-  // longa (estado, backend, telas) abre na largura e rola na vertical.
+  // A graph opens fully in view in the card, enlarged if small; a long
+  // list (state, backend, screens) opens at full width and scrolls vertically.
   function fit(view) {
     var svg = svgOf(view);
     if (!svg) return;
     var viewport = view.querySelector(".viewport");
-    // Card oculto (outra aba aberta) não tem tamanho: fica para depois.
+    // A hidden card (another tab open) has no size: it is left for later.
     if (!viewport.clientWidth) { state.hiddenFit = true; return; }
     var width = Number(svg.dataset.width);
     var height = Number(svg.dataset.height);
@@ -376,12 +378,12 @@
     var z = contain
       ? Math.min(available / width, tall / height, 1.3)
       : Math.min(available / width, 1);
-    // No card, o grafo inteiro cabe, para ver a forma; ampliado,
-    // abaixo do mínimo o texto deixa de ser lido, e é melhor rolar.
+    // In the card, the whole graph fits, to see its shape; when enlarged,
+    // below the minimum the text stops being legible, and scrolling is better.
     var expanded = view.classList.contains("expanded");
     state.zoom[view.dataset.view] = Math.max(z, contain ? (expanded ? 0.4 : 0.1) : 0.6);
     applyZoom(view);
-    // O que não couber abre pelo meio, não pelo canto.
+    // Whatever does not fit opens from the middle, not from the corner.
     if (contain) {
       viewport.scrollLeft = (viewport.scrollWidth - viewport.clientWidth) / 2;
       viewport.scrollTop = (viewport.scrollHeight - viewport.clientHeight) / 2;
@@ -397,7 +399,7 @@
     applyZoom(view);
   }
 
-  // Ampliar deixa o card mais alto; o grafo se ajusta ao espaço novo.
+  // Enlarging makes the card taller; the graph adjusts to the new space.
   function expand(view) {
     var on = !view.classList.contains("expanded");
     view.classList.toggle("expanded", on);
@@ -444,11 +446,11 @@
     viewport.addEventListener("pointercancel", stop);
   });
 
-  // ------------------------------------------------------- destaque
+  // ------------------------------------------------------- highlight
   //
-  // Cada elemento do desenho tem uma chave: o micro frontend
-  // (`data-id`), a fatia ou endpoint (`data-slot`), a tela
-  // (`data-screen`). As arestas dizem as chaves das duas pontas.
+  // Each element of the drawing has a key: the micro frontend
+  // (`data-id`), the slice or endpoint (`data-slot`), the screen
+  // (`data-screen`). Edges state the keys of their two ends.
 
   function keyOf(element) {
     return element.dataset.id || element.dataset.slot || element.dataset.screen;
@@ -464,13 +466,13 @@
     return mfes.some(function (id) { return keys[id]; });
   }
 
-  // Liga as arestas que tocam as chaves e as pontas delas; apaga o
-  // resto. Sem chaves, tudo volta ao normal.
+  // Lights up the edges that touch the keys and their ends; dims the
+  // rest. Without keys, everything goes back to normal.
   //
-  // No foco de uma detecção (`edgeIds`), vale a aresta citada por ela
-  // ou a que liga dois envolvidos. Fatia e endpoint não são micro
-  // frontends: quando a detecção não nomeia um, qualquer fatia ou
-  // endpoint de um envolvido conta.
+  // On a detection focus (`edgeIds`), what counts is the edge it cites
+  // or the one linking two involved parties. Slices and endpoints are not micro
+  // frontends: when the detection does not name one, any slice or
+  // endpoint of an involved party counts.
   function highlight(view, keys, edgeIds) {
     keys = keys || {};
     var names = Object.keys(keys);
@@ -509,8 +511,8 @@
     });
   }
 
-  // Os filtros e o destaque valem para todos os grafos: o mesmo micro
-  // frontend aceso em cada um deles.
+  // The filters and the highlight apply to all graphs: the same micro
+  // frontend lit in each of them.
   function apply() {
     views().forEach(applyTo);
     banner.classList.toggle("on", !!state.focus);
@@ -519,8 +521,8 @@
   function applyTo(view) {
     var term = state.search.trim().toLowerCase();
 
-    // Filtro "só com anti-padrão": esconde micro frontends sem
-    // detecção e as arestas que dependiam deles.
+    // "Only with anti-pattern" filter: hides micro frontends without
+    // a detection and the edges that depended on them.
     view.querySelectorAll(".node").forEach(function (node) {
       node.classList.toggle("hidden", state.onlyFlagged && !flagged[node.dataset.id]);
     });
@@ -583,7 +585,7 @@
     apply();
   });
 
-  // ----------------------------------------------------------- painel
+  // ----------------------------------------------------------- panel
 
   function escapeHtml(value) {
     return String(value == null ? "" : value)
@@ -632,21 +634,21 @@
     return '<div class="group"><h4>' + title + "</h4>" + inner + "</div>";
   }
 
-  // Links da barra. `mfeLink` abre outro micro frontend nela mesma (com
-  // o ← para voltar); `out` leva à aba que tem o item, com a linha dele
-  // aberta — ou, sem chave, a tabela filtrada pelo termo.
+  // Sidebar links. `mfeLink` opens another micro frontend in the sidebar itself (with
+  // the ← to go back); `out` leads to the tab that has the item, with its row
+  // open, or, without a key, the table filtered by the term.
   function mfeLink(id) {
     return '<a href="#" data-mfe-link="' + escapeHtml(id) + '">' + escapeHtml(shortOf(id)) + "</a>";
   }
 
-  // `only`: em vez de abrir as linhas da chave, mostra só elas.
+  // `only`: instead of opening the key's rows, shows only them.
   function out(page, key, only) {
     return ' <a href="#" class="out" data-page-link="' + page + '"' +
            ' data-row="' + escapeHtml(key) + '"' + (only ? ' data-only="1"' : "") +
            ' title="' + escapeHtml(t("side.open_table")) + '">↗</a>';
   }
 
-  // A aba de cada relação.
+  // The tab of each relation.
   var PAGE_OF = { composition: "fragments", navigation: "navigations",
                   communication: "communications", mount: "microfrontends" };
 
@@ -655,7 +657,7 @@
     return PAGE_OF[relation] ? out(PAGE_OF[relation], source + ">" + target) : "";
   }
 
-  // A linha de detecção que mostra a fatia: a do estado global.
+  // The detection row that shows the slice: the global-state one.
   function sliceDetection(id) {
     var found = DATA.detections.filter(function (d) {
       return ((d.metadata || {}).slices || {})[id];
@@ -758,8 +760,8 @@
       (item.role === "shell"
         ? '<span class="badge shell">' + escapeHtml(t("badge.shell")) + "</span>"
         : '<span class="badge">' + escapeHtml(t("side.microfrontend")) + "</span>") +
-      // Sinal, não veredito: o módulo exposto só reexporta, que é
-      // forma de biblioteca. Quem lê decide o que isso significa.
+      // A signal, not a verdict: the exposed module only re-exports, which is
+      // the shape of a library. The reader decides what that means.
       (item.reexports
         ? '<span class="badge lib" title="' + escapeHtml(t("side.reexports_title", { n: item.reexports })) + '">' +
           escapeHtml(t("side.reexports", { n: item.reexports })) + "</span>"
@@ -792,8 +794,8 @@
     if (!items.length) return;
     redraw = function () { showEdge(ids); };
 
-    // Uma linha no desenho resume várias ocorrências no código. O
-    // painel desdobra: o que passa por ela, em cada sentido, e onde.
+    // One line in the drawing summarizes several occurrences in the code. The
+    // panel unfolds it: what goes through it, in each direction, and where.
     var byDirection = {};
     items.forEach(function (e) {
       var key = e.source + "\u0000" + e.target;
@@ -942,16 +944,16 @@
     apply();
   }
 
-  // A barra só abre por um clique — num nó, numa aresta, num atalho —,
-  // nunca ao passar o mouse.
+  // The sidebar only opens on a click (on a node, an edge, a shortcut),
+  // never on mouse hover.
   function openSide() {
     drawer.classList.add("open");
     drawer.setAttribute("aria-hidden", "false");
   }
 
-  // O caminho dentro da barra: cada link dela (a fatia, a tela, a
-  // relação entre telas) guarda o que estava aberto, e o ← volta um
-  // passo. Um clique no grafo ou numa tabela começa um caminho novo.
+  // The path inside the sidebar: each of its links (the slice, the screen, the
+  // relation between screens) keeps what was open, and ← goes back one
+  // step. A click on the graph or on a table starts a new path.
   var trail = [];
   var back = document.getElementById("side-back");
 
@@ -986,10 +988,10 @@
     if (event.key === "Escape" && drawer.classList.contains("open")) closeSide();
   });
 
-  // ------------------------------------------------------------- foco
+  // ------------------------------------------------------------- focus
 
-  // Uma linha da tabela pode juntar várias detecções (uma por rota):
-  // o foco é a união delas.
+  // A table row may join several detections (one per route):
+  // the focus is their union.
   function focusOn(indices) {
     var found = indices.map(function (i) { return DATA.detections[i]; }).filter(Boolean);
     if (!found.length) return;
@@ -1003,9 +1005,9 @@
       if ((item.metadata || {}).path) nodes[item.metadata.path] = true;
     });
 
-    // A evidência de cada anti-padrão está numa visão: o estado
-    // compartilhado no bipartido de estado, o endpoint martelado no
-    // de backend, o resto na visão geral.
+    // The evidence of each anti-pattern is in one view: the shared
+    // state in the state bipartite, the hammered endpoint in the
+    // backend one, the rest in the overview.
     var target = { "global-state-communication": "state",
                    "hammering-apis": "backend" }[detection.anti_pattern] || "overview";
 
@@ -1024,8 +1026,8 @@
     reveal();
   }
 
-  // O texto da detecção pela referência que a regra deixou; a frase
-  // gravada fica para artefato de versão anterior.
+  // The detection text through the reference the rule left; the stored
+  // sentence remains for artifacts from an earlier version.
   function textOf(detection, field) {
     var reference = ((detection.metadata || {}).text || {})[field];
     return reference ? t(reference) : detection[field];
@@ -1043,7 +1045,7 @@
     apply();
   }
 
-  // ---------------------------------------------------------- eventos
+  // ---------------------------------------------------------- events
 
   stage.addEventListener("click", function (event) {
     var edge = event.target.closest(".edge-group");
@@ -1051,7 +1053,7 @@
 
     if (node) {
       var key = keyOf(node);
-      // Clicar de novo no que está fixado solta e fecha.
+      // Clicking again on what is pinned unpins and closes it.
       if (state.pinned === key) { closeSide(); return; }
       if (node.classList.contains("slot")) showSlot(key, node.classList.contains("state") ? "state" : "backend");
       else if (node.classList.contains("screen-node")) showScreen(key);
@@ -1103,8 +1105,8 @@
     }
   });
 
-  // Recorte por micro frontend: troca o desenho pelo do recorte, que
-  // vem pronto num <template>.
+  // Slice per micro frontend: swaps the drawing for the slice's one, which
+  // comes ready in a <template>.
   var originals = {};
 
   function choose(view, key) {
@@ -1173,12 +1175,12 @@
     button.addEventListener("click", function () { setLanguage(button.dataset.lang); });
   });
 
-  // `#view=telas` abre direto numa visão: o link compartilhado leva
-  // à pergunta, não à página inicial.
+  // `#view=screens` opens straight into a view: a shared link leads
+  // to the question, not to the home page.
   var askedPage = (location.hash.match(/page=([\w-]+)/) || [])[1];
   var asked = (location.hash.match(/view=([\w-]+)/) || [])[1];
   var variant = (location.hash.match(/mfe=([^&]+)/) || [])[1];
-  // O filtro de montagem só aparece se algum grafo tem montagem.
+  // The mounting filter only appears if some graph has mounting.
   document.querySelector(".mount-toggle").classList.toggle(
     "hidden", !document.querySelector('.edge-group[data-relation="mount"]'));
 
@@ -1195,5 +1197,5 @@
 
   if (askedPage) showPage(askedPage);
 
-  if (language !== "pt") setLanguage(language);
+  if (language !== DEFAULT) setLanguage(language);
 })();

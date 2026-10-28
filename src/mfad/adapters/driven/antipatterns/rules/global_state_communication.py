@@ -1,25 +1,26 @@
 """
-Estado global usado como canal entre micro frontends.
+Global state used as a channel between micro frontends.
 
-Quando mais de um micro frontend acessa a mesma fatia do estado,
-o estado deixou de ser detalhe interno de um e virou meio de
-comunicação entre vários — sem contrato declarado, sem mensagem e
-sem import. O formato daquele dado passa a ser interface pública
-de fato, e mudá-lo quebra todos os que o tocam ao mesmo tempo.
+When more than one micro frontend accesses the same slice of state,
+the state stops being an internal detail of one and becomes a means
+of communication among several — with no declared contract, no
+message and no import. The shape of that data becomes a de facto
+public interface, and changing it breaks everyone who touches it at
+the same time.
 
-Vale para biblioteca de estado e para o armazenamento do navegador:
-uma chave do `localStorage` tocada por vários micro frontends é a
-mesma coisa que uma fatia do store lida por vários.
+It applies to state libraries and to browser storage: a
+`localStorage` key touched by several micro frontends is the same
+thing as a store slice read by several.
 
-A fatia é identificada pela biblioteca E pelo caminho. A chave
-`user` do `localStorage` e a fatia `user` de um store Redux são
-dados diferentes, e juntá-las pelo nome acusaria acoplamento que
-não existe.
+A slice is identified by the library AND by the path. The `user`
+key in `localStorage` and the `user` slice of a Redux store are
+different data, and joining them by name would flag coupling that
+does not exist.
 
-A ocorrência é ÚNICA e binária: ou o sistema usa estado global
-como canal, ou não usa. Emitir uma por fatia diria a mesma coisa
-várias vezes — o que interessa saber é se a prática existe, e
-quem participa dela.
+The occurrence is SINGLE and binary: either the system uses global
+state as a channel, or it does not. Emitting one per slice would say
+the same thing several times — what matters is whether the practice
+exists, and who takes part in it.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from mfad.domain import (
 
 
 def _slice(access: StateAccess) -> str:
-    """`localStorage:token`, `react-redux:cart` — o mesmo rótulo das arestas."""
+    """`localStorage:token`, `react-redux:cart` — the same label as the edges."""
 
     return f"{access.library}:{access.path}"
 
@@ -45,8 +46,8 @@ class GlobalStateCommunication(Rule):
     anti_pattern = AntiPattern(
         name="global-state-communication",
         description=(
-            "Estado global acessado por mais de um micro frontend, "
-            "funcionando como canal de comunicação não declarado."
+            "Global state accessed by more than one micro frontend, "
+            "acting as an undeclared communication channel."
         ),
         category="Inter-frontend",
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Global%20state%20communication",
@@ -54,8 +55,8 @@ class GlobalStateCommunication(Rule):
 
     def __init__(self, min_microfrontends: int = 2):
 
-        #: A partir de quantos acessantes o estado deixa de ser
-        #: interno e passa a ser canal. Dois já bastam.
+        #: Number of accessors from which the state stops being
+        #: internal and becomes a channel. Two are enough.
         self.min_microfrontends = min_microfrontends
 
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
@@ -86,8 +87,8 @@ class GlobalStateCommunication(Rule):
             ),
         }
 
-        # Quem está envolvido já é a coluna da linha, e cada fatia, com
-        # quem lê, quem grava e onde, sai de `metadata.slices`.
+        # Who is involved is already the row's column, and each slice,
+        # with who reads, who writes and where, comes from `metadata.slices`.
         text["facts"] = [i18n.fact("fact.slices", len(shared))]
 
         return [
@@ -126,9 +127,9 @@ class GlobalStateCommunication(Rule):
     @staticmethod
     def _edges(shared: dict[str, set[str]]) -> list[list[str]]:
         """
-        Os pares que leem a mesma fatia, nos dois sentidos — a
-        relação não tem direção, e o desenho traça um arco por
-        ordem.
+        The pairs that read the same slice, in both directions — the
+        relation has no direction, and the drawing traces one arc per
+        order.
         """
 
         pairs: list[list[str]] = []
@@ -148,7 +149,7 @@ class GlobalStateCommunication(Rule):
     @staticmethod
     def _locations(architecture: MicroFrontendArchitecture, shared: dict) -> list:
 
-        # Uma linha pode tocar duas fatias; ela aparece uma vez só.
+        # A line may touch two slices; it appears only once.
         found: dict[tuple, object] = {}
 
         for access in architecture.state_accesses:

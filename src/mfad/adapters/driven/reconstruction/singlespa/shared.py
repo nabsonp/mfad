@@ -1,12 +1,12 @@
 """
-Código de pacote compartilhado, contado para quem o importa.
+Shared package code, counted for whoever imports it.
 
-Um pacote do corpus que não é unidade — a biblioteca comum do
-monorepo, o repositório `common` de uma organização — não roda
-sozinho: roda dentro de cada micro frontend que o importa. A chamada
-HTTP ou o acesso ao `localStorage` que mora nele acontece em cada um
-desses micro frontends, e é deles. O local registrado continua sendo
-o do pacote, que é onde está o código.
+A corpus package that is not a unit — the monorepo's common library,
+an organization's `common` repository — does not run on its own: it
+runs inside each micro frontend that imports it. The HTTP call or the
+`localStorage` access that lives in it happens in each of those micro
+frontends, and belongs to them. The recorded location is still the
+package's, which is where the code is.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from mfad.domain import MicroFrontend
 
 
 def importers(context: ScanContext, microfrontends: list[MicroFrontend]) -> dict[Path, set[str]]:
-    """Arquivo de pacote compartilhado → as unidades que o importam."""
+    """Shared package file → the units that import it."""
 
     key = ("shared",) + tuple(item.id for item in microfrontends)
 
@@ -51,7 +51,7 @@ def importers(context: ScanContext, microfrontends: list[MicroFrontend]) -> dict
 
         for record in ImportTable.records(root, source):
 
-            # Import de pacote: o que o projeto resolve sozinho já é dele.
+            # Package import: what the project resolves on its own is already its own.
             if record.module.startswith(".") or ModuleResolver.resolve(record.module, file_path) is not None:
                 continue
 
@@ -75,8 +75,8 @@ def importers(context: ScanContext, microfrontends: list[MicroFrontend]) -> dict
 
 def _inside(index: SymbolIndex, entry: Path, package: Path) -> set[Path]:
     """
-    Os arquivos do pacote que a entrada alcança: imports e reexports
-    (`export * from "./x"`, o `index` de toda biblioteca), sem sair dele.
+    The package files the entry reaches: imports and re-exports
+    (`export * from "./x"`, every library's `index`), without leaving it.
     """
 
     seen: set[Path] = set()

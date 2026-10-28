@@ -1,23 +1,23 @@
 """
-Se o código de uma ponta de canal pode chegar a executar.
+Whether the code of a channel end can ever run.
 
-`dispatchEvent` dentro de uma função que ninguém chama não comunica
-nada, mas estar no arquivo do micro frontend bastava para virar
-aresta. O critério é o de "símbolo sem uso" dos compiladores e
-linters, restrito ao que se decide sem executar:
+`dispatchEvent` inside a function nobody calls communicates nothing,
+but being in the micro frontend's file was enough to become an edge.
+The criterion is the "unused symbol" one of compilers and linters,
+restricted to what can be decided without executing:
 
-- função NÃO exportada sem nenhuma referência no próprio arquivo é
-  morta;
-- função EXPORTADA é morta quando o arquivo dela é importado por
-  outros do projeto e nenhum desses imports traz o nome — nem por
-  namespace, nem por `export *`, nem por `import()`/`require`, que
-  podem ler qualquer nome.
+- a NON-exported function with no reference in its own file is dead;
+- an EXPORTED function is dead when its file is imported by others in
+  the project and none of those imports brings in the name — neither
+  by namespace, nor by `export *`, nor by `import()`/`require`, which
+  can read any name.
 
-Arquivo que ninguém do projeto importa fica de fora da segunda regra:
-pode ser entrada da aplicação, módulo exposto ao hospedeiro ou
-arquivo carregado pelo framework, e o consumidor não está no código
-lido. Método de classe também fica de fora: o framework chama
-`ngOnInit`, o template chama o tratador, e nada disso é import.
+A file that nothing in the project imports is left out of the second
+rule: it may be the application's entry, a module exposed to the host
+or a file loaded by the framework, and the consumer is not in the code
+that was read. Class methods are left out too: the framework calls
+`ngOnInit`, the template calls the handler, and none of that is an
+import.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from mfad.adapters.driven.reconstruction.ast.symbols import (
 from mfad.adapters.driven.reconstruction.singlespa.context import ScanContext
 
 
-#: Nome importado que pode ser qualquer um.
+#: Imported name that may be any name.
 ANY = "*"
 
 
@@ -47,13 +47,13 @@ class Liveness:
 
         self.index = context.symbols()
 
-        #: arquivo → nomes que algum outro arquivo importa dele
+        #: file → names some other file imports from it
         self._imported: dict[Path, set[str]] | None = None
 
         self._references: dict[tuple[Path, str], bool] = {}
 
     def is_live(self, node: Node, symbols: ModuleSymbols) -> bool:
-        """Se nenhuma função com nome em volta do nó está sem uso."""
+        """Whether no named function enclosing the node is unused."""
 
         current = node.parent
 
@@ -83,7 +83,7 @@ class Liveness:
 
     @staticmethod
     def _referenced_here(symbols: ModuleSymbols, name: str) -> bool:
-        """Algum uso do nome no arquivo além da própria declaração."""
+        """Some use of the name in the file besides the declaration itself."""
 
         for node in AstReader.walk(symbols.root):
 
@@ -98,8 +98,8 @@ class Liveness:
             if parent is None:
                 continue
 
-            # A declaração não é uso, e `export { f }` só torna o nome
-            # visível — quem usa é o importador.
+            # The declaration is not a use, and `export { f }` only makes
+            # the name visible — the user is the importer.
             if parent.type in ("function_declaration", "generator_function_declaration", "variable_declarator"):
 
                 if parent.child_by_field_name("name") == node:
@@ -119,21 +119,21 @@ class Liveness:
         if not exported:
             return False
 
-        # Exportada como padrão: o nome com que se importa é qualquer um.
+        # Exported as default: the name it is imported under can be anything.
         if "default" in exported:
             return True
 
         imported = self._imports().get(symbols.path)
 
-        # Ninguém do projeto importa o arquivo: o consumidor não está
-        # no código lido.
+        # Nothing in the project imports the file: the consumer is not
+        # in the code that was read.
         if imported is None:
             return True
 
         return ANY in imported or any(alias in imported for alias in exported)
 
     def _imports(self) -> dict[Path, set[str]]:
-        """Para cada arquivo do projeto, os nomes que outros importam dele."""
+        """For each project file, the names others import from it."""
 
         if self._imported is not None:
             return self._imported
@@ -167,7 +167,7 @@ class Liveness:
 
     @staticmethod
     def _other_imports(symbols: ModuleSymbols) -> list[tuple[str, set[str]]]:
-        """`export … from`, `import()` e `require()`."""
+        """`export … from`, `import()` and `require()`."""
 
         found: list[tuple[str, set[str]]] = []
 

@@ -1,27 +1,27 @@
-%% Metamodelo de arquitetura micro frontend.
+%% Micro frontend architecture metamodel.
 %%
-%% RECORTE das classes de src/mfad/domain/ — todas existem no código,
-%% com os campos que elas têm de fato. Ficam de fora as peças do próprio
-%% MFAD, que continuam no código e não são conceitos da arquitetura
-%% analisada: Provenance e SourceRepository (procedência da execução),
-%% CommunicationSpec, Mechanism e ChannelOperation (configuração do
-%% extrator). Por isso o campo `provenance` do agregado não aparece.
+%% A CUT of the classes in src/mfad/domain/ — all of them exist in the code,
+%% with the fields they actually have. Left out are MFAD's own pieces,
+%% which remain in the code but are not concepts of the analysed
+%% architecture: Provenance and SourceRepository (provenance of the run),
+%% CommunicationSpec, Mechanism and ChannelOperation (extractor
+%% configuration). That is why the aggregate's `provenance` field does not appear.
 %%
-%% Losango cheio: composição. A cardinalidade do lado do losango é
-%% sempre 1: um value object pertence a um dono só.
+%% Filled diamond: composition. The cardinality on the diamond side is
+%% always 1: a value object belongs to a single owner.
 %%
-%% A cor vem do estereótipo, anotado em cada classe com `:::`. Os
-%% estereótipos continuam escritos, para o diagrama sobreviver em
-%% preto e branco.
+%% The colour comes from the stereotype, annotated on each class with `:::`. The
+%% stereotypes are still written out, so the diagram survives in
+%% black and white.
 %%
-%% Nenhuma associação é ponteiro: o campo guarda o IDENTIFICADOR do
-%% outro lado — `Screen.microfrontend` é "@org/mfe-checkout". É o que
-%% permite serializar cada coleção num arquivo independente e recarregar
-%% sem reconstruir grafo de objetos.
+%% No association is a pointer: the field holds the IDENTIFIER of the
+%% other side — `Screen.microfrontend` is "@org/mfe-checkout". That is what
+%% allows serializing each collection to an independent file and reloading
+%% without rebuilding an object graph.
 %%
-%% Ficam fora do desenho as referências secundárias, que são contexto e
-%% não estrutura: `ApiCall.screens`, `ApiCall.fragments` e
-%% `RenderLocation.screens` guardam ids de tela e de fragmento.
+%% Secondary references are left out of the drawing, as they are context and
+%% not structure: `ApiCall.screens`, `ApiCall.fragments` and
+%% `RenderLocation.screens` hold screen and fragment ids.
 classDiagram
     direction TB
 
@@ -169,28 +169,28 @@ classDiagram
         +dict metadata
     }
 
-    MicroFrontendArchitecture "1" *-- "2..*" MicroFrontend : reúne
-    MicroFrontendArchitecture "1" ..> "0..*" Endpoint : deriva das chamadas
+    MicroFrontendArchitecture "1" *-- "2..*" MicroFrontend : gathers
+    MicroFrontendArchitecture "1" ..> "0..*" Endpoint : derived from the calls
 
-    MicroFrontend "1" *-- "0..*" Screen : serve
-    MicroFrontend "1" *-- "0..*" Fragment : expõe
+    MicroFrontend "1" *-- "0..*" Screen : serves
+    MicroFrontend "1" *-- "0..*" Fragment : exposes
     MicroFrontend "1" *-- "1" CodeSize
 
-    Composition "0..*" --> "2" MicroFrontend : consumidor / provedor
-    Navigation "0..*" --> "2" MicroFrontend : origem / destino
-    Communication "0..*" --> "2" MicroFrontend : origem / destino
-    ApiCall "0..*" --> "1" MicroFrontend : chamador
-    ApiCall "0..*" --> "1" Endpoint : alvo
+    Composition "0..*" --> "2" MicroFrontend : consumer / provider
+    Navigation "0..*" --> "2" MicroFrontend : source / target
+    Communication "0..*" --> "2" MicroFrontend : source / target
+    ApiCall "0..*" --> "1" MicroFrontend : caller
+    ApiCall "0..*" --> "1" Endpoint : target
     StateAccess "0..*" --> "1" MicroFrontend
-    AntiPatternDetection "0..*" --> "1..*" MicroFrontend : sujeitos
+    AntiPatternDetection "0..*" --> "1..*" MicroFrontend : subjects
 
-    Composition "1" *-- "1" SourceLocation : importado em
-    Composition "1" *-- "0..*" RenderLocation : instanciado em
+    Composition "1" *-- "1" SourceLocation : imported at
+    Composition "1" *-- "0..*" RenderLocation : instantiated at
     Navigation "1" *-- "1" SourceLocation
-    Communication "1" *-- "0..*" SourceLocation : produz / consome
+    Communication "1" *-- "0..*" SourceLocation : produces / consumes
     ApiCall "1" *-- "1" SourceLocation
     StateAccess "1" *-- "1" SourceLocation
     AntiPatternDetection "1" *-- "0..*" SourceLocation
 
-    AntiPatternDetection "0..*" ..> "1" AntiPattern : instancia
-    StateAccess "2..*" ..> "0..*" Communication : deriva aresta não dirigida
+    AntiPatternDetection "0..*" ..> "1" AntiPattern : instantiates
+    StateAccess "2..*" ..> "0..*" Communication : derives undirected edge

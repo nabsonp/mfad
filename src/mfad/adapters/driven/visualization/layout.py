@@ -1,24 +1,26 @@
 """
-Posicionamento dos nós e geometria das arestas.
+Node placement and edge geometry.
 
-O layout é calculado aqui, em Python, e não no navegador: o mesmo
-conjunto de artefatos produz sempre o mesmo desenho, e o HTML
-resultante não depende de rede nem de JavaScript para renderizar.
+The layout is computed here, in Python, not in the browser: the same
+set of artifacts always produces the same drawing, and the resulting
+HTML depends on neither network nor JavaScript to render.
 
-Três arranjos, um por tipo de pergunta:
+Three arrangements, one per kind of question:
 
-- `force`: micro frontends ligados por relações entre pares. Cada
-  componente conexo é arranjado à parte, por força dirigida, e os
-  componentes são empacotados lado a lado. O círculo fixo de antes
-  sobrepunha os nós a partir de umas vinte unidades e cruzava todas
-  as arestas no meio.
-- `bipartite`: micro frontends de um lado, o que eles compartilham
-  (chave de estado, endpoint) do outro. Acoplamento de muitos com
-  muitos vira uma aresta por participante, não uma por par.
-- `clusters`: telas e fragmentos agrupados pelo micro frontend dono.
+- `force`: micro frontends linked by pairwise relations. Each
+  connected component is arranged separately, by force-directed
+  layout, and the components are packed side by side. The fixed
+  circle used before overlapped the nodes from about twenty units on
+  and crossed every edge in the middle.
+- `bipartite`: micro frontends on one side, what they share (state
+  key, endpoint) on the other. Many-to-many coupling becomes one edge
+  per participant, not one per pair.
+- `clusters`: screens and fragments grouped by their owning micro
+  frontend.
 
-Tudo é determinístico sem semente: a posição inicial vem da ordem
-dos identificadores, e o número de iterações é fixo.
+Everything is deterministic without a seed: the initial position
+comes from the order of the identifiers, and the number of iterations
+is fixed.
 """
 
 from __future__ import annotations
@@ -27,16 +29,16 @@ import math
 from dataclasses import dataclass
 
 
-#: Altura de um nó de micro frontend: nome e uma linha de contagem.
+#: Height of a micro frontend node: name and one line of counts.
 NODE_HEIGHT = 40
 
-#: Altura de uma linha nas listas (bipartido e grupos).
+#: Height of a row in the lists (bipartite and groups).
 ROW_HEIGHT = 30
 
-#: Folga entre caixas, que a remoção de sobreposição garante.
+#: Gap between boxes, guaranteed by overlap removal.
 GAP = 22
 
-#: Margem em volta do desenho.
+#: Margin around the drawing.
 MARGIN = 32
 
 
@@ -48,7 +50,7 @@ class Point:
 
 @dataclass(frozen=True)
 class Box:
-    """Um nó desenhado: centro, largura e altura."""
+    """A drawn node: center, width and height."""
 
     x: float
     y: float
@@ -77,7 +79,7 @@ class Box:
 
 @dataclass(frozen=True)
 class Frame:
-    """Uma moldura de grupo: canto superior esquerdo e tamanho."""
+    """A group frame: top-left corner and size."""
 
     x: float
     y: float
@@ -86,13 +88,13 @@ class Frame:
 
 
 def text_width(text: str, size: float = 12.5) -> float:
-    """Largura aproximada de um texto na fonte do relatório."""
+    """Approximate width of a text in the report font."""
 
     return len(text) * size * 0.58
 
 
 # ----------------------------------------------------------------------
-# Força dirigida, por componente
+# Force-directed, per component
 # ----------------------------------------------------------------------
 
 
@@ -102,12 +104,12 @@ def force(
     width: float = 1100,
 ) -> tuple[dict[str, Box], list[str], float, float]:
     """
-    Posições dos nós ligados, e os nós soltos à parte.
+    Positions of the linked nodes, and the loose nodes apart.
 
-    Devolve (caixas, soltos, largura, altura). Os soltos — sem
-    nenhuma aresta no recorte — não entram no arranjo: espalhados
-    entre os ligados, empurrariam tudo para longe sem dizer nada.
-    O desenho os põe numa faixa própria, abaixo.
+    Returns (boxes, loose, width, height). The loose ones, with no
+    edge at all in the slice, do not enter the arrangement: scattered
+    among the linked ones, they would push everything away without
+    saying anything. The drawing puts them in their own strip, below.
     """
 
     neighbours: dict[str, set[str]] = {node: set() for node in sizes}
@@ -141,7 +143,7 @@ def force(
 
 
 def _components(neighbours: dict[str, set[str]], skip: set[str]) -> list[list[str]]:
-    """Componentes conexos, os maiores primeiro."""
+    """Connected components, largest first."""
 
     seen: set[str] = set(skip)
 
@@ -178,11 +180,11 @@ def _relaxed(
     weights: dict[tuple[str, str], float],
 ) -> dict[str, Box]:
     """
-    Fruchterman-Reingold sobre um componente, e depois sem sobreposição.
+    Fruchterman-Reingold over a component, then without overlap.
 
-    A distância ideal acompanha a largura média dos rótulos: nomes
-    de micro frontend são longos, e uma distância pensada para
-    círculos colava as caixas.
+    The ideal distance follows the average label width: micro
+    frontend names are long, and a distance meant for circles stuck
+    the boxes together.
     """
 
     count = len(nodes)
@@ -249,8 +251,8 @@ def _relaxed(
             shift[target][0] += dx / distance * pull
             shift[target][1] += dy / distance * pull
 
-        # Um pouco de gravidade: componente com hub não espalha as
-        # folhas até o infinito.
+        # A bit of gravity: a component with a hub does not spread its
+        # leaves to infinity.
         for node in nodes:
             shift[node][0] -= position[node][0] * 0.08
             shift[node][1] -= position[node][1] * 0.08
@@ -268,9 +270,9 @@ def _relaxed(
             position[node][0] += dx * factor
             position[node][1] += dy * factor
 
-    # Paisagem: a tela é mais larga que alta, e um arranjo redondo
-    # deixaria as laterais vazias enquanto aperta os rótulos, que são
-    # largos. Estica na horizontal antes de separar.
+    # Landscape: the screen is wider than tall, and a round arrangement
+    # would leave the sides empty while squeezing the labels, which are
+    # wide. Stretch horizontally before separating.
     xs = [position[node][0] for node in nodes]
     ys = [position[node][1] for node in nodes]
 
@@ -284,18 +286,18 @@ def _relaxed(
         for node in nodes
     }
 
-    # Folga larga entre nós ligados: com a folga mínima, dois vizinhos
-    # encostados deixam a aresta entre eles do tamanho da seta.
+    # Wide gap between linked nodes: with the minimum gap, two neighbors
+    # touching leave the edge between them as short as the arrow.
     return separate(boxes, gap=GAP * 3)
 
 
 def separate(boxes: dict[str, Box], passes: int = 120, gap: float = GAP) -> dict[str, Box]:
     """
-    Afasta as caixas que se sobrepõem, pelo eixo de menor sobreposição.
+    Pushes overlapping boxes apart, along the axis of smallest overlap.
 
-    A força dirigida trata nós como pontos; rótulos longos ainda
-    encostam. Empurrar pelo eixo mais curto mexe o mínimo no
-    arranjo que a força encontrou.
+    Force-directed layout treats nodes as points; long labels still
+    touch. Pushing along the shortest axis disturbs the arrangement
+    the force found as little as possible.
     """
 
     current = dict(boxes)
@@ -340,7 +342,7 @@ def _pack(
     components: list[dict[str, Box]],
     width: float,
 ) -> tuple[dict[str, Box], float, float]:
-    """Componentes em prateleiras, da esquerda para a direita."""
+    """Components on shelves, from left to right."""
 
     placed: dict[str, Box] = {}
 
@@ -382,7 +384,7 @@ def grid(
     top: float,
     width: float,
 ) -> tuple[dict[str, Box], float]:
-    """Nós soltos em linhas, a partir de `top`. Devolve as caixas e a altura."""
+    """Loose nodes in rows, starting at `top`. Returns the boxes and the height."""
 
     boxes: dict[str, Box] = {}
 
@@ -408,7 +410,7 @@ def grid(
 
 
 # ----------------------------------------------------------------------
-# Bipartido
+# Bipartite
 # ----------------------------------------------------------------------
 
 
@@ -419,10 +421,11 @@ def bipartite(
     gap: float = 320,
 ) -> tuple[dict[str, Box], float, float]:
     """
-    Duas colunas, ordenadas para cruzar o mínimo.
+    Two columns, ordered to cross as little as possible.
 
-    A ordem é a heurística do baricentro: cada lado se ordena pela
-    posição média dos vizinhos no outro, alternando, algumas vezes.
+    The order is the barycenter heuristic: each side is ordered by the
+    mean position of its neighbors on the other, alternating, a few
+    times.
     """
 
     order_left = sorted(left)
@@ -468,8 +471,8 @@ def bipartite(
         (order_right, right, right_x),
     ):
 
-        # A coluna mais curta se espalha pela altura da mais longa:
-        # alinhada ao topo, as arestas desceriam todas em diagonal.
+        # The shorter column spreads over the height of the longer one:
+        # aligned to the top, the edges would all go down diagonally.
         step = (rows * ROW_HEIGHT) / max(len(order), 1)
 
         for index, node in enumerate(order):
@@ -481,13 +484,13 @@ def bipartite(
 
 
 # ----------------------------------------------------------------------
-# Grupos
+# Groups
 # ----------------------------------------------------------------------
 
 
 @dataclass
 class Group:
-    """Um grupo de nós com título, desenhado como moldura."""
+    """A group of nodes with a title, drawn as a frame."""
 
     id: str
     title_width: float
@@ -500,14 +503,14 @@ def clusters(
     owner: dict[str, str],
 ) -> tuple[dict[str, Box], dict[str, Frame], float, float]:
     """
-    Grupos em camadas, da esquerda para a direita, no sentido do fluxo.
+    Groups in layers, from left to right, in the direction of the flow.
 
-    Quem publica, navega ou instancia fica à esquerda de quem
-    recebe, e as arestas correm para a direita sem atravessar
-    moldura. A camada é o caminho mais longo desde uma origem;
-    ciclos são quebrados pela primeira aresta que fecha a volta,
-    numa ordem fixa. Dentro de cada camada, a ordem é a do
-    baricentro dos predecessores, que encurta e descruza as arestas.
+    Whoever publishes, navigates or instantiates sits to the left of
+    whoever receives, and the edges run rightwards without crossing a
+    frame. The layer is the longest path from a source; cycles are
+    broken at the first edge that closes the loop, in a fixed order.
+    Within each layer, the order is the barycenter of the
+    predecessors, which shortens and uncrosses the edges.
     """
 
     if not groups:
@@ -530,8 +533,8 @@ def clusters(
         for other in following[name]:
             preceding[other].add(name)
 
-    # Quebra de ciclos por busca em profundidade: começa por quem
-    # mais emite do que recebe, que é o jeito de uma origem.
+    # Cycle breaking by depth-first search: starts with whoever
+    # emits more than it receives, which is what a source looks like.
     start = sorted(
         names,
         key=lambda name: (-(len(following[name]) - len(preceding[name])), name),
@@ -614,9 +617,9 @@ def clusters(
             header + len(group.members) * ROW_HEIGHT + padding,
         )
 
-    # Uma coluna por camada, mesmo longa: partida em duas, as arestas
-    # que vão à segunda atravessariam as molduras da primeira. Rolar
-    # na vertical custa menos que ler através de caixas.
+    # One column per layer, even a long one: split in two, the edges
+    # going to the second would cross the frames of the first. Scrolling
+    # vertically costs less than reading through boxes.
     stacks = [columns[index] for index in sorted(columns)]
 
     heights = [
@@ -635,7 +638,7 @@ def clusters(
 
         column_width = max(size[name][0] for name in stack)
 
-        # Coluna mais baixa centrada na mais alta.
+        # Shorter column centered on the taller one.
         y = MARGIN + (tallest - stack_height) / 2
 
         for name in stack:
@@ -660,12 +663,12 @@ def clusters(
 
 
 # ----------------------------------------------------------------------
-# Arestas
+# Edges
 # ----------------------------------------------------------------------
 
 
 def border(box: Box, toward: Point, offset: float = 4) -> Point:
-    """Onde a reta do centro da caixa até `toward` cruza a borda dela."""
+    """Where the line from the box center toward `toward` crosses its border."""
 
     dx = toward.x - box.x
     dy = toward.y - box.y
@@ -683,10 +686,10 @@ def border(box: Box, toward: Point, offset: float = 4) -> Point:
 
 def link(start: Box, end: Box, bow: float = 0.0) -> str:
     """
-    Caminho SVG entre duas caixas, de borda a borda.
+    SVG path between two boxes, from border to border.
 
-    A curvatura separa as relações diferentes do mesmo par, que de
-    outro modo cairiam uma em cima da outra.
+    The curvature separates the different relations of the same pair,
+    which would otherwise fall on top of one another.
     """
 
     middle = Point((start.x + end.x) / 2, (start.y + end.y) / 2)
@@ -708,8 +711,9 @@ def link(start: Box, end: Box, bow: float = 0.0) -> str:
 
 def sideways(start: Box, end: Box, same_column: bool = False) -> str:
     """
-    Curva em S entre colunas: sai pela lateral de uma caixa e entra
-    pela lateral da outra. Na mesma coluna, contorna pela direita.
+    S-curve between columns: leaves through the side of one box and
+    enters through the side of the other. In the same column, it goes
+    around on the right.
     """
 
     if same_column:

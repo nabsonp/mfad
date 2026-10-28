@@ -1,9 +1,9 @@
 """
-`localStorage` e `sessionStorage` embrulhados numa função do projeto.
+`localStorage` and `sessionStorage` wrapped in a project function.
 
-A chave só aparece em quem chama a embrulhadora, e o acesso é de
-quem chama: o arquivo de utilitários não grava nada sozinho. A API é
-a da Web Storage
+The key only appears at the wrapper's caller, and the access belongs
+to the caller: the utilities file writes nothing on its own. The API
+is Web Storage's
 (https://developer.mozilla.org/docs/Web/API/Web_Storage_API).
 """
 
@@ -55,7 +55,7 @@ def test_function_that_forwards_the_key_is_storage(system):
 
 
 def test_shared_helper_is_attributed_to_each_caller(system):
-    """O utilitário fora das unidades: quem acessa é quem chama."""
+    """The utility outside the units: whoever accesses is whoever calls."""
 
     storage = "../../shared/src/storage"
 
@@ -126,7 +126,7 @@ def test_layers_and_a_literal_prefix_in_the_key(system):
 
 
 def test_angular_storage_service_injected_by_type(system):
-    """Um método que lê e grava a mesma chave conta as duas coisas."""
+    """A method that reads and writes the same key counts as both."""
 
     architecture = system(
         angular_unit(
@@ -171,9 +171,9 @@ def test_angular_storage_service_injected_by_type(system):
 
 def test_methods_named_like_storage_are_not_storage(system):
     """
-    `cache.getItem(key)` de uma classe qualquer não é armazenamento. A
-    chave de runtime repassada à embrulhadora é: o trecho variável vira
-    `{param}`, como nas URLs.
+    `cache.getItem(key)` on an arbitrary class is not storage. A
+    runtime key forwarded to the wrapper is: the variable part becomes
+    `{param}`, as in URLs.
     """
 
     architecture = system(
@@ -206,7 +206,7 @@ def test_methods_named_like_storage_are_not_storage(system):
 
 
 def test_storage_access_in_a_function_nobody_calls_is_not_counted(system):
-    """O mesmo critério de código morto da comunicação."""
+    """The same dead-code criterion as for communication."""
 
     architecture = system(
         {

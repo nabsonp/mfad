@@ -1,17 +1,17 @@
 """
-Listagem de features, para servir de entrada a um assistente.
+Feature listing, to serve as input to an assistant.
 
-Não é visualização para humano ler de ponta a ponta: é uma
-sumarização estruturada do sistema, compacta o bastante para caber
-num prompt e concreta o bastante para ancorar julgamento.
+It is not a visualization for a human to read end to end: it is a
+structured summary of the system, compact enough to fit in a prompt
+and concrete enough to anchor judgment.
 
-A unidade é a TELA, porque ela é o que o usuário do sistema pede:
-tem uma rota, compõe fragmentos e depende de dados. O nome sozinho
-diria pouco; a rota mais os endpoints dizem muito.
+The unit is the SCREEN, because it is what the system's user asks
+for: it has a route, composes fragments and depends on data. The name
+alone would say little; the route plus the endpoints say a lot.
 
-O destino disto é a definição de domínios de negócio — pergunta
-que a análise estática não responde sozinha, porque domínio é
-conhecimento externo ao repositório.
+The destination of this is the definition of business domains, a
+question static analysis does not answer on its own, because a domain
+is knowledge external to the repository.
 """
 
 from __future__ import annotations
@@ -34,12 +34,12 @@ class FeaturesRenderer(Renderer):
     ) -> str:
 
         lines = [
-            f"# Features de {architecture.project or 'projeto'}",
+            f"# Features of {architecture.project or 'project'}",
             "",
-            "Extraído por análise estática. Uma seção por micro "
-            "frontend, com as telas que ele serve, os fragmentos "
-            "que expõe e consome, os serviços que chama e o estado "
-            "global que lê.",
+            "Extracted by static analysis. One section per micro "
+            "frontend, with the screens it serves, the fragments "
+            "it exposes and consumes, the services it calls and the "
+            "global state it reads.",
             "",
         ]
 
@@ -59,7 +59,7 @@ class FeaturesRenderer(Renderer):
 
     @staticmethod
     def _hosted_fragments(architecture: MicroFrontendArchitecture) -> dict[str, list[str]]:
-        """Fragmentos de fora instanciados em cada arquivo."""
+        """Foreign fragments instantiated in each file."""
 
         hosted: dict[str, list[str]] = {}
 
@@ -68,7 +68,7 @@ class FeaturesRenderer(Renderer):
             for render in item.renders:
 
                 hosted.setdefault(render.file, []).append(
-                    f"{item.fragment} (de {payload.short(item.provider)})"
+                    f"{item.fragment} (from {payload.short(item.provider)})"
                 )
 
         return hosted
@@ -83,16 +83,16 @@ class FeaturesRenderer(Renderer):
         lines = [
             f"## {microfrontend.id}",
             "",
-            f"- rotas próprias: `{', '.join(microfrontend.routes) or '—'}`",
-            f"- papel: {microfrontend.role}",
-            f"- tamanho: {microfrontend.size.code_lines} linhas em "
-            f"{microfrontend.size.files} arquivos",
+            f"- own routes: `{', '.join(microfrontend.routes) or '—'}`",
+            f"- role: {microfrontend.role}",
+            f"- size: {microfrontend.size.code_lines} lines in "
+            f"{microfrontend.size.files} files",
             "",
         ]
 
         if microfrontend.screens:
 
-            lines.append("### Telas")
+            lines.append("### Screens")
             lines.append("")
 
             for screen in microfrontend.screens:
@@ -100,20 +100,20 @@ class FeaturesRenderer(Renderer):
                 lines.append(f"- **{screen.component}**")
 
                 if screen.route:
-                    lines.append(f"  - rota: `{screen.route}`")
+                    lines.append(f"  - route: `{screen.route}`")
 
                 composed = hosted.get(screen.file or "", [])
 
                 if composed:
                     lines.append(
-                        f"  - compõe: {', '.join(composed)}"
+                        f"  - composes: {', '.join(composed)}"
                     )
 
             lines.append("")
 
         if microfrontend.fragments:
 
-            lines.append("### Fragmentos expostos")
+            lines.append("### Exposed fragments")
             lines.append("")
             lines.extend(
                 f"- `{fragment.name}`"
@@ -131,12 +131,12 @@ class FeaturesRenderer(Renderer):
 
         if endpoints:
 
-            lines.append("### Serviços chamados")
+            lines.append("### Called services")
             lines.append("")
             lines.append(
-                "> Atribuídos ao micro frontend, não à tela: as "
-                "chamadas costumam viver num módulo de serviço "
-                "compartilhado internamente."
+                "> Attributed to the micro frontend, not to the screen: "
+                "calls usually live in a service module shared "
+                "internally."
             )
             lines.append("")
             lines.extend(f"- `{endpoint}`" for endpoint in endpoints)
@@ -152,7 +152,7 @@ class FeaturesRenderer(Renderer):
 
         if slices:
 
-            lines.append("### Estado global acessado")
+            lines.append("### Accessed global state")
             lines.append("")
             lines.extend(f"- `{item}`" for item in slices)
             lines.append("")
@@ -162,25 +162,25 @@ class FeaturesRenderer(Renderer):
     @staticmethod
     def _relations(architecture: MicroFrontendArchitecture) -> list[str]:
         """
-        As arestas, para que o assistente veja o fluxo entre as
-        partes — e não só o conteúdo de cada uma.
+        The edges, so the assistant sees the flow between the parts,
+        and not only the content of each one.
         """
 
-        lines = ["## Relações entre micro frontends", ""]
+        lines = ["## Relations between micro frontends", ""]
 
         rows = [
-            ("composição", item.consumer, item.provider, item.fragment)
+            ("composition", item.consumer, item.provider, item.fragment)
             for item in architecture.compositions
         ] + [
-            ("navegação", item.source, item.target, item.resolved_url or "")
+            ("navigation", item.source, item.target, item.resolved_url or "")
             for item in architecture.navigations
         ] + [
-            ("comunicação", item.source, item.target, item.channel)
+            ("communication", item.source, item.target, item.channel)
             for item in architecture.communications
         ]
 
         if not rows:
-            lines.append("_Nenhuma._")
+            lines.append("_None._")
             return lines + [""]
 
         seen: set[tuple] = set()

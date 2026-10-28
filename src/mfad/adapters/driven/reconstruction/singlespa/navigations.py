@@ -1,16 +1,16 @@
 """
-Navegação entre aplicações.
+Navigation between applications.
 
-Não existe API padrão de navegação no single-spa: cada projeto usa
-o roteador do seu framework, ou um componente próprio. Detectar a
-CHAMADA, portanto, não é genérico.
+There is no standard navigation API in single-spa: each project uses
+its framework's router, or a component of its own. Detecting the
+CALL, therefore, is not generic.
 
-O destino é. Toda aplicação declara no `registerApplication` as
-rotas que possui, e isso vale para qualquer projeto single-spa.
-Por isso a detecção é invertida: em vez de procurar chamadas de
-navegação e descobrir para onde vão, procuramos expressões que
-resolvem para uma rota de OUTRA aplicação. O que aciona a
-navegação deixa de importar.
+The target is. Every application declares in `registerApplication`
+the routes it owns, and that holds for any single-spa project. That is
+why detection is inverted: instead of looking for navigation calls and
+finding out where they go, we look for expressions that resolve to a
+route of ANOTHER application. What triggers the navigation no longer
+matters.
 """
 
 from __future__ import annotations
@@ -31,21 +31,21 @@ from mfad.domain import MicroFrontend, Navigation, SourceLocation
 
 
 
-#: Elementos de roteador cujo `path`/`from` declara o caminho a que o
-#: roteador responde, em vez de levar a ele.
+#: Router elements whose `path`/`from` declares the path the router
+#: answers to, instead of leading to it.
 ROUTE_ELEMENTS = frozenset({"Route", "Redirect"})
 
-#: Contêineres cujos filhos diretos são rotas — no @reach/router, a
-#: tela é filha de `<Router>` com `path` próprio.
+#: Containers whose direct children are routes — in @reach/router, the
+#: screen is a child of `<Router>` with its own `path`.
 ROUTE_CONTAINERS = frozenset({"Router", "Routes", "Switch"})
 
 
 def _declares_route(attribute: Node, name: str) -> bool:
     """
-    Se o atributo declara um caminho do roteador, em vez de navegar.
+    Whether the attribute declares a router path, instead of navigating.
 
-    Só no elemento de roteador: `path` num componente do projeto —
-    `<Voltar path={routes.HOME}>` — é a URL para onde ele leva.
+    Only on a router element: `path` on a project component —
+    `<Voltar path={routes.HOME}>` — is the URL it leads to.
     """
 
     if name not in ("path", "from", "basename"):
@@ -61,7 +61,7 @@ def _declares_route(attribute: Node, name: str) -> bool:
     if tag in ROUTE_ELEMENTS:
         return True
 
-    # Filho direto de um contêiner de rotas.
+    # Direct child of a routes container.
     element = opening if opening.type == "jsx_self_closing_element" else opening.parent
 
     parent = element.parent if element is not None else None
@@ -73,7 +73,7 @@ def _declares_route(attribute: Node, name: str) -> bool:
 
 
 def _has_literal_after(pattern: str, prefix: str) -> bool:
-    """O padrão diz mais que o prefixo e tem algum segmento literal: `/{param}` sozinho não é rota de ninguém."""
+    """The pattern says more than the prefix and has some literal segment: `/{param}` alone is nobody's route."""
 
     segments = [segment for segment in pattern.split("?")[0].split("/") if segment]
 
@@ -89,11 +89,11 @@ def _tag(opening: Node | None) -> str | None:
 
     return name.text.decode("utf-8", "replace") if name is not None else None
 
-#: Módulos nativos do Node (`module.builtinModules`) que não existem no
-#: navegador: o webpack 5 e o Vite não os embutem no pacote do cliente.
-#: Ficam de fora os que têm pacote de mesmo nome para o navegador
-#: (`events`, `buffer`, `util`, `url`, `process`, `assert`...), que o
-#: código do cliente importa de verdade.
+#: Node built-in modules (`module.builtinModules`) that do not exist in
+#: the browser: webpack 5 and Vite do not bundle them into the client.
+#: Left out are the ones that have a same-named package for the browser
+#: (`events`, `buffer`, `util`, `url`, `process`, `assert`...), which
+#: client code really imports.
 NODE_ONLY_MODULES = frozenset({
     "child_process", "cluster", "dgram", "diagnostics_channel", "dns", "dns/promises",
     "fs", "fs/promises", "http", "http2", "https", "inspector", "module", "net", "os",
@@ -111,11 +111,12 @@ def _callee(node: Node, source: bytes) -> str | None:
 
 def _runs_on_node(root: Node, source: bytes) -> bool:
     """
-    Se o módulo roda no Node, e não no navegador: importa um módulo
-    nativo que só existe lá (`import fs from "fs"`, `require("node:path")`).
+    Whether the module runs on Node, not in the browser: it imports a
+    built-in module that only exists there (`import fs from "fs"`,
+    `require("node:path")`).
 
-    É o servidor que entrega o pacote, não o micro frontend: o
-    `app.get("/")` do Express declara a rota que ele atende.
+    It is the server that delivers the bundle, not the micro frontend:
+    Express's `app.get("/")` declares the route it serves.
     """
 
     for node in AstReader.walk(root):
@@ -141,35 +142,35 @@ def _runs_on_node(root: Node, source: bytes) -> bool:
     return False
 
 
-#: Chamadas que recebem URL sem navegar.
+#: Calls that receive a URL without navigating.
 NOT_NAVIGATION_CALLS = frozenset({"fetch"})
 
-#: Métodos de `String` e `Array` cujo argumento é texto a comparar,
-#: cortar ou juntar — nunca um destino.
+#: `String` and `Array` methods whose argument is text to compare, cut
+#: or join — never a target.
 TEXT_METHODS = frozenset({
     "startsWith", "endsWith", "includes", "indexOf", "lastIndexOf",
     "split", "join", "replace", "replaceAll", "concat", "match",
     "matchAll", "search", "padStart", "padEnd", "trim", "localeCompare",
 })
 
-#: Pacotes do React Router.
+#: React Router packages.
 ROUTER_MODULES = frozenset({"react-router", "react-router-dom"})
 
-#: Componentes cujo `to` é resolvido pelo roteador.
+#: Components whose `to` is resolved by the router.
 ROUTER_LINKS = frozenset({"Link", "NavLink", "Navigate"})
 
-#: Roteadores que aceitam `basename`.
+#: Routers that accept `basename`.
 ROUTER_COMPONENTS = frozenset(
     {"BrowserRouter", "HashRouter", "MemoryRouter", "Router", "unstable_HistoryRouter"}
 )
 
-#: Fábricas de roteador de dados, com `basename` nas opções.
+#: Data router factories, with `basename` in the options.
 ROUTER_FACTORIES = frozenset({"createBrowserRouter", "createHashRouter", "createMemoryRouter"})
 
-#: Funções que COMPARAM um padrão com a URL atual, sem ir a ela:
-#: `useMatch`, `matchPath` e `matchRoutes` do React Router v6
-#: (https://reactrouter.com/en/main/hooks/use-match), `useRouteMatch` do
-#: v5, e `pathToActiveWhen` do single-spa
+#: Functions that COMPARE a pattern with the current URL, without going
+#: to it: React Router v6's `useMatch`, `matchPath` and `matchRoutes`
+#: (https://reactrouter.com/en/main/hooks/use-match), v5's
+#: `useRouteMatch`, and single-spa's `pathToActiveWhen`
 #: (https://single-spa.js.org/docs/api#pathtoactivewhen).
 MATCHERS = {
     "react-router": frozenset({"useMatch", "matchPath", "matchRoutes", "useRouteMatch"}),
@@ -177,8 +178,8 @@ MATCHERS = {
     "single-spa": frozenset({"pathToActiveWhen"}),
 }
 
-#: Ganchos que devolvem quem navega pelo roteador: a função do v6 e
-#: o histórico do v5.
+#: Hooks that return what navigates through the router: v6's function
+#: and v5's history.
 ROUTER_HOOKS = {"useNavigate": None, "useHistory": ("push", "replace")}
 
 
@@ -194,16 +195,16 @@ class NavigationExtractor:
 
         self.microfrontends = microfrontends
 
-        #: (arquivo, início) das chamadas que são requisição HTTP: o
-        #: argumento delas é recurso a buscar, não destino, mesmo que o
-        #: caminho coincida com a rota de outra aplicação.
+        #: (file, start) of the calls that are HTTP requests: their
+        #: argument is a resource to fetch, not a target, even if the
+        #: path matches another application's route.
         self.requests = requests or set()
 
         self.ownership = Ownership(context.repository, microfrontends)
 
         self.evaluator = ExpressionEvaluator(context.routes)
 
-        #: unidade → `basename` do roteador dela
+        #: unit → its router's `basename`
         self.basenames: dict[str, str] = {}
 
     def extract(self) -> list[Navigation]:
@@ -226,8 +227,8 @@ class NavigationExtractor:
         for file_path, root, source in parsed:
             found.extend(self._from_file(file_path, root, source))
 
-        # De que tela parte cada navegação: a mesma pergunta da ponta
-        # de um canal, feita uma vez para todas.
+        # Which screen each navigation starts from: the same question as
+        # for a channel end, asked once for all of them.
         if found:
 
             reached = placements(self.context, self.microfrontends)
@@ -254,8 +255,8 @@ class NavigationExtractor:
 
         origin = self.ownership.of_file(file_path)
 
-        # Código fora de qualquer unidade não navega de ninguém, e o
-        # que roda no servidor não navega no navegador.
+        # Code outside any unit navigates from nobody, and what runs on
+        # the server does not navigate in the browser.
         if not origin or _runs_on_node(root, source):
             return []
 
@@ -274,22 +275,23 @@ class NavigationExtractor:
 
             value = self.evaluator.evaluate(node, source)
 
-            # Base desconhecida pode ser outra origem — um CDN, uma
-            # API —, e aí o caminho não é rota do sistema.
+            # An unknown base may be another origin — a CDN, an API —,
+            # and then the path is not a route of the system.
             if not value or value.based or not value.url.startswith("/"):
                 continue
 
             url = value.url
 
-            # `/movie/${id}`: com o resto do caminho, o destino casa com
-            # a rota dinâmica `/movie/:id`, que o prefixo `/movie/` não
-            # alcança. Sem texto depois do prefixo, fica o prefixo.
+            # `/movie/${id}`: with the rest of the path, the target
+            # matches the dynamic route `/movie/:id`, which the prefix
+            # `/movie/` does not reach. With no text after the prefix,
+            # the prefix stays.
             if value.pattern and _has_literal_after(value.pattern, url):
                 url = value.pattern
 
-            # `<Link to="/">` debaixo de `<BrowserRouter basename="/loja">`
-            # vai para `/loja`: o React Router resolve o destino a partir
-            # da base do roteador, não da raiz do site.
+            # `<Link to="/">` under `<BrowserRouter basename="/loja">`
+            # goes to `/loja`: React Router resolves the target from the
+            # router's base, not from the site root.
             if node.id in routed:
                 url = self._under_basename(origin, url)
 
@@ -317,7 +319,7 @@ class NavigationExtractor:
 
     @staticmethod
     def _matcher_names(root: Node, source: bytes) -> set[str]:
-        """Os nomes locais das funções de `MATCHERS` importadas no módulo."""
+        """The local names of the `MATCHERS` functions imported in the module."""
 
         return {
             record.local_name
@@ -345,16 +347,16 @@ class NavigationExtractor:
         return (relative, arguments.parent.start_byte) in self.requests
 
     # ------------------------------------------------------------------
-    # A base do roteador de cada unidade
+    # The router base of each unit
     # ------------------------------------------------------------------
 
     def _basenames(self, parsed) -> dict[str, str]:
         """
-        Unidade → `basename` do roteador que ela monta.
+        Unit → `basename` of the router it mounts.
 
-        Só quando há UM valor: a unidade com dois roteadores de bases
-        diferentes deixa ambíguo de qual deles é cada link, e o
-        destino fica como está escrito.
+        Only when there is ONE value: a unit with two routers with
+        different bases makes it ambiguous which one each link belongs
+        to, and the target stays as written.
         """
 
         found: dict[str, set[str]] = {}
@@ -413,7 +415,7 @@ class NavigationExtractor:
                 if function is None or names.get(AstReader.text(function, source)) not in ROUTER_FACTORIES:
                     continue
 
-                # `createBrowserRouter(rotas, { basename })`
+                # `createBrowserRouter(routes, { basename })`
                 arguments = node.child_by_field_name("arguments")
 
                 given = [child for child in arguments.named_children if child.type != "comment"] if arguments else []
@@ -434,7 +436,7 @@ class NavigationExtractor:
 
     @staticmethod
     def _router_imports(root: Node, source: bytes) -> dict[str, str]:
-        """Nome local → nome exportado, para o que vem do React Router."""
+        """Local name → exported name, for what comes from React Router."""
 
         return {
             record.local_name: record.imported_name
@@ -444,8 +446,8 @@ class NavigationExtractor:
 
     def _router_targets(self, root: Node, source: bytes) -> set[int]:
         """
-        Os nós de destino que o roteador resolve: o `to` dos links do
-        React Router e o argumento de `navigate()` e `history.push()`.
+        The target nodes the router resolves: the `to` of React Router
+        links and the argument of `navigate()` and `history.push()`.
         """
 
         names = self._router_imports(root, source)
@@ -455,7 +457,7 @@ class NavigationExtractor:
 
         found: set[int] = set()
 
-        #: nome local → métodos que navegam (`None`: a própria função)
+        #: local name → methods that navigate (`None`: the function itself)
         navigators: dict[str, tuple[str, ...] | None] = {}
 
         for declarator in AstReader.find_all(root, "variable_declarator"):
@@ -531,20 +533,21 @@ class NavigationExtractor:
     @staticmethod
     def _candidates(root: Node) -> Iterator[Node]:
         """
-        As posições em que uma URL vira navegação.
+        The positions in which a URL becomes navigation.
 
-        Argumento DIRETO de chamada cobre `navigate(rota)`; valor de
-        atributo JSX cobre `<Link to={rota}>` e qualquer componente
-        próprio que receba a rota por prop.
+        A DIRECT call argument covers `navigate(rota)`; a JSX attribute
+        value covers `<Link to={rota}>` and any custom component that
+        receives the route through a prop.
 
-        Só o argumento direto, nunca aninhado: é o que mantém o
-        `activeWhen: ["/users"]` do próprio `registerApplication`
-        fora do resultado.
+        Only the direct argument, never nested: that is what keeps the
+        `activeWhen: ["/users"]` of `registerApplication` itself out of
+        the result.
 
-        Dois cortes. Atributo que DECLARA caminho em vez de levar a
-        ele — `<Route path>`, `<Redirect from>`, `<Router basename>` —
-        não é navegação: é o roteador dizendo o que responde ali. E
-        `fetch(url)` busca dado, não leva o usuário a lugar nenhum.
+        Two cuts. An attribute that DECLARES a path instead of leading
+        to it — `<Route path>`, `<Redirect from>`, `<Router basename>` —
+        is not navigation: it is the router saying what answers there.
+        And `fetch(url)` fetches data, it does not take the user
+        anywhere.
         """
 
         for node in AstReader.walk(root):
@@ -558,8 +561,8 @@ class NavigationExtractor:
                 ):
                     continue
 
-                # `url.endsWith("/")`, `path.split("/")`: método de
-                # texto ou de lista recebe pedaço de texto, não destino.
+                # `url.endsWith("/")`, `path.split("/")`: a text or list
+                # method receives a piece of text, not a target.
                 if function is not None and function.type == "member_expression":
 
                     method = function.child_by_field_name("property")
@@ -602,7 +605,7 @@ class NavigationExtractor:
 
     @staticmethod
     def _statement(node: Node, source: bytes) -> str:
-        """O trecho de código em volta, para leitura humana."""
+        """The surrounding code snippet, for human reading."""
 
         current = node
 

@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mfad"
-version = "0.1.0"
-description = "Análise estática de arquiteturas micro frontend"
+version = "1.0.0"
+description = "Static analysis of micro frontend architectures"
 requires-python = ">=3.10"
 dependencies = [
-    # Faixa fechada de propósito: o núcleo e os bindings de
-    # linguagem compartilham uma ABI, e misturar famílias corrompe
-    # memória silenciosamente — o processo morre por falha de
-    # segmentação em lugares aleatórios, sem exceção.
+    # Closed range on purpose: the core and the language bindings
+    # share an ABI, and mixing families corrupts memory silently: the
+    # process dies of a segmentation fault at random places, with no
+    # exception.
     "tree-sitter>=0.23,<0.24",
     "tree-sitter-javascript>=0.23,<0.24",
     "tree-sitter-typescript>=0.23,<0.24",

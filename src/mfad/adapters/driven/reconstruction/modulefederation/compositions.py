@@ -1,15 +1,15 @@
 """
-Consumo de módulo remoto.
+Consumption of remote modules.
 
-O import atravessa a fronteira pelo especificador: `app1/Botao` quer
-dizer o módulo `./Botao` publicado pela unidade `app1`. O nome antes
-da barra é o apelido do remoto, declarado em `remotes`; o resto é a
-chave do `exposes` da outra ponta, sem o `./` inicial.
+The import crosses the boundary through the specifier: `app1/Botao`
+means the module `./Botao` published by the unit `app1`. The name
+before the slash is the remote's alias, declared in `remotes`; the rest
+is the `exposes` key on the other end, without the leading `./`.
 
-É mais preciso que o equivalente em single-spa, onde qualquer export
-nomeado podia ser fragmento. Aqui as duas pontas são declaradas: quem
-publica diz em `exposes`, quem consome diz em `remotes`, e o import
-só casa quando as duas declarações se encontram.
+This is more precise than the single-spa equivalent, where any named
+export could be a fragment. Here both ends are declared: the publisher
+states it in `exposes`, the consumer states it in `remotes`, and the
+import only matches when the two declarations meet.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ class RemoteImportExtractor:
         self.context = context
         self.microfrontends = microfrontends
 
-        #: unidade -> caminhos publicados, sem o "./"
+        #: unit -> published paths, without the "./"
         self.catalog = {
             item.id: {
                 fragment.name.lstrip("./") for fragment in item.fragments
@@ -57,7 +57,7 @@ class RemoteImportExtractor:
 
         self.by_id = {item.id: item for item in microfrontends}
 
-        #: apelido local do remoto -> unidade, por quem declarou
+        #: local alias of the remote -> unit, per declaring unit
         self.aliases = {
             item.id: {
                 alias: alias
@@ -93,16 +93,17 @@ class RemoteImportExtractor:
 
         for item in found:
 
-            # Quando o fragmento É o componente de uma rota, a tela
-            # é aquela e só aquela. Cair na alcançabilidade aqui
-            # devolveria todas as telas declaradas no mesmo arquivo
-            # de rotas, que é onde elas costumam estar juntas.
+            # When the fragment IS the component of a route, the
+            # screen is that one and only that one. Falling back to
+            # reachability here would return every screen declared in
+            # the same routes file, which is where they usually sit
+            # together.
             #
-            # O PROVEDOR vem primeiro. A rota é declarada no roteador
-            # de quem hospeda, mas a tela pertence a quem publica o
-            # módulo, e é lá que ela está registrada. Procurar só no
-            # consumidor devolvia vazio para exatamente o caso que
-            # esta regra existe para resolver.
+            # The PROVIDER comes first. The route is declared in the
+            # host's router, but the screen belongs to whoever
+            # publishes the module, and that is where it is
+            # registered. Searching only in the consumer returned
+            # empty for exactly the case this rule exists to solve.
             exact = by_component.get(
                 (item.provider, item.local_name)
             ) or by_component.get((item.consumer, item.local_name))
@@ -121,18 +122,18 @@ class RemoteImportExtractor:
 
     def _composed(self, item: Composition) -> bool:
         """
-        Se o import acontece no sistema composto.
+        Whether the import happens in the composed system.
 
-        Um remoto tem duas portas de entrada: os módulos que publica,
-        que são o que o hospedeiro carrega, e o próprio arquivo de
-        entrada, que só roda quando ele é aberto sozinho, em
-        desenvolvimento. Import alcançável só pela segunda nunca chega
-        à página do sistema — e contá-lo fazia uma biblioteca de
-        componentes, usada apenas no `main.tsx` de cada remoto, parecer
-        dependida por todos.
+        A remote has two entry points: the modules it publishes, which
+        are what the host loads, and its own entry file, which only
+        runs when it is opened on its own, in development. An import
+        reachable only through the second never reaches the system's
+        page — and counting it made a component library, used only in
+        each remote's `main.tsx`, look depended on by everyone.
 
-        Vale só para remoto (quem publica algo). Hospedeiro e unidade
-        sem publicação não têm essa distinção, e aí o import fica.
+        Applies only to remotes (units that publish something). Hosts
+        and units with nothing published have no such distinction, so
+        the import stays.
         """
 
         consumer = self.by_id.get(item.consumer)
@@ -157,7 +158,7 @@ class RemoteImportExtractor:
 
         consumer = self.ownership.of_file(file_path)
 
-        # Import de remoto fora de qualquer unidade não liga dois
+        # A remote import outside any unit does not connect two
         # micro frontends.
         if not consumer:
             return []
@@ -208,17 +209,18 @@ class RemoteImportExtractor:
         """
         `const Pharmacy = lazy(() => import("hs-pharmacy/Pharmacy"))`.
 
-        É assim que um host carrega página remota, e não como import
-        estático: o ponto de Module Federation é buscar o código na
-        hora, e o framework exige uma fronteira preguiçosa para isso.
-        Ler só o import estático encontra as bibliotecas compartilhadas
-        e perde exatamente as páginas — o consumo que define o sistema.
+        This is how a host loads a remote page, not via a static
+        import: the point of Module Federation is to fetch the code on
+        demand, and the framework requires a lazy boundary for that.
+        Reading only static imports finds the shared libraries and
+        misses exactly the pages — the consumption that defines the
+        system.
         """
 
         return specifiers.dynamic_imports(root, source)
 
     def _split(self, module: str) -> tuple[str | None, str]:
-        """`app1/Botao` → (`app1`, `Botao`), quando as duas pontas batem."""
+        """`app1/Botao` → (`app1`, `Botao`), when both ends match."""
 
         return specifiers.split(module, self.catalog)
 

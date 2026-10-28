@@ -1,11 +1,11 @@
 """
-O destino de um link do React Router parte da base do roteador.
+The destination of a React Router link starts from the router's base.
 
-https://reactrouter.com/api/declarative-routers/BrowserRouter#basename e
+https://reactrouter.com/api/declarative-routers/BrowserRouter#basename and
 https://reactrouter.com/api/data-routers/createBrowserRouter#optsbasename:
-debaixo de `basename="/loja"`, `<Link to="/">` leva a `/loja`. Num micro
-frontend single-spa, a base costuma ser a rota de ativação dele, e o
-link para `/` fica dentro da própria unidade.
+under `basename="/loja"`, `<Link to="/">` leads to `/loja`. In a
+single-spa micro frontend, the base is usually its activation route,
+and the link to `/` stays inside the unit itself.
 """
 
 from conftest import mfe, root_config
@@ -54,7 +54,7 @@ def test_links_under_the_router_basename_stay_in_the_unit(system):
         prefix="@org/",
     )
 
-    # O `<a href>` não passa pelo roteador: `/blog` é absoluto.
+    # The `<a href>` does not go through the router: `/blog` is absolute.
     assert pairs(architecture) == [("shop", "blog", "/blog")]
 
 
@@ -86,7 +86,7 @@ def test_data_router_basename_and_the_v5_history(system):
 
 
 def test_without_basename_the_link_leaves_the_unit(system):
-    """Sem base, `to="/"` é a raiz do site: navegação para quem a possui."""
+    """Without a base, `to="/"` is the site root: navigation to whoever owns it."""
 
     architecture = system(
         {

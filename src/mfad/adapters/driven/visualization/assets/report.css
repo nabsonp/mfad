@@ -28,7 +28,7 @@ body {
 h1, h2, h3 { margin: 0; font-weight: 600; }
 button { font: inherit; cursor: pointer; }
 
-/* ---------------------------------------------------- cabeçalho */
+/* ---------------------------------------------------- header */
 .topbar {
   background: var(--panel);
   border-bottom: 1px solid var(--line);
@@ -71,8 +71,8 @@ button { font: inherit; cursor: pointer; }
 .metric span { color: var(--muted); font-size: 12px; }
 .metric.alert strong { color: var(--high); }
 
-/* Os números são as abas da página. A aba aberta é marcada por baixo,
-   como uma aba de verdade; passar o mouse mostra que é clicável. */
+/* The numbers are the page's tabs. The open tab is marked underneath,
+   like a real tab; hovering shows it is clickable. */
 button.metric {
   border: 0; text-align: left; font: inherit; color: inherit;
   border-bottom: 3px solid transparent; cursor: pointer;
@@ -83,7 +83,7 @@ button.metric[aria-selected="true"] span { color: var(--accent); }
 .metric.home { flex: 0 0 auto; min-width: 96px; }
 .metric.home strong { color: var(--accent); display: flex; height: 25px; align-items: center; }
 
-/* --------------------------------------------------------- páginas */
+/* --------------------------------------------------------- pages */
 .pages { padding: 0 24px 48px; }
 .page[data-page]:not([data-page="home"]) { padding-top: 16px; }
 .page .hint { margin: 0; padding: 10px 16px 0; color: var(--muted); font-size: 13px; }
@@ -100,13 +100,13 @@ table.data th[data-sort] { cursor: pointer; user-select: none; }
 table.data th[data-sort]:hover { color: var(--ink); }
 table.data th[aria-sort="ascending"]::after { content: " ▲"; }
 table.data th[aria-sort="descending"]::after { content: " ▼"; }
-/* Caminho e nome partidos no meio leem mal: a linha não quebra, e a
-   tabela rola na horizontal quando não cabe. */
+/* Path and name broken in the middle read badly: the line does not wrap, and the
+   table scrolls horizontally when it does not fit. */
 table.data td { vertical-align: top; white-space: nowrap; }
 table.data td strong { color: var(--ink); }
 
-/* Linha que abre: a seta gira, e o detalhe aparece logo abaixo, com
-   todos os campos em grade — cabem lado a lado sem rolar a tabela. */
+/* Expandable row: the arrow rotates, and the detail appears right below, with
+   all fields in a grid: they fit side by side without scrolling the table. */
 table.data tr.item { cursor: pointer; }
 table.data td.chevron, table.data th.chevron { width: 18px; padding-right: 0; color: var(--faint); }
 table.data td.chevron span { display: inline-block; transition: transform .15s; }
@@ -125,8 +125,8 @@ table.data tr.detail:hover { background: #f8fafc; }
 .fields dd { margin: 2px 0 0; color: var(--ink); overflow-wrap: anywhere; }
 .fields .wide { grid-column: 1 / -1; }
 
-/* Caminhos agrupados por micro frontend: o nome uma vez, os arquivos
-   embaixo, sem o diretório dele repetido em cada linha. */
+/* Paths grouped by micro frontend: the name once, the files
+   below, without its directory repeated on each line. */
 .locations { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .location-owner { font-size: 12.5px; }
 .locations ul { margin: 2px 0 0; padding-left: 14px; border-left: 2px solid var(--line, #e5e7eb); list-style: none; }
@@ -139,8 +139,8 @@ table.data tr.detail:hover { background: #f8fafc; }
 .locations .hits .lines { color: var(--ink); margin-right: 6px; }
 .locations .sep { color: var(--faint); }
 
-/* Fatias do estado global, no detalhe da detecção: uma caixa por
-   fatia, com quem lê, quem grava e onde. */
+/* Global-state slices, in the detection detail: one box per
+   slice, with who reads, who writes and where. */
 .slices { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
 .slice { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--panel); }
 .slice-head { font-size: 13px; cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 6px; }
@@ -163,7 +163,7 @@ table.data tr.detail:hover { background: #f8fafc; }
 table.data tr.detail .link-button { width: auto; margin: 4px 0 6px 18px; }
 .table-hint { margin-left: auto; color: var(--faint); }
 
-/* --------------------------------------------------------- mapa */
+/* --------------------------------------------------------- map */
 .layout { display: flex; gap: 16px; padding: 16px 24px 48px; align-items: flex-start; }
 .column { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
 
@@ -185,8 +185,8 @@ section.block {
 .block > header .count { color: var(--muted); font-size: 12px; }
 .block .body { padding: 16px; }
 
-/* Dashboard: um card por grafo, um embaixo do outro; ampliar deixa o
-   card mais alto. */
+/* Dashboard: one card per graph, one below the other; enlarging makes the
+   card taller. */
 .dashboard { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .view { display: flex; flex-direction: column; transition: box-shadow .2s; }
 .view.active { box-shadow: 0 0 0 2px var(--accent); }
@@ -265,7 +265,7 @@ section.block {
   color: #9a3412;
 }
 
-/* --------------------------------------------------------- grafo */
+/* --------------------------------------------------------- graph */
 .graph text { pointer-events: none; }
 .graph text.section {
   font-size: 11px; font-weight: 600; fill: var(--faint);
@@ -282,9 +282,9 @@ section.block {
 .node text.meta { font-size: 10.5px; fill: var(--muted); }
 .node.row text.label { font-size: 12px; }
 
-/* Anti-padrão é contado num selo, não pintado na borda: num
-   sistema em que quase todos aparecem em alguma detecção, a borda
-   vermelha em todos não distingue ninguém. */
+/* An anti-pattern is counted in a badge, not painted on the border: in a
+   system where almost everyone appears in some detection, a red
+   border on everyone distinguishes no one. */
 .badge-count circle { fill: var(--high); stroke: #fff; stroke-width: 1.5; }
 .badge-count text {
   text-anchor: middle; font-size: 10px; font-weight: 700; fill: #fff;
@@ -314,10 +314,10 @@ section.block {
 .screen-node.outside text { font-style: italic; fill: var(--muted); }
 
 .edge { fill: none; stroke-width: 1.8; cursor: pointer; }
-/* A montagem é a relação de fundo: é ela que põe cada micro
-   frontend na página, e por isso aparece em todo par orquestrador →
-   aplicação. Cinza e fina para não competir com as relações entre
-   pares, que são o que se procura ao ler o grafo. */
+/* Mounting is the background relation: it is what puts each micro
+   frontend on the page, and so it appears in every orchestrator →
+   application pair. Gray and thin so it does not compete with the pairwise
+   relations, which are what one looks for when reading the graph. */
 .edge.mount { stroke: var(--mount); stroke-width: 1.1 !important; opacity: .7; }
 .edge.composition { stroke: var(--fragment); }
 .edge.navigation { stroke: var(--navigation); stroke-dasharray: 7 4; }
@@ -351,8 +351,8 @@ section.block {
 .legend .direction { color: var(--muted); }
 
 
-/* ------------------------------------------------------- painel */
-/* Barra lateral: fechada fora da tela, desliza ao clicar num nó. */
+/* ------------------------------------------------------- panel */
+/* Sidebar: closed off-screen, slides in when a node is clicked. */
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 20;
   width: 400px; max-width: 100vw; overflow: auto;
@@ -420,12 +420,12 @@ tr.item.flash > td { background: #eff6ff; transition: background .4s; }
 }
 .link-button:hover { background: var(--accent); color: #fff; }
 
-/* ---------------------------------------------------- inventário */
+/* ---------------------------------------------------- inventory */
 table.inventory { width: 100%; border-collapse: collapse; font-size: 13px; }
 
-/* O alinhamento é declarado pela classe, e não pela posição da
-   coluna: as duas tabelas têm formatos diferentes, e regra por
-   posição alinharia o cabeçalho de uma com a célula da outra. */
+/* Alignment is declared by the class, not by the column's
+   position: the two tables have different formats, and a rule by
+   position would align the header of one with the cell of the other. */
 table.inventory th {
   text-align: left; font-weight: 600; font-size: 11px;
   text-transform: uppercase; letter-spacing: .05em; color: var(--faint);
@@ -479,7 +479,7 @@ pre.snippet .ln { color: #64748b; user-select: none; }
 
 .listing { display: flex; flex-wrap: wrap; gap: 2px 18px; margin: 0; padding: 0; list-style: none; font-size: 12.5px; }
 
-/* Etiqueta do anti-padrão: uma cor fixa por nome. */
+/* Anti-pattern label: one fixed color per name. */
 .ap-tag {
   display: inline-block; padding: 2px 9px; border-radius: 999px;
   font-size: 12px; font-weight: 600; white-space: nowrap;

@@ -1,4 +1,4 @@
-"""Varredura de arquivos-fonte com poda de diretórios."""
+"""Source file scanning with directory pruning."""
 
 from __future__ import annotations
 
@@ -12,12 +12,12 @@ from mfad.adapters.driven.reconstruction.ast.reader import AstReader
 
 class SourceTree:
     """
-    Percorre os arquivos-fonte de um repositório.
+    Walks the source files of a repository.
 
-    A poda acontece na descida — diretórios ignorados nunca
-    são abertos. Isso importa: `rglob` desce em `node_modules`
-    inteiro antes de descartar, e a diferença é de minutos
-    para segundos num repositório real.
+    Pruning happens on the way down — ignored directories are never
+    opened. This matters: `rglob` descends into the whole
+    `node_modules` before discarding it, and the difference is minutes
+    versus seconds on a real repository.
     """
 
     IGNORED_DIRECTORIES = {
@@ -28,37 +28,37 @@ class SourceTree:
         ".next",
         "coverage",
         "__pycache__",
-        # Testes. O código de teste não é montado em execução: um
-        # `localStorage.setItem` num `.spec.ts` não acopla ninguém, e
-        # uma tela declarada só no teste não existe no sistema.
+        # Tests. Test code is not mounted at runtime: a
+        # `localStorage.setItem` in a `.spec.ts` couples nothing, and
+        # a screen declared only in a test does not exist in the system.
         "__tests__",
         "__mocks__",
         "cypress",
         "e2e",
     }
 
-    #: Marcas de arquivo de teste entre o nome e a extensão —
-    #: `x.spec.ts`, `auth.guard.spec.ts`, `x.test.jsx`. Convenção de
-    #: Jest, Vitest, Karma e Jasmine.
+    #: Test file markers between the name and the extension —
+    #: `x.spec.ts`, `auth.guard.spec.ts`, `x.test.jsx`. Convention of
+    #: Jest, Vitest, Karma and Jasmine.
     TEST_MARKERS = ("spec", "test")
 
-    #: Plataformas de micro frontend com integração própria, que nenhum
-    #: reconstrutor lê: dependência que as identifica → nome.
+    #: Micro frontend platforms with their own integration, which no
+    #: reconstructor reads: dependency that identifies them → name.
     #:
-    #: Elas usam single-spa ou Module Federation por baixo, e por isso
-    #: um extrator as reconheceria — e devolveria um inventário
-    #: enganoso: o framework registra as aplicações em tempo de
-    #: execução, a partir de manifestos próprios (`routes.json` no
-    #: OpenMRS, plugins no Open edX), e o que sobra no código é a
-    #: máquina do framework, não o sistema.
+    #: They use single-spa or Module Federation under the hood, so an
+    #: extractor would recognize them — and return a misleading
+    #: inventory: the framework registers the applications at
+    #: runtime, from its own manifests (`routes.json` in OpenMRS,
+    #: plugins in Open edX), and what is left in the code is the
+    #: framework's machinery, not the system.
     PLATFORMS = {
         "@openmrs/esm-framework": "OpenMRS 3 (esm-framework)",
         "@edx/frontend-platform": "Open edX (frontend-platform)",
         "@openedx/frontend-platform": "Open edX (frontend-platform)",
     }
 
-    #: Os pacotes que SÃO a plataforma — o framework vendorizado num
-    #: monorepo não depende de si mesmo, e ficaria de fora do corte.
+    #: The packages that ARE the platform — the framework vendored in a
+    #: monorepo does not depend on itself, and would escape the cut.
     PLATFORM_PACKAGES = {
         "@openmrs/esm-": "OpenMRS 3 (esm-framework)",
         "@edx/frontend-platform": "Open edX (frontend-platform)",
@@ -68,7 +68,7 @@ class SourceTree:
     def __init__(self, root: Path):
         self.root = root
 
-        #: pacote → plataforma, para os que ficaram de fora
+        #: package → platform, for the ones that were left out
         self.skipped: dict[Path, str] = {}
 
         self._platform: dict[Path, str | None] = {}
@@ -81,7 +81,7 @@ class SourceTree:
                 yield path
 
     def markup_files(self) -> Iterator[Path]:
-        """HTML e templates, onde mora o layout declarativo."""
+        """HTML and templates, where the declarative layout lives."""
 
         for path in self._walk():
 
@@ -125,12 +125,12 @@ class SourceTree:
 
     def _platform_of(self, directory: Path) -> str | None:
         """
-        A plataforma não suportada sobre a qual o pacote é construído.
+        The unsupported platform the package is built on.
 
-        Um pacote assim fica inteiro fora da varredura, como teste e
-        `node_modules`: o que ele tem é integração da plataforma, que
-        nenhum extrator lê certo. O resto do repositório segue — um
-        sistema pode ter um módulo OpenMRS ao lado de unidades comuns.
+        Such a package is left entirely out of the scan, like tests and
+        `node_modules`: what it holds is platform integration, which no
+        extractor reads correctly. The rest of the repository goes on — a
+        system may have an OpenMRS module next to ordinary units.
         """
 
         if directory in self._platform:
@@ -172,7 +172,7 @@ class SourceTree:
 
     @classmethod
     def is_test(cls, path: Path) -> bool:
-        """`x.spec.ts` e `x.test.js` são teste; `spec.ts` sozinho não."""
+        """`x.spec.ts` and `x.test.js` are tests; `spec.ts` alone is not."""
 
         middle = path.name.split(".")[1:-1]
 

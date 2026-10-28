@@ -1,3 +1,3 @@
-"""Análise estática de arquiteturas micro frontend."""
+"""Static analysis of micro frontend architectures."""
 
-__version__ = "0.1.0"
+__version__ = "1.0.0"

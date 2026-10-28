@@ -1,14 +1,14 @@
-%% Metamodelo do MFAD v0 — gerado de src/mfad/domain/
+%% MFAD v0 metamodel — generated from src/mfad/domain/
 %%
-%% root          o agregado, raiz de tudo que a reconstrução produz
-%% entity        tem identidade e é referenciada de fora por ela
-%% relationship  relação reificada entre unidades, sem identidade
-%% value         só existe como parte de outra coisa, comparada por valor
-%% input         declaração do usuário, lida e não gerada
-%% output        produzido por outro módulo, gravado à parte
+%% root          the aggregate, root of everything the reconstruction produces
+%% entity        has identity and is referenced from outside by it
+%% relationship  reified relation between units, without identity
+%% value         exists only as part of something else, compared by value
+%% input         user declaration, read and not generated
+%% output        produced by another module, written separately
 %%
-%% Losango cheio: composição. Tracejado: referência por IDENTIFICADOR,
-%% nunca por ponteiro de objeto.
+%% Filled diamond: composition. Dashed: reference by IDENTIFIER,
+%% never by object pointer.
 classDiagram
     direction TB
 

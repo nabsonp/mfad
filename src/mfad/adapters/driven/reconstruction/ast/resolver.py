@@ -1,4 +1,4 @@
-"""Resolução de especificadores de módulo para arquivos."""
+"""Resolution of module specifiers to files."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from pathlib import Path
 @lru_cache(maxsize=None)
 def canonical(path: Path) -> Path:
     """
-    O caminho real, sem link simbólico — calculado uma vez por caminho.
+    The real path, without symbolic links — computed once per path.
 
-    O mesmo arquivo chega pela varredura e pela resolução de import, e
-    as duas formas têm de coincidir para servir de chave.
+    The same file arrives through the scan and through import resolution,
+    and both forms must match to serve as a key.
     """
 
     return Path(os.path.realpath(path))
@@ -24,37 +24,37 @@ def canonical(path: Path) -> Path:
 
 @dataclass(frozen=True)
 class _CompilerPaths:
-    """O `baseUrl` e os `paths` que valem para um diretório."""
+    """The `baseUrl` and `paths` that apply to a directory."""
 
     base_url: Path | None
 
-    #: padrão -> substituições, já relativas ao diretório certo
+    #: pattern -> substitutions, already relative to the right directory
     paths: tuple[tuple[str, tuple[Path, ...]], ...]
 
 
 class ModuleResolver:
     """
-    Resolve `./fragments/X` para o arquivo real, seguindo as
-    convenções do bundler: extensão implícita e `/index`.
+    Resolves `./fragments/X` to the real file, following the
+    bundler conventions: implicit extension and `/index`.
 
-    Especificador sem ponto passa pelo `baseUrl` e pelos `paths` do
-    `tsconfig.json` (ou `jsconfig.json`) mais próximo, como o
-    compilador do TypeScript faz:
+    A specifier without a leading dot goes through the `baseUrl` and the
+    `paths` of the nearest `tsconfig.json` (or `jsconfig.json`), as the
+    TypeScript compiler does:
     https://www.typescriptlang.org/docs/handbook/modules/reference.html#paths
-    O que não casa com nenhum dos dois é pacote, e fica sem arquivo.
+    What matches neither is a package, and gets no file.
     """
 
     EXTENSIONS = (".js", ".jsx", ".ts", ".tsx")
 
     CONFIG_FILES = ("tsconfig.json", "jsconfig.json")
 
-    #: diretório -> configuração que vale para ele
+    #: directory -> configuration that applies to it
     _configs: dict[Path, _CompilerPaths | None] = {}
 
-    #: Resultados já calculados. Todo arquivo importa `react`, e cada
-    #: tentativa pelo `baseUrl` custa uma dúzia de consultas ao disco;
-    #: o resultado só depende do caminho-base, ou da configuração e do
-    #: especificador.
+    #: Already computed results. Every file imports `react`, and each
+    #: attempt through `baseUrl` costs a dozen disk lookups;
+    #: the result depends only on the base path, or on the configuration
+    #: and the specifier.
     _files: dict[Path, Path | None] = {}
     _aliases: dict[tuple[_CompilerPaths, str], Path | None] = {}
 
@@ -71,7 +71,7 @@ class ModuleResolver:
 
     @classmethod
     def is_aliased(cls, specifier: str, importer: Path) -> bool:
-        """Se o especificador sem ponto é do projeto, não um pacote."""
+        """Whether the dotless specifier belongs to the project, not a package."""
 
         return not specifier.startswith(".") and cls.resolve(specifier, importer) is not None
 
@@ -89,10 +89,10 @@ class ModuleResolver:
         if base.is_file():
             return base
 
-        # A extensão é ACRESCENTADA ao nome, não posta no lugar do
-        # sufixo: `./x.component` é `x.component.ts`. Trocar o
-        # sufixo dava `x.ts`, e toda a convenção de nomes do Angular
-        # — `.component`, `.service`, `.module` — ficava sem arquivo.
+        # The extension is APPENDED to the name, not put in place of the
+        # suffix: `./x.component` is `x.component.ts`. Replacing the
+        # suffix gave `x.ts`, and Angular's whole naming convention
+        # — `.component`, `.service`, `.module` — was left without a file.
         for extension in cls.EXTENSIONS:
 
             candidate = base.parent / f"{base.name}{extension}"
@@ -100,8 +100,8 @@ class ModuleResolver:
             if candidate.is_file():
                 return candidate
 
-        # `./x.js` apontando para `x.ts`: o TypeScript em ESM pede a
-        # extensão de saída no especificador.
+        # `./x.js` pointing to `x.ts`: TypeScript under ESM requires the
+        # output extension in the specifier.
         if base.suffix in cls.EXTENSIONS:
 
             for extension in cls.EXTENSIONS:
@@ -121,7 +121,7 @@ class ModuleResolver:
         return None
 
     # ------------------------------------------------------------------
-    # baseUrl e paths
+    # baseUrl and paths
     # ------------------------------------------------------------------
 
     @classmethod
@@ -142,8 +142,8 @@ class ModuleResolver:
     @classmethod
     def _by_config(cls, config: _CompilerPaths, specifier: str) -> Path | None:
 
-        # `paths` antes de `baseUrl`, e entre os padrões o de prefixo
-        # mais longo — a regra do compilador.
+        # `paths` before `baseUrl`, and among the patterns the one with the
+        # longest prefix — the compiler's rule.
         for substitutions, captured in cls._matches(config.paths, specifier):
 
             for target in substitutions:
@@ -192,7 +192,7 @@ class ModuleResolver:
 
     @classmethod
     def _config_for(cls, directory: Path) -> _CompilerPaths | None:
-        """O `tsconfig` mais próximo subindo a árvore, já com `extends`."""
+        """The nearest `tsconfig` going up the tree, with `extends` applied."""
 
         if directory in cls._configs:
             return cls._configs[directory]
@@ -233,9 +233,9 @@ class ModuleResolver:
 
         inherited: _CompilerPaths | None = None
 
-        # `extends` com caminho é arquivo do projeto; com nome de
-        # pacote é configuração publicada (`@tsconfig/...`), que não
-        # declara `paths` do projeto e fica de fora.
+        # `extends` with a path is a project file; with a package
+        # name it is a published configuration (`@tsconfig/...`), which
+        # does not declare project `paths` and is left out.
         extends = data.get("extends")
 
         for parent in extends if isinstance(extends, list) else [extends]:
@@ -259,7 +259,7 @@ class ModuleResolver:
 
         if isinstance(options.get("paths"), dict):
 
-            # Sem `baseUrl`, os `paths` são relativos ao próprio arquivo.
+            # Without `baseUrl`, `paths` are relative to the file itself.
             anchor = base_url or file.parent
 
             paths = tuple(
@@ -283,7 +283,7 @@ _TRAILING_COMMAS = re.compile(r',(\s*[}\]])')
 
 
 def _strip_jsonc(text: str) -> str:
-    """O `tsconfig` admite comentário e vírgula no fim; o `json` não."""
+    """`tsconfig` allows comments and trailing commas; `json` does not."""
 
     def keep_strings(match: re.Match) -> str:
         token = match.group(0)
@@ -291,7 +291,7 @@ def _strip_jsonc(text: str) -> str:
 
     without_comments = _JSONC_TOKENS.sub(keep_strings, text)
 
-    # Vírgula antes de fechar, só fora das strings.
+    # Comma before a closing bracket, only outside strings.
     parts = []
     last = 0
 

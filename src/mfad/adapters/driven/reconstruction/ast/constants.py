@@ -1,28 +1,29 @@
 """
-Propagação de constantes.
+Constant propagation.
 
-Reconhece objetos literais como:
+Recognizes object literals such as:
 
     const checkoutRoutes = {
         CART: "/checkout/cart",
     };
 
-para que `path={checkoutRoutes.CART}` possa ser resolvido.
+so that `path={checkoutRoutes.CART}` can be resolved.
 
-Limitações conhecidas, relevantes para interpretar a cobertura
-da ferramenta:
+Known limitations, relevant for interpreting the tool's
+coverage:
 
-1. A tabela é indexada pelo nome do identificador, globalmente.
-   Dois arquivos com uma `const routes` diferente colidem.
-2. Só as formas `const X = {...}` e `const X = "literal"` são
-   reconhecidas.
-3. A resolução transitiva tem um teto de iterações.
+1. The table is indexed by identifier name, globally.
+   Two files with a different `const routes` collide.
+2. Only the forms `const X = {...}` and `const X = "literal"` are
+   recognized.
+3. Transitive resolution has an iteration cap.
 
-A constante simples — `const CART_KEY = "cart"` — segue a mesma
-indexação por nome, com uma proteção a mais: um nome declarado com
-valores diferentes em lugares diferentes não resolve. É o que torna
-seguro resolver também a constante importada de outro módulo sem
-seguir o import: se o nome só tem um valor no repositório, é ele.
+The simple constant — `const CART_KEY = "cart"` — follows the same
+name-based indexing, with one extra safeguard: a name declared with
+different values in different places does not resolve. That is what
+makes it safe to also resolve a constant imported from another module
+without following the import: if the name has only one value in the
+repository, that is the one.
 """
 
 from __future__ import annotations
@@ -33,18 +34,18 @@ from mfad.adapters.driven.reconstruction.ast.reader import AstReader
 
 
 class RouteConstantTable:
-    """Tabela de constantes string do repositório."""
+    """Table of the repository's string constants."""
 
     MAX_PASSES = 10
 
     def __init__(self):
         self.table: dict[str, dict[str, str]] = {}
 
-        # entradas cujo valor é outra referência, ex.:
+        # entries whose value is another reference, e.g.:
         # routes.CART = checkoutRoutes.CART
         self.pending: dict[tuple[str, str], str] = {}
 
-        #: `const X = "literal"` — nome → valores vistos
+        #: `const X = "literal"` — name → values seen
         self.scalars: dict[str, set[str]] = {}
 
     def index_file(self, root: Node, source: bytes) -> None:
@@ -60,8 +61,8 @@ class RouteConstantTable:
             if name_node.type != "identifier":
                 continue
 
-            # `{ ... } as const` e `{ ... } satisfies T`: a anotação do
-            # TypeScript embrulha o literal, que continua sendo o valor.
+            # `{ ... } as const` and `{ ... } satisfies T`: the TypeScript
+            # annotation wraps the literal, which is still the value.
             while value_node.type in ("as_expression", "satisfies_expression") and value_node.named_children:
                 value_node = value_node.named_children[0]
 
@@ -80,7 +81,7 @@ class RouteConstantTable:
 
     @staticmethod
     def _is_const(declarator: Node) -> bool:
-        """Só `const`: `let` e `var` podem ser reatribuídos."""
+        """Only `const`: `let` and `var` can be reassigned."""
 
         declaration = declarator.parent
 
@@ -130,9 +131,9 @@ class RouteConstantTable:
 
     def resolve_pending(self) -> None:
         """
-        Resolve referências entre constantes, iterando até o
-        ponto fixo. É o que faz `routes.CART = checkoutRoutes.CART`
-        chegar em `/checkout/cart`.
+        Resolves references between constants, iterating until a
+        fixed point. This is what makes `routes.CART = checkoutRoutes.CART`
+        reach `/checkout/cart`.
         """
 
         for _ in range(self.MAX_PASSES):
@@ -166,14 +167,14 @@ class RouteConstantTable:
         if expression[0] in "\"'`":
             return AstReader.strip_quotes(expression)
 
-        # membro: checkoutRoutes.CART
+        # member: checkoutRoutes.CART
         if "." in expression:
 
             holder, _, key = expression.rpartition(".")
 
             return self.table.get(holder, {}).get(key)
 
-        # constante simples: CART_KEY, só quando o nome tem um valor só
+        # simple constant: CART_KEY, only when the name has a single value
         values = self.scalars.get(expression)
 
         if values and len(values) == 1:

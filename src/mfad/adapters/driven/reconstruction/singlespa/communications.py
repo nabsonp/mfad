@@ -1,25 +1,25 @@
 """
-Comunicação entre micro frontends, em três níveis.
+Communication between micro frontends, at three levels.
 
-1. PRIMITIVAS DA PLATAFORMA WEB — `CustomEvent` com
-   `dispatchEvent`/`addEventListener`, e `BroadcastChannel`. São
-   API do navegador, não de framework: valem em qualquer projeto,
-   sem configuração.
+1. WEB PLATFORM PRIMITIVES — `CustomEvent` with
+   `dispatchEvent`/`addEventListener`, and `BroadcastChannel`. They
+   are browser API, not framework API: they apply to any project,
+   with no configuration.
 
-2. BARRAMENTOS CONHECIDOS — mitt, eventemitter3, pubsub-js e
-   afins, reconhecidos pelo especificador do import. Não é
-   heurística: se o módulo importado é `mitt`, o que vier dele é
-   barramento de eventos.
+2. KNOWN BUSES — mitt, eventemitter3, pubsub-js and the like,
+   recognized by the import specifier. This is not a heuristic: if
+   the imported module is `mitt`, whatever comes from it is an event
+   bus.
 
-3. MECANISMO DECLARADO — o `.mfad/communication.yml`, para o
-   wrapper próprio do projeto, que nenhum catálogo conhece.
+3. DECLARED MECHANISM — `.mfad/communication.yml`, for the project's
+   own wrapper, which no catalog knows about.
 
-Os três níveis produzem o mesmo artefato e são pareados juntos:
-produtor e consumidor se encontram pelo NOME DO CANAL, que é o
-contrato entre as duas pontas, não pela forma da chamada.
+The three levels produce the same artifact and are paired together:
+producer and consumer meet by the CHANNEL NAME, which is the contract
+between the two ends, not by the shape of the call.
 
-Sem declaração o resultado não é vazio — os dois primeiros níveis
-continuam valendo.
+Without a declaration the result is not empty — the first two levels
+still apply.
 """
 
 from __future__ import annotations
@@ -57,8 +57,8 @@ from mfad.domain import (
 )
 
 
-#: Eventos que o navegador dispara por conta própria. Um listener
-#: neles é comportamento de página, não canal entre micro frontends.
+#: Events the browser fires on its own. A listener on them is page
+#: behavior, not a channel between micro frontends.
 NATIVE_EVENTS = frozenset(
     {
         "click", "change", "input", "submit", "focus", "blur",
@@ -73,7 +73,7 @@ NATIVE_EVENTS = frozenset(
 
 @dataclass(frozen=True)
 class Endpoint:
-    """Uma ponta concreta: quem, em que canal, onde."""
+    """A concrete end: who, on which channel, where."""
 
     microfrontend: str
     channel: str
@@ -107,7 +107,7 @@ class CommunicationExtractor:
 
         communications: list[Communication] = []
 
-        # Nível 1 e 2: varrem o repositório uma vez, juntos.
+        # Levels 1 and 2: scan the repository once, together.
         produced, consumed = self._generic()
 
         for mechanism in sorted(set(produced) | set(consumed)):
@@ -120,11 +120,11 @@ class CommunicationExtractor:
                 )
             )
 
-        # Declarado pela própria tecnologia: o orquestrador diz, no
-        # registro, o que injeta em cada aplicação.
+        # Declared by the technology itself: the orchestrator states, in
+        # the registration, what it injects into each application.
         communications.extend(self._custom_props())
 
-        # Nível 3: o que o usuário declarou.
+        # Level 3: what the user declared.
         for mechanism in self.spec.mechanisms:
 
             communications.extend(
@@ -135,9 +135,9 @@ class CommunicationExtractor:
                 )
             )
 
-        # Onde cada ponta acontece. Feito por último, e uma vez só,
-        # porque vale para os três níveis igualmente: o mecanismo não
-        # muda a pergunta de qual tela alcança o arquivo da chamada.
+        # Where each end happens. Done last, and only once, because it
+        # applies equally to the three levels: the mechanism does not
+        # change the question of which screen reaches the call's file.
         found = placements(self.context, self.microfrontends)
 
         for item in communications:
@@ -155,21 +155,21 @@ class CommunicationExtractor:
         )
 
     # ------------------------------------------------------------------
-    # customProps — declarado pelo registro
+    # customProps — declared by the registration
     # ------------------------------------------------------------------
 
     def _custom_props(self) -> list[Communication]:
         """
         `registerApplication({ name, customProps: { … } })`.
 
-        É o canal recomendado pelo single-spa e o único que não
-        precisa ser pareado: o registro nomeia as DUAS pontas de uma
-        vez. Quem injeta é o orquestrador, quem recebe é a aplicação
-        nomeada ali, e cada chave é um canal.
+        It is the channel recommended by single-spa and the only one
+        that does not need pairing: the registration names BOTH ends at
+        once. The injector is the orchestrator, the receiver is the
+        application named there, and each key is a channel.
 
-        Por isso a aresta é dirigida. As demais nascem de duas pontas
-        que se encontram por um nome de canal e podem ser simétricas;
-        esta tem origem e destino escritos na declaração.
+        That is why the edge is directed. The others arise from two
+        ends that meet by a channel name and may be symmetric; this one
+        has its source and target written in the declaration.
         """
 
         orchestrators = [
@@ -218,7 +218,7 @@ class CommunicationExtractor:
         return found
 
     def _injector(self, target: str, orchestrators: list[str]) -> str | None:
-        """O orquestrador que monta esta aplicação."""
+        """The orchestrator that mounts this application."""
 
         for item in self.microfrontends:
 
@@ -237,7 +237,7 @@ class CommunicationExtractor:
         return ""
 
     # ------------------------------------------------------------------
-    # Níveis 1 e 2 — sem configuração
+    # Levels 1 and 2 — no configuration
     # ------------------------------------------------------------------
 
     def _generic(
@@ -258,15 +258,15 @@ class CommunicationExtractor:
 
             owner = self.ownership.of_file(file_path)
 
-            # Uso dentro de pacote compartilhado não é comunicação
-            # entre micro frontends — não há de quem para quem.
+            # Usage inside a shared package is not communication
+            # between micro frontends — there is no from-whom-to-whom.
             if owner not in self.known:
                 continue
 
             buses = self._buses(root, source)
 
-            #: nome local -> módulo de origem, para reconhecer o
-            #: Subject compartilhado pelo import e não pelo nome.
+            #: local name -> source module, to recognize the shared
+            #: Subject by its import and not by its name.
             imported = {
                 record.local_name: record.module
                 for record in ImportTable.records(root, source)
@@ -283,7 +283,7 @@ class CommunicationExtractor:
                 if not found:
                     continue
 
-                # Ponta em função que nada chama não comunica.
+                # An end in a function nothing calls does not communicate.
                 if not self.liveness.is_live(node, symbols):
                     continue
 
@@ -327,7 +327,7 @@ class CommunicationExtractor:
         node: Node,
         source: bytes,
     ) -> tuple[str, str, str] | None:
-        """`dispatchEvent(new CustomEvent(canal))` e `addEventListener`."""
+        """`dispatchEvent(new CustomEvent(canal))` and `addEventListener`."""
 
         function = node.child_by_field_name("function")
 
@@ -366,8 +366,8 @@ class CommunicationExtractor:
 
             channel = self._value(arguments[0], source)
 
-            # Eventos do próprio navegador não são comunicação
-            # entre micro frontends.
+            # The browser's own events are not communication between
+            # micro frontends.
             if not channel or channel in NATIVE_EVENTS:
                 return None
 
@@ -375,10 +375,10 @@ class CommunicationExtractor:
 
         if name == libraries.POST_MESSAGE:
 
-            # Duas APIs com o mesmo nome. `BroadcastChannel` recebe
-            # só o payload, porque o canal está no construtor; o
-            # `postMessage` entre janelas recebe payload e origem, e
-            # aí o canal está dentro do payload.
+            # Two APIs with the same name. `BroadcastChannel` receives
+            # only the payload, because the channel is in the
+            # constructor; cross-window `postMessage` receives payload
+            # and origin, and then the channel is inside the payload.
             if len(arguments) >= 2:
 
                 channel = self._message_type(arguments[0], source)
@@ -399,13 +399,13 @@ class CommunicationExtractor:
 
     def _message_type(self, node: Node, source: bytes) -> str | None:
         """
-        O campo que faz as vezes de canal em `postMessage({…}, origem)`.
+        The field that acts as the channel in `postMessage({…}, origem)`.
 
-        Convenção, não API: a plataforma não define nome de canal
-        aqui, e o ecossistema resolveu isso com um campo `type` no
-        payload. Payload que não seja literal de objeto, ou sem
-        nenhum dos campos conhecidos, não produz canal — é melhor não
-        registrar do que inventar um.
+        Convention, not API: the platform defines no channel name here,
+        and the ecosystem settled on a `type` field in the payload. A
+        payload that is not an object literal, or that has none of the
+        known fields, produces no channel — better not to record one
+        than to invent it.
         """
 
         if node.type != "object":
@@ -441,13 +441,13 @@ class CommunicationExtractor:
         source: bytes,
     ) -> list[tuple[str, Node]]:
         """
-        Os canais que um `addEventListener("message", handler)` trata.
+        The channels an `addEventListener("message", handler)` handles.
 
-        O ouvinte é um só para todos os canais, então o que distingue
-        um do outro são as comparações dentro do tratador —
-        `event.data.type === "cart:updated"`. Procuram-se os literais
-        comparados a um campo da convenção, e só dentro do tratador:
-        fora dele, qualquer string viraria canal.
+        There is a single listener for all channels, so what tells one
+        from another are the comparisons inside the handler —
+        `event.data.type === "cart:updated"`. We look for literals
+        compared to a field of the convention, and only inside the
+        handler: outside it, any string would become a channel.
         """
 
         found: list[tuple[str, Node]] = []
@@ -479,7 +479,7 @@ class CommunicationExtractor:
 
     @staticmethod
     def _compared_literals(handler: Node, source: bytes) -> list[str]:
-        """Literais comparados a um campo de tipo dentro do tratador."""
+        """Literals compared to a type field inside the handler."""
 
         found = []
 
@@ -507,16 +507,17 @@ class CommunicationExtractor:
 
     def _event_channel(self, node: Node, source: bytes) -> str | None:
         """
-        O canal de `new CustomEvent(canal, ...)`.
+        The channel of `new CustomEvent(canal, ...)`.
 
-        O evento costuma ser criado antes e disparado depois:
+        The event is usually created first and dispatched later:
 
             const evento = new CustomEvent("carrinho", { detail });
             window.dispatchEvent(evento);
 
-        e então o canal está na declaração da variável, não na chamada.
-        Segue-se o nome até a declaração mais próxima no mesmo escopo.
-        `Event` entra junto: `new Event("x")` também carrega o tipo.
+        and then the channel is in the variable declaration, not in the
+        call. The name is followed to the nearest declaration in the
+        same scope. `Event` is included too: `new Event("x")` also
+        carries the type.
         """
 
         node = unwrap(node)
@@ -527,8 +528,8 @@ class CommunicationExtractor:
             if node is None:
                 return None
 
-        # `new CustomEvent("x") as EventoTipado`: a anotação de tipo
-        # não muda o evento.
+        # `new CustomEvent("x") as EventoTipado`: the type annotation
+        # does not change the event.
         node = unwrap(node)
 
         if node.type != "new_expression":
@@ -548,7 +549,7 @@ class CommunicationExtractor:
 
     @staticmethod
     def _buses(root: Node, source: bytes) -> dict[str, tuple]:
-        """Nome local -> (barramento, papel), pelos imports."""
+        """Local name -> (bus, role), from the imports."""
 
         by_module = {bus.module: bus for bus in libraries.EVENT_BUSES}
 
@@ -561,7 +562,7 @@ class CommunicationExtractor:
             if bus:
                 bindings[record.local_name] = bus
 
-        # Instâncias criadas a partir deles: `const bus = mitt()`
+        # Instances created from them: `const bus = mitt()`
         for node in AstReader.find_all(root, "variable_declarator"):
 
             name_node = node.child_by_field_name("name")
@@ -591,7 +592,7 @@ class CommunicationExtractor:
         source: bytes,
         buses: dict[str, tuple],
     ) -> tuple[str, str, str] | None:
-        """`bus.emit(canal, ...)` e `bus.on(canal, ...)`."""
+        """`bus.emit(canal, ...)` and `bus.on(canal, ...)`."""
 
         function = node.child_by_field_name("function")
 
@@ -636,16 +637,17 @@ class CommunicationExtractor:
         imported: dict[str, str],
     ) -> tuple[str, str, str] | None:
         """
-        `cart$.next(v)` e `cart$.subscribe(fn)` sobre símbolo importado.
+        `cart$.next(v)` and `cart$.subscribe(fn)` on an imported symbol.
 
-        O canal é a identidade do símbolo — módulo mais nome —, não
-        uma string. Duas unidades que importam o mesmo `cart$` do
-        mesmo módulo estão nas duas pontas do mesmo canal, e é isso
-        que as pareia.
+        The channel is the symbol's identity — module plus name —, not
+        a string. Two units that import the same `cart$` from the same
+        module are at the two ends of the same channel, and that is
+        what pairs them.
 
-        A raiz da expressão precisa estar na tabela de imports. Sem
-        essa exigência, `this.http.get(url).subscribe(...)` viraria
-        comunicação e um projeto Angular inteiro viraria ruído.
+        The root of the expression must be in the import table. Without
+        this requirement, `this.http.get(url).subscribe(...)` would
+        become communication and a whole Angular project would become
+        noise.
         """
 
         function = node.child_by_field_name("function")
@@ -687,7 +689,7 @@ class CommunicationExtractor:
         return "rxjs-subject", f"{module}#{path}", side
 
     def _value(self, node: Node, source: bytes) -> str | None:
-        """Resolve o canal: literal, constante, ou o texto da expressão."""
+        """Resolves the channel: literal, constant, or the expression's text."""
 
         if node.type == "string":
             return AstReader.strip_quotes(AstReader.text(node, source))
@@ -717,7 +719,7 @@ class CommunicationExtractor:
         ]
 
     # ------------------------------------------------------------------
-    # Nível 3 — mecanismo declarado
+    # Level 3 — declared mechanism
     # ------------------------------------------------------------------
 
     def _endpoints(
@@ -752,9 +754,9 @@ class CommunicationExtractor:
         operation: ChannelOperation,
     ) -> set[str]:
         """
-        Os nomes pelos quais a função declarada é conhecida NESTE
-        arquivo. Resolver pelo import, e não pelo nome da chamada,
-        é o que faz um alias (`import { x as y }`) ser reconhecido.
+        The names by which the declared function is known in THIS
+        file. Resolving through the import, and not by the call's name,
+        is what lets an alias (`import { x as y }`) be recognized.
         """
 
         return {
@@ -842,21 +844,21 @@ class CommunicationExtractor:
                 AstReader.text(argument, source)
             )
 
-        # Canal vindo de constante, como `eventTopics.CART_UPDATED`.
+        # Channel coming from a constant, such as `eventTopics.CART_UPDATED`.
         value = self.evaluator.evaluate(argument, source)
 
         if value and value.match == EXACT and not value.based:
             return value.url
 
-        # Sem resolver o valor, o identificador ainda serve de canal:
-        # as duas pontas costumam referenciar a mesma constante.
+        # Without resolving the value, the identifier still serves as
+        # the channel: both ends usually reference the same constant.
         if argument.type in {"identifier", "member_expression"}:
             return AstReader.text(argument, source)
 
         return None
 
     # ------------------------------------------------------------------
-    # Parear pelas duas pontas
+    # Pair by the two ends
     # ------------------------------------------------------------------
 
     @staticmethod

@@ -1,22 +1,22 @@
 """
-Descoberta de unidades de baixo para cima.
+Bottom-up discovery of units.
 
-O caminho usual parte do orquestrador: lê `registerApplication` e
-aprende quais aplicações existem. Ele falha sempre que o registro não
-está escrito como literal no código — e isso é comum em sistema real,
-não exceção:
+The usual path starts from the orchestrator: it reads
+`registerApplication` and learns which applications exist. It fails
+whenever the registration is not written as a literal in the code — and
+that is common in real systems, not an exception:
 
     applications.forEach(registerApplication)   // single-spa-layout
     System.import(name); mountRootParcel(app)   // parcel + import map
 
-Nos dois casos as aplicações existem, estão no repositório, e o
-registro não as nomeia em lugar nenhum que a árvore sintática alcance.
+In both cases the applications exist, are in the repository, and the
+registration names them nowhere the syntax tree can reach.
 
-Aqui a pergunta é invertida. Um pacote cujo módulo de entrada exporta
-os ciclos de vida do single-spa — `bootstrap`, `mount` e `unmount` —
-**é** um micro frontend, tenha sido registrado onde for. O contrato é
-do framework, não do projeto, e vale mesmo quando ninguém o registra
-no código analisado.
+Here the question is inverted. A package whose entry module exports the
+single-spa lifecycles — `bootstrap`, `mount` and `unmount` — **is** a
+micro frontend, wherever it was registered. The contract belongs to the
+framework, not to the project, and holds even when nobody registers it
+in the analyzed code.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ from mfad.adapters.driven.reconstruction.singlespa.context import (
     ScanContext,
 )
 
-#: Os três que caracterizam a unidade. `update` é opcional no
-#: framework, então exigi-lo perderia unidades legítimas.
+#: The three that characterize the unit. `update` is optional in the
+#: framework, so requiring it would lose legitimate units.
 REQUIRED = frozenset({"bootstrap", "mount", "unmount"})
 
 
@@ -40,18 +40,18 @@ def by_lifecycles(
     in_scope,
 ) -> list[Registration]:
     """
-    Registros sintéticos para as unidades achadas pelos ciclos de vida.
+    Synthetic registrations for the units found through the lifecycles.
 
-    `taken` traz os DIRETÓRIOS que a descoberta de cima para baixo já
-    cobriu. A deduplicação é por diretório, e não por nome, porque os
-    dois caminhos nomeiam a unidade de formas diferentes: o registro
-    usa o especificador do import map, este usa o `name` do
-    `package.json`. Comparar nomes deixaria a mesma unidade entrar
-    duas vezes com identidades distintas.
+    `taken` holds the DIRECTORIES the top-down discovery has already
+    covered. Deduplication is by directory, not by name, because the
+    two paths name the unit differently: the registration uses the
+    import map specifier, this one uses the `name` from
+    `package.json`. Comparing names would let the same unit in twice
+    with distinct identities.
 
-    Quando as duas acham a mesma unidade, o registro real prevalece —
-    ele carrega `activeWhen` e `customProps`, que o arquivo de entrada
-    não tem.
+    When both find the same unit, the real registration wins — it
+    carries `activeWhen` and `customProps`, which the entry file does
+    not have.
     """
 
     found: dict[str, Registration] = {}
@@ -109,11 +109,12 @@ def _package_name(directory: Path) -> str | None:
 
 def _installable(directory: Path) -> bool:
     """
-    Se o pacote pode ser instalado e construído: sem `package.json` vale
-    o diretório, mas um `package.json` que não é JSON (o modelo de um
-    gerador, com `"name": "<%= name %>"`) o npm recusa
-    (https://docs.npmjs.com/cli/configuring-npm/package-json). É molde
-    de micro frontend, não um.
+    Whether the package can be installed and built: without a
+    `package.json` the directory counts, but a `package.json` that is
+    not JSON (a generator's template, with `"name": "<%= name %>"`) is
+    rejected by npm
+    (https://docs.npmjs.com/cli/configuring-npm/package-json). It is a
+    micro frontend template, not one.
     """
 
     import json

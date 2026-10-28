@@ -1,4 +1,4 @@
-"""Extrair o inventário de aplicações de um repositório."""
+"""Extract the application inventory of a repository."""
 
 from __future__ import annotations
 

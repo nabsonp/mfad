@@ -1,4 +1,4 @@
-"""Tabela de imports de um arquivo."""
+"""Import table of a file."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from mfad.adapters.driven.reconstruction.ast.resolver import ModuleResolver
 
 @dataclass
 class ImportRecord:
-    """Um nome trazido por um import, com sua origem."""
+    """A name brought in by an import, with its origin."""
 
     local_name: str
     imported_name: str
@@ -24,7 +24,7 @@ class ImportRecord:
 
 
 class ImportTable:
-    """Mapa 'nome local' -> 'especificador do módulo'."""
+    """Map 'local name' -> 'module specifier'."""
 
     def __init__(self, root: Node, source: bytes, file_path: Path):
 
@@ -41,7 +41,7 @@ class ImportTable:
         root: Node,
         source: bytes,
     ) -> Iterator[ImportRecord]:
-        """Percorre cada nome importado, default ou nomeado."""
+        """Walks each imported name, default or named."""
 
         for node in AstReader.find_all(root, "import_statement"):
 

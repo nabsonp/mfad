@@ -1,15 +1,15 @@
 """
-Catálogos de bibliotecas conhecidas.
+Catalogs of known libraries.
 
-Mesma estratégia dos clientes HTTP: a biblioteca é reconhecida pelo
-ESPECIFICADOR DO IMPORT, não pelo nome da variável nem por
-heurística de texto. Isso é determinístico — se o módulo importado
-é `react-redux`, o que vier dele é acesso a estado, chame-se a
-variável como se chamar.
+Same strategy as the HTTP clients: the library is recognized by the
+IMPORT SPECIFIER, not by the variable name nor by a text heuristic.
+This is deterministic — if the imported module is `react-redux`,
+whatever comes from it is state access, whatever the variable is
+called.
 
-Os catálogos são o "nível 2" da extração. O nível 1 são as
-primitivas da plataforma web, que não precisam de import nenhum e
-valem em qualquer projeto.
+The catalogs are "level 2" of the extraction. Level 1 is the web
+platform primitives, which need no import at all and apply to any
+project.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from dataclasses import dataclass
 
 
 # ----------------------------------------------------------------------
-# Nível 1 — primitivas da plataforma web
+# Level 1 — web platform primitives
 # ----------------------------------------------------------------------
 
 #: `document.dispatchEvent(new CustomEvent(canal, ...))`
@@ -28,80 +28,81 @@ DISPATCH = "dispatchEvent"
 
 LISTEN = "addEventListener"
 
-#: `fromEvent(window, "canal")` do rxjs: o mesmo ouvinte, escrito como
-#: Observable. https://rxjs.dev/api/index/function/fromEvent
+#: rxjs's `fromEvent(window, "canal")`: the same listener, written as
+#: an Observable. https://rxjs.dev/api/index/function/fromEvent
 FROM_EVENT = "fromEvent"
 
-#: Os alvos globais em que um evento atravessa micro frontends. Um
-#: `fromEvent(botao, ...)` é evento de um elemento, não canal.
+#: The global targets on which an event crosses micro frontends. A
+#: `fromEvent(botao, ...)` is an element's event, not a channel.
 GLOBAL_TARGETS = frozenset({"window", "document", "globalThis", "self", "window.document"})
 
-#: `new BroadcastChannel(canal)` e o `postMessage` sobre ela
+#: `new BroadcastChannel(canal)` and the `postMessage` on it
 BROADCAST_CHANNEL = "BroadcastChannel"
 
 POST_MESSAGE = "postMessage"
 
-#: `localStorage.setItem(chave, ...)` e `getItem(chave)`.
+#: `localStorage.setItem(chave, ...)` and `getItem(chave)`.
 #:
-#: Dois micro frontends que tocam a mesma chave estão acoplados pelo
-#: formato do valor, e ninguém declarou esse contrato em lugar
-#: nenhum. É estado global, não mensagem: a chave é a fatia, e quem
-#: grava não manda nada a ninguém — deixa o dado lá para quem vier.
+#: Two micro frontends that touch the same key are coupled by the
+#: value's format, and nobody declared that contract anywhere. It is
+#: global state, not a message: the key is the slice, and the writer
+#: sends nothing to anyone — it leaves the data there for whoever comes.
 STORAGES = ("localStorage", "sessionStorage")
 
 STORAGE_WRITE = ("setItem", "removeItem")
 
 STORAGE_READ = ("getItem",)
 
-#: `localStorage.clear()` apaga todas as chaves de uma vez: é escrita
-#: em cada uma, sem nomear nenhuma. https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-clear
+#: `localStorage.clear()` erases every key at once: it is a write to
+#: each one, without naming any. https://html.spec.whatwg.org/multipage/webstorage.html#dom-storage-clear
 STORAGE_CLEAR = ("clear",)
 
-#: A chave registrada para quem grava em todas.
+#: The key recorded for whoever writes to all of them.
 ALL_KEYS = "*"
 
-#: `subject.next(v)` e `subject.subscribe(fn)` sobre um Subject
-#: IMPORTADO de um módulo compartilhado.
+#: `subject.next(v)` and `subject.subscribe(fn)` on a Subject
+#: IMPORTED from a shared module.
 #:
-#: É o canal canônico entre micro frontends Angular. O receptor
-#: precisa vir de um import: `this.http.get(...).subscribe(...)` é
-#: requisição HTTP, não canal, e casar pelo nome do método
-#: transformaria metade de um projeto Angular em comunicação.
+#: It is the canonical channel between Angular micro frontends. The
+#: receiver must come from an import: `this.http.get(...).subscribe(...)`
+#: is an HTTP request, not a channel, and matching by method name would
+#: turn half of an Angular project into communication.
 RX_PUBLISH = ("next",)
 
 RX_SUBSCRIBE = ("subscribe",)
 
-#: Módulos cujos exports são a própria biblioteca, não um canal.
+#: Modules whose exports are the library itself, not a channel.
 RX_INTERNAL = ("rxjs", "rxjs/operators")
 
-#: `alvo.postMessage({ type: "x" }, origem)` entre janelas.
+#: `alvo.postMessage({ type: "x" }, origem)` between windows.
 #:
-#: Diferente do `BroadcastChannel`, que leva o canal no construtor:
-#: aqui o canal viaja DENTRO do payload, por convenção. Estes são os
-#: nomes de campo que a convenção usa, em ordem de preferência.
+#: Unlike `BroadcastChannel`, which carries the channel in the
+#: constructor: here the channel travels INSIDE the payload, by
+#: convention. These are the field names the convention uses, in order
+#: of preference.
 MESSAGE_TYPE_FIELDS = ("type", "action", "event", "name")
 
-#: O evento que entrega a mensagem do outro lado.
+#: The event that delivers the message on the other side.
 MESSAGE_EVENT = "message"
 
 
 # ----------------------------------------------------------------------
-# Nível 2 — barramentos de eventos conhecidos
+# Level 2 — known event buses
 # ----------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class EventBus:
-    """Uma biblioteca de pub/sub e os nomes dos dois lados."""
+    """A pub/sub library and the names of its two sides."""
 
     module: str
     publish: tuple[str, ...]
     subscribe: tuple[str, ...]
 
-    #: fábrica que devolve a instância, ex.: `mitt()`
+    #: factory that returns the instance, e.g. `mitt()`
     factories: tuple[str, ...] = ()
 
-    #: posição do canal nos argumentos
+    #: position of the channel among the arguments
     channel_argument: int = 0
 
 
@@ -134,19 +135,19 @@ EVENT_BUSES = (
 
 
 # ----------------------------------------------------------------------
-# Nível 2 — bibliotecas de estado global
+# Level 2 — global state libraries
 # ----------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class StateLibrary:
     """
-    Uma biblioteca de estado e como o código a consulta.
+    A state library and how the code queries it.
 
-    `selectors` recebem uma função que percorre o estado — é dela
-    que sai o caminho lido. `dispatchers` produzem a função que
-    escreve; o nome despachado é o que se consegue registrar.
-    `atoms` nomeiam o pedaço de estado diretamente.
+    `selectors` receive a function that walks the state — the read path
+    comes from it. `dispatchers` produce the function that writes; the
+    dispatched name is what can be recorded. `atoms` name the piece of
+    state directly.
     """
 
     module: str
@@ -156,13 +157,13 @@ class StateLibrary:
     atoms: tuple[str, ...] = ()
 
 
-#: Quem cria um store Redux: `createStore` do redux e `configureStore`
-#: do Redux Toolkit. https://redux.js.org/api/createstore e
+#: Who creates a Redux store: redux's `createStore` and Redux Toolkit's
+#: `configureStore`. https://redux.js.org/api/createstore and
 #: https://redux-toolkit.js.org/api/configureStore
 #:
-#: Um micro frontend que cria o próprio store lê o PRÓPRIO estado. Duas
-#: unidades com um store cada, ambas com a fatia `lookup`, não
-#: compartilham nada — mesmo caminho, stores diferentes.
+#: A micro frontend that creates its own store reads its OWN state. Two
+#: units with one store each, both with the `lookup` slice, share
+#: nothing — same path, different stores.
 REDUX_STORE_FACTORIES = (
     ("redux", "createStore"),
     ("redux", "legacy_createStore"),

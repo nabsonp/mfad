@@ -1,1 +1,1 @@
-"""Adaptadores condutores: acionam a aplicação."""
+"""Driving adapters: they drive the application."""

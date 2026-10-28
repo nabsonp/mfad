@@ -1,15 +1,16 @@
 """
-Rota de serviço consumida por mais de um micro frontend.
+Service route consumed by more than one micro frontend.
 
-É o acoplamento que nenhum dos outros grafos mostra. As partes não
-se importam, não se navegam e não trocam mensagens — e mesmo assim
-não podem evoluir separadamente, porque dependem do mesmo contrato
-de backend. Uma mudança de formato na resposta quebra todas de uma
-vez, e quem altera o serviço precisa saber quem são todas.
+It is the coupling none of the other graphs shows. The parts do not
+import each other, do not navigate to each other and exchange no
+messages — and still they cannot evolve separately, because they
+depend on the same backend contract. A change in the response format
+breaks all of them at once, and whoever changes the service needs to
+know who they all are.
 
-O agrupamento é pelo CAMINHO, não pelo caminho mais o método: uma
-aplicação que lê e outra que escreve no mesmo recurso compartilham
-o mesmo contrato, ainda que por verbos diferentes.
+Grouping is by PATH, not by path plus method: an application that
+reads and another that writes the same resource share the same
+contract, even if through different verbs.
 """
 
 from __future__ import annotations
@@ -29,8 +30,8 @@ class HammeringApis(Rule):
     anti_pattern = AntiPattern(
         name="hammering-apis",
         description=(
-            "Rota de serviço externo consumida por mais de um micro "
-            "frontend, criando dependência compartilhada de contrato."
+            "External service route consumed by more than one micro "
+            "frontend, creating a shared contract dependency."
         ),
         category="Inter-frontend",
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hammering%20APIs",
@@ -38,9 +39,9 @@ class HammeringApis(Rule):
 
     def __init__(self, min_callers: int = 2):
 
-        #: A partir de quantos consumidores a rota é considerada
-        #: compartilhada. Dois já bastam: o acoplamento existe a
-        #: partir do segundo.
+        #: Number of consumers from which the route is considered
+        #: shared. Two are enough: the coupling exists from the
+        #: second one on.
         self.min_callers = min_callers
 
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
@@ -81,9 +82,9 @@ class HammeringApis(Rule):
             explanation=i18n.t(text["explanation"]),
             message=i18n.t(text["message"]),
             subjects=callers,
-            # As localizações vêm das chamadas, não do endpoint:
-            # ele é o nó externo, e quem registra onde a chamada
-            # acontece é o `ApiCall`.
+            # The locations come from the calls, not from the endpoint:
+            # it is the external node, and what records where the call
+            # happens is the `ApiCall`.
             locations=[
                 call.at
                 for call in architecture.api_calls
@@ -92,8 +93,8 @@ class HammeringApis(Rule):
             metadata={
                 "text": text,
                 "relation": "shared_endpoint",
-                # Os dois sentidos: a relação não tem direção, e o
-                # desenho traça um arco para cada ordem.
+                # Both directions: the relation has no direction, and
+                # the drawing traces one arc for each order.
                 "edges": [
                     [source, target]
                     for source in callers

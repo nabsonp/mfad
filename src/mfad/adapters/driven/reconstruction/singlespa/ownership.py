@@ -1,10 +1,10 @@
 """
-De quem é o código e de quem é a rota.
+Who owns the code and who owns the route.
 
-As duas perguntas que a extração de navegação precisa responder:
-em que aplicação um arquivo mora, e qual aplicação é dona de uma
-URL. A segunda vem do `activeWhen`, que é o contrato de roteamento
-do single-spa.
+The two questions the navigation extraction needs to answer: which
+application a file lives in, and which application owns a URL. The
+second comes from `activeWhen`, which is single-spa's routing
+contract.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class Ownership:
             if microfrontend.directory
         }
 
-        #: (prefixo da rota, aplicação), do mais longo para o mais curto
+        #: (route prefix, application), from the longest to the shortest
         self.routes = sorted(
             (
                 (route, microfrontend.id)
@@ -37,8 +37,8 @@ class Ownership:
             reverse=True,
         )
 
-        #: (rota de tela, aplicação): as rotas internas, para quando
-        #: nenhum `activeWhen` diz de quem é a URL
+        #: (screen route, application): the internal routes, for when
+        #: no `activeWhen` says whose the URL is
         self.screens = [
             (screen.route, microfrontend.id)
             for microfrontend in microfrontends
@@ -48,17 +48,17 @@ class Ownership:
 
     def of_file(self, file_path: Path) -> str | None:
         """
-        O micro frontend cujo diretório contém o arquivo, ou `None`.
+        The micro frontend whose directory contains the file, or `None`.
 
-        Vence o diretório mais longo que contém o arquivo, com
-        fronteira de segmento. Olhar só a primeira pasta do caminho
-        errava em todo monorepo com as unidades um nível abaixo
-        (`apps/checkout`): o dono virava `apps`, que não é micro
-        frontend, e a aresta ficava com uma ponta que não existe.
+        The longest directory containing the file wins, with a segment
+        boundary. Looking only at the first folder of the path got
+        every monorepo with the units one level below (`apps/checkout`)
+        wrong: the owner became `apps`, which is not a micro frontend,
+        and the edge ended up with an end that does not exist.
 
-        `None` é resposta legítima: código fora de qualquer unidade —
-        pacote compartilhado, ferramenta, exemplo — não é de ninguém,
-        e quem pergunta decide descartá-lo.
+        `None` is a legitimate answer: code outside any unit — shared
+        package, tool, example — belongs to nobody, and the caller
+        decides to discard it.
         """
 
         try:
@@ -79,15 +79,15 @@ class Ownership:
 
     def of_route(self, url: str) -> str | None:
         """
-        A aplicação dona da URL.
+        The application that owns the URL.
 
-        O casamento é por prefixo com fronteira de segmento, como
-        no single-spa: `/checkout` cobre `/checkout` e
-        `/checkout/cards`, mas não `/checkoutx`.
+        Matching is by prefix with a segment boundary, as in
+        single-spa: `/checkout` covers `/checkout` and
+        `/checkout/cards`, but not `/checkoutx`.
 
-        A lista está ordenada do prefixo mais longo para o mais
-        curto, e o primeiro que casar vence. Sem isso o shell, que
-        costuma registrar `/`, engoliria todas as rotas.
+        The list is sorted from the longest prefix to the shortest, and
+        the first one that matches wins. Without that the shell, which
+        usually registers `/`, would swallow every route.
         """
 
         for route, microfrontend in self.routes:
@@ -99,11 +99,12 @@ class Ownership:
 
     def _of_screen(self, url: str) -> str | None:
         """
-        A aplicação cujas telas moram na URL, quando nenhum `activeWhen`
-        casa: sistema montado sem `registerApplication` no código, ou
-        destino que é rota interna de outra aplicação (`/property/:id`
-        dentro de quem é montado em `/property`). Vale só se uma
-        aplicação só tem tela naquele caminho.
+        The application whose screens live at the URL, when no
+        `activeWhen` matches: a system mounted without
+        `registerApplication` in the code, or a target that is an
+        internal route of another application (`/property/:id` inside
+        the one mounted at `/property`). Only valid if a single
+        application has a screen at that path.
         """
 
         owners = {
@@ -117,9 +118,9 @@ class Ownership:
     @staticmethod
     def _shares_path(url: str, route: str) -> bool:
         """
-        Um caminho continua o outro, segmento a segmento: `/property/{param}`
-        e `/property/:assetId/add-boiler-house`. O primeiro segmento tem de
-        ser literal e igual nos dois.
+        One path continues the other, segment by segment: `/property/{param}`
+        and `/property/:assetId/add-boiler-house`. The first segment must
+        be literal and equal in both.
         """
 
         received = [segment for segment in url.split("?")[0].split("#")[0].split("/") if segment]
@@ -136,10 +137,10 @@ class Ownership:
     @staticmethod
     def _matches(url: str, route: str) -> bool:
 
-        # `activeWhen: ["/"]` significa "sempre ativa", não "dona de
-        # toda URL do sistema" — é a camada de fundo, sob as outras.
-        # Tratá-la como prefixo faria qualquer caminho, inclusive
-        # URL de API, virar navegação para ela.
+        # `activeWhen: ["/"]` means "always active", not "owner of every
+        # URL in the system" — it is the background layer, beneath the
+        # others. Treating it as a prefix would turn any path, including
+        # API URLs, into navigation to it.
         if route == "/":
             return url == "/"
 
@@ -159,16 +160,16 @@ class Ownership:
     @staticmethod
     def _matches_dynamic(url: str, route: str) -> bool:
         """
-        Rota com segmento dinâmico: `/users/:id/profile`.
+        Route with a dynamic segment: `/users/:id/profile`.
 
-        O single-spa casa `:id` com qualquer coisa dentro de um
-        segmento, e não casa com segmento vazio. Comparar a rota
-        inteira como texto faria `/users/:id/profile` nunca casar com
-        `/users/123/profile` — que é exatamente o que ela existe para
-        casar.
+        single-spa matches `:id` with anything within a segment, and
+        does not match an empty segment. Comparing the whole route as
+        text would make `/users/:id/profile` never match
+        `/users/123/profile` — which is exactly what it exists to
+        match.
 
-        Continua sendo prefixo: casada a parte declarada, o que vier
-        depois pertence à mesma aplicação.
+        It is still a prefix: once the declared part matches, whatever
+        comes after belongs to the same application.
         """
 
         esperados = route.strip("/").split("/")
@@ -194,10 +195,10 @@ class Ownership:
     @staticmethod
     def _matches_hash(url: str, route: str) -> bool:
         """
-        Rota com hash: `/pathname/#/hash`.
+        Route with a hash: `/pathname/#/hash`.
 
-        O single-spa exige que a parte do hash case por inteiro,
-        enquanto o caminho antes dele continua sendo prefixo.
+        single-spa requires the hash part to match in full, while the
+        path before it is still a prefix.
         """
 
         caminho_rota, _, hash_rota = route.partition("#")

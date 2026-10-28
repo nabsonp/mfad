@@ -1,10 +1,10 @@
 """
-Projeção dos artefatos para consumo da página.
+Projection of the artifacts for the page to consume.
 
-O que a página precisa não é o `MicroFrontendArchitecture` inteiro: é uma
-estrutura achatada, com identificadores curtos e as arestas já
-individualizadas, para que o JavaScript não precise recalcular
-nada em tempo de interação.
+What the page needs is not the whole `MicroFrontendArchitecture`: it
+is a flattened structure, with short identifiers and the edges already
+individualized, so the JavaScript does not need to recompute anything
+at interaction time.
 """
 
 from __future__ import annotations
@@ -16,11 +16,11 @@ from mfad.adapters.driven import i18n
 from mfad.domain import AntiPatternDetection, MicroFrontendArchitecture, Placement
 
 
-#: Relações entre pares de micro frontends, na ordem das abas.
+#: Relations between pairs of micro frontends, in tab order.
 RELATIONS = (
-    ("composition", "Composição"),
-    ("navigation", "Navegação"),
-    ("communication", "Comunicação"),
+    ("composition", "Composition"),
+    ("navigation", "Navigation"),
+    ("communication", "Communication"),
 )
 
 
@@ -59,7 +59,7 @@ def short(identifier: str) -> str:
 
 
 def edge_id(source: str, target: str, relation: str) -> str:
-    """Identificador estável de uma aresta agregada no desenho."""
+    """Stable identifier of an aggregated edge in the drawing."""
 
     return f"{_slug(source)}--{_slug(target)}--{relation}"
 
@@ -73,9 +73,9 @@ def _slug(value: str) -> str:
 
 def _degrees(architecture: MicroFrontendArchitecture) -> dict[str, dict[str, int]]:
     """
-    Vizinhos distintos de entrada e de saída, somadas as relações
-    extraídas. Conta vizinhos, não arestas: dois fragmentos do
-    mesmo provedor são uma dependência, não duas.
+    Distinct incoming and outgoing neighbors, summed over the extracted
+    relations. It counts neighbors, not edges: two fragments from the
+    same provider are one dependency, not two.
     """
 
     outgoing: dict[str, set[str]] = {}
@@ -157,10 +157,10 @@ def _microfrontend(item, degrees: dict, counts: dict) -> dict:
 
 def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
-    Uma entrada por relação concreta, não por par de nós.
+    One entry per concrete relation, not per pair of nodes.
 
-    O desenho agrega por `edge_id`; o painel lateral precisa dos
-    itens individuais, com arquivo, linha e o trecho de código.
+    The drawing aggregates by `edge_id`; the side panel needs the
+    individual items, with file, line and the code snippet.
     """
 
     edges: list[dict] = []
@@ -211,10 +211,10 @@ def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
 
     for item in architecture.communications:
 
-        # Estado global não é mensagem entre um par: é uma fatia que
-        # vários tocam. Como par, cada fatia com N leitores virava N²
-        # arestas — no udistrital, 4.436 —, e o grafo ficava ilegível.
-        # Ela aparece na sua própria visão, a partir dos acessos.
+        # Global state is not a message between a pair: it is a slice that
+        # several touch. As pairs, each slice with N readers became N²
+        # edges (4,436 in udistrital), and the graph was unreadable.
+        # It shows up in its own view, built from the accesses.
         if not item.directed:
             continue
 
@@ -239,13 +239,13 @@ def _edges(architecture: MicroFrontendArchitecture) -> list[dict]:
 
 def _mounts(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
-    O shell montando cada aplicação que registrou.
+    The shell mounting each application it registered.
 
-    Sem esta aresta o grafo mostra micro frontends soltos, sem nada
-    explicando como chegam à página — e a relação que falta é a que
-    define o sistema. Um navbar montado em toda URL não é importado
-    por ninguém: quem o coloca lá é o shell, e é esta aresta, não um
-    import inventado entre pares, que diz isso.
+    Without this edge the graph shows loose micro frontends, with
+    nothing explaining how they reach the page, and the missing relation
+    is the one that defines the system. A navbar mounted on every URL is
+    not imported by anyone: whoever puts it there is the shell, and it is
+    this edge, not an invented import between pairs, that says so.
     """
 
     known = {item.id for item in architecture.microfrontends}
@@ -296,11 +296,11 @@ def _api_calls(architecture: MicroFrontendArchitecture) -> list[dict]:
 
 def _endpoints(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
-    Endpoints agregados por caminho, com quem os consome.
+    Endpoints aggregated by path, with who consumes them.
 
-    O acoplamento por backend aparece aqui: um endpoint chamado
-    por mais de um micro frontend é dependência compartilhada que
-    nenhum dos outros três grafos mostra.
+    Backend coupling shows up here: an endpoint called by more than
+    one micro frontend is a shared dependency that none of the other
+    three graphs shows.
     """
 
     grouped: dict[str, dict] = {}
@@ -329,17 +329,17 @@ def _endpoints(architecture: MicroFrontendArchitecture) -> list[dict]:
 
 
 # ----------------------------------------------------------------------
-# Estado global
+# Global state
 # ----------------------------------------------------------------------
 
 
 def _slices(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
-    Fatias do estado global tocadas por mais de um micro frontend.
+    Global-state slices touched by more than one micro frontend.
 
-    A fatia é o nó, e cada micro frontend que a lê ou grava se liga
-    a ela. É o mesmo acoplamento das arestas de estado entre pares,
-    sem o produto cartesiano.
+    The slice is the node, and each micro frontend that reads or writes
+    it links to it. It is the same coupling as the pairwise state
+    edges, without the Cartesian product.
     """
 
     grouped: dict[tuple[str, str], list] = {}
@@ -382,12 +382,12 @@ def _slices(architecture: MicroFrontendArchitecture) -> list[dict]:
 
 
 # ----------------------------------------------------------------------
-# Telas
+# Screens
 # ----------------------------------------------------------------------
 
 
 def _screens(architecture: MicroFrontendArchitecture) -> dict[str, dict]:
-    """Telas e fragmentos por identificador, para o painel e o desenho."""
+    """Screens and fragments by identifier, for the panel and the drawing."""
 
     found: dict[str, dict] = {}
 
@@ -420,15 +420,15 @@ def _screens(architecture: MicroFrontendArchitecture) -> dict[str, dict]:
 
 def _screen_edges(architecture: MicroFrontendArchitecture) -> list[dict]:
     """
-    As relações entre micro frontends no nível de tela.
+    The relations between micro frontends at screen level.
 
-    - composição: a tela que instancia → o fragmento do provedor;
-    - comunicação: a tela da ponta que publica → a da que assina;
-    - navegação: a tela de onde se navega → a tela cuja rota recebe.
+    - composition: the screen that instantiates -> the provider's fragment;
+    - communication: the screen of the publishing end -> that of the subscribing one;
+    - navigation: the screen navigated from -> the screen whose route receives.
 
-    Quando o código não é alcançado por tela nenhuma — o orquestrador,
-    um utilitário montado à parte —, a ponta é o próprio micro
-    frontend: a relação existe, só não tem lugar na interface.
+    When the code is not reached by any screen (the orchestrator, a
+    utility mounted separately), the end is the micro frontend itself:
+    the relation exists, it just has no place in the interface.
     """
 
     known = {item.id for item in architecture.microfrontends}
@@ -536,7 +536,7 @@ def _occurrence(file, line, code, detail) -> dict:
     return {"file": file, "line": line, "code": code, "detail": detail}
 
 
-#: Segmento de rota que aceita qualquer valor.
+#: Route segment that accepts any value.
 _WILDCARD = re.compile(r"^(:.+|\*|\{.*\}|\[.*\])$")
 
 
@@ -546,11 +546,11 @@ def arrival(
     url: str | None,
 ) -> str | None:
     """
-    A tela do micro frontend cuja rota recebe a URL.
+    The screen of the micro frontend whose route receives the URL.
 
-    A rota mais específica vence: `/loja/produto/:id` antes de
-    `/loja/*`. Segmento variável (`:id`, `*`, `{param}`) casa com
-    qualquer valor; `*` no fim casa com o resto do caminho.
+    The most specific route wins: `/loja/produto/:id` before
+    `/loja/*`. A variable segment (`:id`, `*`, `{param}`) matches any
+    value; a trailing `*` matches the rest of the path.
     """
 
     owner = architecture.microfrontend(microfrontend)
@@ -619,12 +619,12 @@ def _detection(index: int, item: AntiPatternDetection) -> dict:
 
 def _relations_of(item: AntiPatternDetection) -> list[str]:
     """
-    Quais relações a detecção envolve.
+    Which relations the detection involves.
 
-    Quando a regra declara uma (`cyclic-dependency` declara), só
-    ela é destacada. Quando não declara, o destaque alcança as
-    três — é o comportamento conservador: melhor destacar demais
-    que esconder a evidência.
+    When the rule declares one (`cyclic-dependency` does), only that
+    one is highlighted. When it does not, the highlight reaches all
+    three; that is the conservative behavior: better to highlight too
+    much than to hide the evidence.
     """
 
     relation = item.metadata.get("relation")

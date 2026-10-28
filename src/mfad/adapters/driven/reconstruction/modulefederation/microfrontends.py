@@ -1,23 +1,23 @@
 """
-As unidades federadas e o que cada uma contém.
+The federated units and what each one contains.
 
-A diferença para single-spa está aqui, e só aqui. Lá existe um
-orquestrador que declara todo mundo; aqui cada unidade se declara, e
-o sistema é o que emerge quando as declarações são lidas juntas.
+The difference from single-spa lies here, and only here. There, an
+orchestrator declares everyone; here each unit declares itself, and
+the system is what emerges when the declarations are read together.
 
-Três consequências que mudam a extração:
+Three consequences that change the extraction:
 
-Não há `activeWhen`. Module Federation resolve carregamento de código
-remoto e não diz nada sobre URL. As rotas de uma unidade são as do
-roteador dela, e só existem se ela tiver um.
+There is no `activeWhen`. Module Federation handles loading remote
+code and says nothing about URLs. A unit's routes are those of its own
+router, and they only exist if it has one.
 
-Não há papel de shell declarado. Quem hospeda e quem é hospedado não
-são exclusivos: uma unidade pode consumir remotos e ser consumida ao
-mesmo tempo. O que se pode afirmar é quem consome sem ser consumido,
-e é isso que se marca.
+There is no declared shell role. Host and hosted are not mutually
+exclusive: a unit can consume remotes and be consumed at the same
+time. What can be stated is who consumes without being consumed, and
+that is what gets marked.
 
-Fragmento é o `exposes`, que é declaração explícita — melhor sinal do
-que qualquer export nomeado, que é o que sobra no single-spa.
+A fragment is an `exposes` entry, which is an explicit declaration — a
+better signal than any named export, which is all single-spa leaves.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ class FederatedBuilder:
         self.context = context
         self.federations = federations
 
-        #: unidade -> caminhos publicados, sem o "./"
+        #: unit -> published paths, without the "./"
         self.catalog = {
             federation.name: {
                 path.lstrip("./") for path in federation.exposes
@@ -76,17 +76,17 @@ class FederatedBuilder:
 
     def _reattribute(self, microfrontends: list[MicroFrontend]) -> None:
         """
-        Devolve ao provedor a tela que o shell só rotela.
+        Give back to the provider the screen the shell only routes to.
 
-        `<Route path="/pharmacy" element={<Pharmacy/>}/>` com
-        `Pharmacy` vindo de `import("hs-pharmacy/Pharmacy")` declara
-        uma rota do shell para uma tela que é do remoto. A rota existe
-        no roteador de quem hospeda; a tela é de quem publica.
+        `<Route path="/pharmacy" element={<Pharmacy/>}/>` with
+        `Pharmacy` coming from `import("hs-pharmacy/Pharmacy")` declares
+        a shell route to a screen that belongs to the remote. The route
+        lives in the host's router; the screen belongs to the publisher.
 
-        Deixar as duas com o hospedeiro dava um shell dono de todas as
-        rotas de negócio e remotos sem rota nenhuma — o oposto do que
-        o sistema faz. `_screens` já marca o provedor em
-        `screen.microfrontend`; aqui as telas são movidas.
+        Leaving both with the host produced a shell owning every
+        business route and remotes with no route at all — the opposite
+        of what the system does. `_screens` already marks the provider
+        in `screen.microfrontend`; here the screens are moved.
         """
 
         index = {item.id: item for item in microfrontends}
@@ -145,16 +145,16 @@ class FederatedBuilder:
 
             barrels += self._reexports(resolved)
 
-        # Forma de biblioteca: o módulo exposto só reexporta, em vez
-        # de definir o que publica. A unidade entrega um catálogo de
-        # peças, não uma peça.
+        # Library shape: the exposed module only re-exports instead of
+        # defining what it publishes. The unit delivers a catalog of
+        # pieces, not a piece.
         #
-        # É sinal, não classificação. Biblioteca que exponha componente
-        # por componente não tem barril, e remoto pode expor um barril
-        # de páginas — o formato acerta o caso comum e não prova a
-        # natureza da coisa. Quem decide se aquilo é biblioteca é quem
-        # lê, e é por isso que o número fica registrado em vez de mudar
-        # o comportamento das regras.
+        # This is a signal, not a classification. A library exposing
+        # component by component has no barrel, and a remote can expose
+        # a barrel of pages — the shape gets the common case right but
+        # does not prove what the thing is. Whoever reads decides
+        # whether it is a library, which is why the number is recorded
+        # instead of changing how the rules behave.
         if barrels:
             microfrontend.metadata["reexports"] = barrels
 
@@ -164,9 +164,10 @@ class FederatedBuilder:
         if federation.shared:
             microfrontend.metadata["shared"] = federation.shared
 
-        # Consome remotos e não é consumida por ninguém: é a ponta da
-        # composição, que é o mais próximo de um shell que Module
-        # Federation define. Quando todos se consomem, ninguém é.
+        # Consumes remotes and is consumed by no one: it is the tip of
+        # the composition, the closest thing to a shell that Module
+        # Federation defines. When everyone consumes each other, no one
+        # is.
         if federation.remotes and federation.name not in consumed:
             microfrontend.role = "shell"
             microfrontend.mounts = sorted(federation.remotes)
@@ -183,11 +184,11 @@ class FederatedBuilder:
 
     def _remote_names(self, root, source) -> dict[str, tuple[str, str]]:
         """
-        Nome local -> (unidade publicadora, caminho publicado).
+        Local name -> (publishing unit, published path).
 
-        Cobre as duas formas de atravessar a fronteira: o import
-        estático e o `import()` dinâmico, que é como um host carrega
-        página remota.
+        Covers both ways of crossing the boundary: the static import
+        and the dynamic `import()`, which is how a host loads a remote
+        page.
         """
 
         records = [
@@ -212,7 +213,7 @@ class FederatedBuilder:
         return found
 
     def _exposed_file(self, provider: str, exposed: str) -> str | None:
-        """O arquivo interno que o provedor publica sob esse caminho."""
+        """The internal file the provider publishes under that path."""
 
         federation = self.by_name.get(provider)
 
@@ -232,15 +233,15 @@ class FederatedBuilder:
         )
 
     def _resolve(self, directory: Path, target: str) -> str | None:
-        """O arquivo interno que um `exposes` aponta."""
+        """The internal file an `exposes` entry points to."""
 
         if not target:
             return None
 
         base = (directory / target).resolve()
 
-        # Acrescentar a extensão vem antes de trocar o sufixo:
-        # `./x.component` é `x.component.ts`, não `x.ts`.
+        # Appending the extension comes before replacing the suffix:
+        # `./x.component` is `x.component.ts`, not `x.ts`.
         for candidate in [base] + [
             base.parent / f"{base.name}{extension}"
             for extension in (".js", ".jsx", ".ts", ".tsx")
@@ -258,11 +259,11 @@ class FederatedBuilder:
 
     def _reexports(self, relative: str | None) -> int:
         """
-        Quantos nomes o módulo reexporta sem definir.
+        How many names the module re-exports without defining them.
 
-        `export { Card } from "./ui/card"` conta; `export default
-        function Pharmacy()` não. Zero significa que o módulo define o
-        que publica.
+        `export { Card } from "./ui/card"` counts; `export default
+        function Pharmacy()` does not. Zero means the module defines
+        what it publishes.
         """
 
         if not relative:
@@ -302,12 +303,13 @@ class FederatedBuilder:
 
     def _screens(self, directory: Path, owner: str) -> list[Screen]:
         """
-        As telas declaradas pelo roteador da própria unidade.
+        The screens declared by the unit's own router.
 
-        Sem `activeWhen` não há rota vinda do registro, então tela
-        aqui só existe quando a unidade tem roteador. Uma unidade que
-        só publica componentes não tem tela nenhuma, e isso é o
-        resultado correto — ela não responde por URL alguma.
+        Without `activeWhen` there is no route coming from the
+        registry, so a screen here only exists when the unit has a
+        router. A unit that only publishes components has no screens
+        at all, and that is the correct result — it answers for no
+        URL.
         """
 
         found: list[Screen] = []
@@ -339,8 +341,8 @@ class FederatedBuilder:
                 seen.add(key)
                 found.append(screen)
 
-            # Nome local -> unidade que o publica, para as duas formas
-            # de atravessar a fronteira: `import X from "remote/X"` e
+            # Local name -> unit that publishes it, for both ways of
+            # crossing the boundary: `import X from "remote/X"` and
             # `const X = lazy(() => import("remote/X"))`.
             remote_of = self._remote_names(root, source)
 
@@ -354,8 +356,8 @@ class FederatedBuilder:
 
                 seen.add(key)
 
-                # `lazy: () => import("remote/Pagina")` aponta direto
-                # para o módulo; nas outras formas é o nome local.
+                # `lazy: () => import("remote/Pagina")` points straight
+                # at the module; in the other forms it is the local name.
                 provider, exposed = (
                     specifiers.split(entry.specifier, self.catalog)
                     if entry.specifier
@@ -363,16 +365,16 @@ class FederatedBuilder:
                 )
 
                 if provider:
-                    # A tela é de quem publica o módulo, mesmo que a
-                    # rota esteja declarada no roteador de quem hospeda.
+                    # The screen belongs to whoever publishes the module,
+                    # even if the route is declared in the host's router.
                     file = self._exposed_file(provider, exposed)
 
                 else:
-                    # O arquivo da tela é o do COMPONENTE, não o do
-                    # roteador. Apontar para o roteador faz toda tela
-                    # alcançar tudo que ele importa, e a atribuição de
-                    # fragmento a tela vira ruído: cada tela recebe as
-                    # dependências de todas as outras.
+                    # The screen's file is the COMPONENT's, not the
+                    # router's. Pointing at the router makes every screen
+                    # reach everything it imports, and assigning
+                    # fragments to screens turns into noise: each screen
+                    # gets the dependencies of all the others.
                     target = (
                         ModuleResolver.resolve(entry.specifier, file_path)
                         if entry.specifier

@@ -1,10 +1,10 @@
 """
-Momento de setup: declarar como as aplicações se comunicam.
+Setup moment: declare how the applications communicate.
 
-Grava a especificação que a extração vai consultar dali em diante.
-Sem argumentos, escreve um modelo comentado para o usuário
-preencher — é o ponto em que a decisão humana entra no processo,
-uma vez só, em vez de a cada análise.
+Writes the specification that extraction will consult from then on.
+Without arguments, it writes a commented template for the user to
+fill in — it is the point where the human decision enters the
+process, once, instead of on every analysis.
 """
 
 from __future__ import annotations

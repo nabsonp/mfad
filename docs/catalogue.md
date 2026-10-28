@@ -1,480 +1,490 @@
-# Catálogo de anti-padrões — viabilidade e especificação
+# Anti-pattern catalogue — feasibility and specification
 
-Triagem dos 27 anti-padrões do [catálogo de anti-padrões de micro
-frontends](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/)
-(ICOMP/UFAM) contra o que o MFAD consegue observar por análise estática,
-com a especificação de entrada, detecção e saída de cada um.
+Triage of the 27 anti-patterns in the [micro frontends anti-pattern
+catalogue](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/)
+(ICOMP/UFAM) against what MFAD can observe through static analysis,
+with the input, detection and output specification of each one.
 
-| faixa | significado | quantidade |
+| band | meaning | count |
 |---|---|---|
-| **A** | já implementado | 8 |
-| **B** | viável com os artefatos que já existem | 5 |
-| **C** | precisa de extração nova | 11 |
-| **D** | fora do alcance da análise estática de código | 3 |
+| **A** | already implemented | 8 |
+| **B** | feasible with the artefacts that already exist | 5 |
+| **C** | needs new extraction | 11 |
+| **D** | out of reach of static code analysis | 3 |
 
-## Os artefatos disponíveis
+## The available artefacts
 
-A coluna *Entrada* de cada regra se refere a estes:
+The *Input* column of each rule refers to these:
 
-| artefato | campos |
+| artefact | fields |
 |---|---|
-| `MicroFrontend` | id, diretório, entrypoint, rotas, papel, telas, fragmentos, tamanho |
-| `Screen` | componente, rota, arquivo, linha |
-| `Fragment` | nome, arquivo, linha |
-| `Composition` | consumidor, provedor, fragmento, local do import, locais de instanciação, props |
-| `Navigation` | origem, destino, expressão, URL resolvida, confiança |
-| `Communication` | origem, destino, mecanismo, canal, locais dos dois lados |
-| `ApiCall` | micro frontend, método, caminho, cliente |
-| `StateAccess` | micro frontend, biblioteca, caminho da fatia lida |
-| `AntiPattern` | nome, descrição, categoria e referência de uma entrada deste catálogo |
+| `MicroFrontend` | id, directory, entrypoint, routes, role, screens, fragments, size |
+| `Screen` | component, route, file, line |
+| `Fragment` | name, file, line |
+| `Composition` | consumer, provider, fragment, import location, instantiation locations, props |
+| `Navigation` | source, target, expression, resolved URL, confidence |
+| `Communication` | source, target, mechanism, channel, locations on both sides |
+| `ApiCall` | micro frontend, method, path, client |
+| `StateAccess` | micro frontend, library, path of the slice read |
+| `AntiPattern` | name, description, category and reference of an entry in this catalogue |
 
-O anti-padrão e a ocorrência dele são entidades distintas. `AntiPattern`
-é a entrada deste catálogo — existe tenha ou não sido encontrada em
-algum sistema; a `Rule` é como procurá-la nos artefatos, e uma mesma
-entrada admite mais de uma operacionalização.
+The anti-pattern and its occurrence are distinct entities. `AntiPattern`
+is the entry in this catalogue — it exists whether or not it has been
+found in any system; the `Rule` is how to look for it in the artefacts,
+and the same entry admits more than one operationalization.
 
-Toda detecção devolve um `AntiPatternDetection`, com o anti-padrão, dimensão,
-explicação, mensagem, elementos envolvidos, locais no código e metadados
-próprios da regra. A coluna *Saída* descreve o que é específico de cada
-uma.
+Every detection returns an `AntiPatternDetection`, with the anti-pattern,
+dimension, explanation, message, elements involved, code locations and
+metadata specific to the rule. The *Output* column describes what is
+specific to each one.
 
 ---
 
-# A — já implementado
+# A — already implemented
 
 ## [Cyclic Dependency](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Cyclic%20Dependency)
-> Dois ou mais MFEs dependem um do outro, direta ou indiretamente.
+> Two or more MFEs depend on each other, directly or indirectly.
 
 | | |
 |---|---|
-| **Entrada** | `Composition` (com `RenderLocation.screens` e `.fragments`), `Communication` (com `produced_on` e `consumed_on`) |
-| **Detecção** | Para cada tela, junta os fragmentos montados nela — os que ela renderiza e, em qualquer profundidade, os que esses renderizam. Monta um grafo dirigido por relação **e por tela**: entra a instanciação alcançada pela tela, e a comunicação cujas duas pontas estão no ar nela. Enumera os ciclos elementares de cada grafo. Teto de 200 ciclos distintos por relação, porque a enumeração cresce com a quantidade de ciclos, não com o tamanho do grafo. |
-| **Saída** | Uma ocorrência por ciclo, juntando as telas em que ele aparece. `dimension` diz qual relação o produziu; `chain` traz a sequência ordenada; `through` lista o que passa por cada aresta — fragmentos ou canais; `screens`, as telas. |
+| **Input** | `Composition` (with `RenderLocation.screens` and `.fragments`), `Communication` (with `produced_on` and `consumed_on`) |
+| **Detection** | For each screen, gathers the fragments mounted on it — the ones it renders and, at any depth, the ones those render. Builds a directed graph per relation **and per screen**: it includes the instantiations reached by the screen, and the communication whose two ends are both live on it. Enumerates the elementary cycles of each graph. Capped at 200 distinct cycles per relation, because enumeration grows with the number of cycles, not with the size of the graph. |
+| **Output** | One occurrence per cycle, merging the screens on which it appears. `dimension` says which relation produced it; `chain` holds the ordered sequence; `through` lists what goes through each edge — fragments or channels; `screens`, the screens. |
 
-Composição e comunicação são avaliadas em separado porque um ciclo
-significa coisas diferentes em cada uma: composição é acoplamento de
-build; comunicação, de contrato.
+Composition and communication are evaluated separately because a cycle
+means different things in each: composition is build coupling;
+communication is contract coupling.
 
-O recorte por tela existe porque, no grafo do sistema inteiro, arestas
-que nunca coexistem se encadeiam — a composição de uma tela com a de
-outra — e em sistema grande o número de ciclos explode sem que nenhum
-seja montado de fato. Navegação ficou de fora pelo mesmo motivo: ela
-liga uma tela a outra, e ida e volta entre telas é fluxo do produto.
+The per-screen cut exists because, in the graph of the whole system,
+edges that never coexist get chained together — the composition of one
+screen with that of another — and in a large system the number of cycles
+explodes without any of them actually being mounted. Navigation was left
+out for the same reason: it links one screen to another, and going back
+and forth between screens is product flow.
 
-Micro frontends montados lado a lado pelo orquestrador, sem que a tela
-os renderize, não estão na tela — e unidade sem `<Route>` não tem tela
-nenhuma.
+Micro frontends mounted side by side by the orchestrator, without the
+screen rendering them, are not on the screen — and a unit without a
+`<Route>` has no screen at all.
 
 ## [Hub-like Dependency](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hub-like%20Dependency)
-> Uma tela de um MFE integra fragmentos de vários outros MFEs.
+> A screen of one MFE integrates fragments from several other MFEs.
 
 | | |
 |---|---|
-| **Entrada** | `MicroFrontend.screens`, `Composition.renders` |
-| **Detecção** | Agrupa as instanciações de fragmento por tela, usando as telas que o sítio de renderização registra. Acusa quando a tela instancia `min_fragments` fragmentos. Padrão 5. |
-| **Saída** | Uma ocorrência por tela. Metadados: tela, provedores, fragmentos instanciados. |
+| **Input** | `MicroFrontend.screens`, `Composition.renders` |
+| **Detection** | Groups fragment instantiations by screen, using the screens recorded by the render site. Flags a screen when it instantiates `min_fragments` fragments. Default 5. |
+| **Output** | One occurrence per screen. Metadata: screen, providers, instantiated fragments. |
 
-O sinal é a quantidade de **fragmentos distintos**, não de provedores
-nem de instanciações: é o número de peças que a tela precisa montar
-que a torna um ponto de convergência, e cinco fragmentos de um provedor
-só concentram tanta mudança de contrato quanto cinco de cinco. O mesmo
-card repetido numa lista é uma peça só.
+The signal is the number of **distinct fragments**, not of providers
+nor of instantiations: it is the number of pieces the screen has to
+assemble that makes it a convergence point, and five fragments from a
+single provider concentrate as much contract change as five from five.
+The same card repeated in a list is one piece.
 
-Contar provedores distintos, como se fazia, punia o desenho normal:
-com biblioteca de componentes compartilhada, qualquer tela que usasse
-um componente dela mais um fragmento qualquer já somava dois
-provedores.
+Counting distinct providers, as was done before, penalized normal
+design: with a shared component library, any screen that used one of
+its components plus any fragment already added up to two providers.
 
-A ligação fragmento↔tela não é mais pelo arquivo: o sítio de
-renderização registra em que telas aparece, seguindo os imports
-relativos a partir do componente da tela. Fragmento instanciado num
-componente auxiliar é atribuído corretamente, e quando o fragmento é
-o próprio componente da rota, a tela é aquela e só aquela.
+The fragment↔screen link is no longer by file: the render site records
+which screens it appears on, following relative imports from the
+screen's component. A fragment instantiated in a helper component is
+attributed correctly, and when the fragment is the route component
+itself, the screen is that one and only that one.
 
 ## [Hammering APIs](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hammering%20APIs)
-> Vários MFEs chamam o mesmo endpoint de forma independente.
+> Several MFEs call the same endpoint independently.
 
 | | |
 |---|---|
-| **Entrada** | `ApiCall` |
-| **Detecção** | Agrupa as chamadas por **caminho**, não por caminho mais método: um MFE que lê e outro que escreve no mesmo recurso compartilham o mesmo contrato. Acusa a partir de `min_callers` consumidores. Padrão 2. |
-| **Saída** | Uma ocorrência por rota compartilhada. Metadados: rota, métodos observados, consumidores. |
+| **Input** | `ApiCall` |
+| **Detection** | Groups calls by **path**, not by path plus method: one MFE that reads and another that writes the same resource share the same contract. Flags from `min_callers` consumers. Default 2. |
+| **Output** | One occurrence per shared route. Metadata: route, observed methods, consumers. |
 
 ## [Global state communication](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Global%20state%20communication)
-> Estado compartilhado viola a segregação e aumenta o acoplamento.
+> Shared state violates segregation and increases coupling.
 
 | | |
 |---|---|
-| **Entrada** | `StateAccess` |
-| **Detecção** | Agrupa quem acessa cada fatia — biblioteca e caminho juntos — e verifica se alguma é acessada por `min_microfrontends` ou mais. Padrão 2. Inclui as chaves de `localStorage` e `sessionStorage`. |
-| **Saída** | Ocorrência **única e binária** — o sistema usa estado global como canal ou não usa. Metadados: as fatias compartilhadas com quem acessa cada uma, e as bibliotecas envolvidas. |
+| **Input** | `StateAccess` |
+| **Detection** | Groups who accesses each slice — library and path together — and checks whether any is accessed by `min_microfrontends` or more. Default 2. Includes `localStorage` and `sessionStorage` keys. |
+| **Output** | A **single, binary** occurrence — the system either uses global state as a channel or it does not. Metadata: the shared slices with who accesses each one, and the libraries involved. |
 
-Uma por fatia diria a mesma coisa várias vezes. O que interessa é se a
-prática existe e quem participa.
+One per slice would say the same thing several times. What matters is
+whether the practice exists and who takes part.
 
 ## [One Micro Frontend for all](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/One%20Micro%20Frontend%20for%20all)
-> Um único MFE é criado e importado por todos os outros.
+> A single MFE is created and imported by all the others.
 
 | | |
 |---|---|
-| **Entrada** | `Composition`, `Navigation`, `Communication` (só as dirigidas) |
-| **Detecção** | Conta vizinhos distintos de cada MFE, somadas as relações, e acusa quem alcança `ratio` dos demais. Exclui o orquestrador do cálculo e se abstém abaixo de `min_microfrontends`. Padrões 0,9 e 5. |
-| **Saída** | Uma ocorrência por MFE. Metadados: cobertura, vizinhos, e a separação entre de quem depende e por quem é dependido. |
+| **Input** | `Composition`, `Navigation`, `Communication` (directed ones only) |
+| **Detection** | Counts the distinct neighbours of each MFE, summed over the relations, and flags whoever reaches `ratio` of the others. Excludes the orchestrator from the computation and abstains below `min_microfrontends`. Defaults 0.9 and 5. |
+| **Output** | One occurrence per MFE. Metadata: coverage, neighbours, and the split between what it depends on and what depends on it. |
 
-**Divergência a resolver.** O catálogo descreve especificamente
-*importado por todos* — grau de entrada. A implementação atual conta
-vizinhança **sem direção**, o que também acusa o MFE que depende de
-todos. São problemas distintos: um é gargalo compartilhado, o outro sabe
-demais sobre o sistema. Os dois vão nos metadados, mas a regra deveria
-ou restringir-se ao grau de entrada, para aderir ao catálogo, ou declarar
-explicitamente que amplia a definição.
+**Divergence to resolve.** The catalogue specifically describes
+*imported by all* — in-degree. The current implementation counts
+**undirected** neighbourhood, which also flags the MFE that depends on
+all the others. These are distinct problems: one is a shared bottleneck,
+the other knows too much about the system. Both go into the metadata,
+but the rule should either restrict itself to in-degree, to adhere to
+the catalogue, or state explicitly that it widens the definition.
 
-O orquestrador é excluído porque alcançar todos é a função dele, e
-mantê-lo no cálculo inflaria o grau de todos os demais. O piso de
-tamanho existe porque num sistema pequeno estar ligado a todos é o
-normal, não o desvio. Comunicação simétrica (estado global) não entra:
-liga todos os que tocam a fatia a todos, sem centro, e já é acusada pelo
+The orchestrator is excluded because reaching everyone is its job, and
+keeping it in the computation would inflate the degree of all the
+others. The size floor exists because in a small system being connected
+to everyone is the norm, not the deviation. Symmetric communication
+(global state) does not count: it connects everyone who touches the
+slice to everyone, with no centre, and is already flagged by
 `global-state-communication`.
 
 ## [Mega Frontend](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Mega%20Frontend)
-> Um MFE assume várias responsabilidades que deveriam estar separadas.
+> One MFE takes on several responsibilities that should be separate.
 
 | | |
 |---|---|
-| **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
-| **Detecção** | Telas **e** linhas acima da **cerca superior de Tukey** (`Q3 + 1.5 × IQR`) da distribuição do próprio sistema, com o orquestrador fora. |
-| **Saída** | Uma ocorrência por micro frontend, com as três contagens e as medianas contra as quais foi comparado. |
+| **Input** | `MicroFrontend.screens`, `.fragments`, `.size` |
+| **Detection** | Screens **and** lines of code above the **upper Tukey fence** (`Q3 + 1.5 × IQR`) of the system's own distribution, with the orchestrator left out. |
+| **Output** | One occurrence per micro frontend, with the three counts, the fences it exceeded and the medians it was compared against. |
 
-**O corte é a cerca de Tukey, não um múltiplo da mediana.** Os
-valores anteriores — `2.0` para o mega e `0.4` para o nano — foram
-escolhidos por simetria entre si, e nunca tiveram origem empírica. A
-cerca tem nome, referência e uma propriedade que múltiplo de mediana
-não tem: num conjunto homogêneo ela não acusa ninguém, em vez de
-acusar uma fração fixa como fariam P25 e P75.
+**The cut is Tukey's fence, not a multiple of the median.** The
+previous values — `2.0` for mega and `0.4` for nano — were chosen for
+symmetry with each other, and never had an empirical origin. The fence
+has a name, a reference and a property that a multiple of the median
+does not: on a homogeneous set it flags nobody, instead of flagging a
+fixed fraction as P25 and P75 would.
 
-Duas consequências de projeto. A regra **se abstém com menos de 8
-unidades**, porque com quatro pontos a interpolação inventa valores
-fracionários sobre uma amostra de inteiros e o quartil vira ficção.
-E a comparação é **estrita**: quando o IQR é zero as duas cercas
-colapsam no mesmo ponto, e aí só quem destoa dele é acusado — o que
-é coerente, porque com dispersão zero qualquer diferença está a
-distância infinita em IQRs.
+Two design consequences. The rule **abstains with fewer than 8
+units**, because with four points interpolation invents fractional
+values over a sample of integers and the quartile becomes fiction.
+And the comparison is **strict**: when the IQR is zero both fences
+collapse onto the same point, and then only units that deviate from it
+are flagged — which is consistent, because with zero dispersion any
+difference is infinitely many IQRs away.
 
-Sem mapa de domínios não há como afirmar QUAIS responsabilidades a
-unidade acumula, então a v0 mede a consequência observável: ela cresceu
-muito acima dos pares. É indício, não prova — um micro frontend grande e
-coeso não é Mega Frontend —, e por isso a saída carrega as medianas, para
-quem lê poder discordar.
+Without a domain map there is no way to state WHICH responsibilities
+the unit accumulates, so v0 measures the observable consequence: it
+grew far above its peers. It is evidence, not proof — a large, cohesive
+micro frontend is not a Mega Frontend —, and that is why the output
+carries the medians, so that the reader can disagree.
 
-As duas medidas são exigidas juntas. Muitas telas e pouco código é um
-menu; muito código e uma tela é uma biblioteca.
+Both measures are required together. Many screens and little code is a
+menu; a lot of code and one screen is a library.
 
 ## [Nano Frontend](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Nano%20Frontend)
-> Um MFE criado com apenas algumas telas ou fragmentos.
+> An MFE created with only a few screens or fragments.
 
 | | |
 |---|---|
-| **Entrada** | `MicroFrontend.screens`, `.fragments`, `.size` |
-| **Detecção** | Telas somadas a fragmentos abaixo do **piso absoluto** `floor` **ou** da **cerca inferior de Tukey** (`Q1 - 1.5 × IQR`), **e** linhas de código abaixo da mediana do sistema. O orquestrador fica fora. |
-| **Saída** | Uma ocorrência por micro frontend, com as contagens e as medianas contra as quais foi comparado. |
+| **Input** | `MicroFrontend.screens`, `.fragments`, `.size` |
+| **Detection** | Screens plus fragments below the **absolute floor** `floor` **or** the **lower Tukey fence** (`Q1 - 1.5 × IQR`), **and** lines of code below the system median. The orchestrator is left out. |
+| **Output** | One occurrence per micro frontend, with the counts and the medians it was compared against. |
 
-Telas e fragmentos somados porque as duas formas de entregar interface
-contam: uma unidade sem tela que publica muitos fragmentos não é nano.
+Screens and fragments are summed because both ways of delivering an
+interface count: a unit with no screen that publishes many fragments is
+not nano.
 
-**O piso existe porque a comparação relativa é cega em sistema
-uniforme.** No `healthcare-system` toda unidade tem uma tela e um
-fragmento: a mediana acompanha, e nenhuma seria acusada, por
-construção. A premissa do piso é que abaixo dele a unidade é pequena
-demais para ser micro frontend, independentemente dos vizinhos.
+**The floor exists because relative comparison is blind in a uniform
+system.** In a public seven-unit Vite system every unit has one screen
+and one fragment: the median follows along, and none would be flagged,
+by construction. The premise of the floor is that below it the unit is
+too small to be a micro frontend, regardless of its neighbours.
 
-**O valor de `floor` é escolha declarada, não medida.** Em `5`, ele
-acusava **9 das 10 unidades** dos dois sistemas de referência — o
-`healthcare-system` inteiro e três das quatro unidades do `nabstore`.
-Como ele vale em OU com o relativo, domina sempre que for mais frouxo
-que a mediana.
+**The value of `floor` is a declared choice, not a measurement.** At
+`5`, it flagged **9 of the 10 units** of the two reference systems —
+all of that system and three of the four units of `nabstore`. Since it
+is combined with the relative criterion by OR, it dominates whenever it
+is looser than the median.
 
-**Por isso a contagem não decide sozinha.** Telas e fragmentos dizem
-por onde a unidade é vista, não quanto ela faz: uma aplicação Angular
-com duas rotas e dezenas de abas tem poucas telas e está entre as
-maiores do sistema — no udistrital, a maior unidade em código era
-acusada de nano. A unidade precisa ter também menos código que a
-mediana dos pares. É a exigência dupla do `mega-frontend`, do lado
-oposto, e não usa número novo: a mediana é do próprio sistema.
+**That is why the count does not decide alone.** Screens and fragments
+say where the unit is seen from, not how much it does: an Angular
+application with two routes and dozens of tabs has few screens and is
+among the largest in the system — in udistrital, the largest unit by
+code was flagged as nano. The unit must also have less code than the
+median of its peers. It is the double requirement of `mega-frontend`,
+from the opposite side, and it uses no new number: the median is the
+system's own.
 
-A regra assume que **tudo que recebe é micro frontend**. Separar
-biblioteca de unidade é decisão de quem aponta a ferramenta, e não
-cabe aqui: o remédio do nano é absorver a unidade noutra, o da
-biblioteca é não contá-la.
+The rule assumes that **everything it receives is a micro frontend**.
+Telling a library apart from a unit is the decision of whoever points
+the tool, and does not belong here: the remedy for nano is to absorb the
+unit into another, the remedy for a library is not to count it.
 
-Unidade cujo entrypoint não resolveu fica de fora dos dois critérios.
-Extração que não conseguiu ler devolve zero em tudo, e acusar isso
-seria chamar falha de leitura de anti-padrão.
+A unit whose entrypoint did not resolve is left out of both criteria.
+Extraction that could not read it returns zero for everything, and
+flagging that would be calling a read failure an anti-pattern.
 
-Indício, não veredito. Um micro frontend pequeno é legítimo quando
-constitui sozinho uma capacidade inteira, e a regra não sabe distinguir
-esse caso — por isso a saída diz contra o que a unidade foi comparada.
+Evidence, not a verdict. A small micro frontend is legitimate when it
+alone constitutes a whole capability, and the rule cannot tell that
+case apart — which is why the output says what the unit was compared
+against.
 
 ## [Micro Frontends Greedy](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Micro%20Frontends%20Greedy)
-> Explosão no número de MFEs.
+> Explosion in the number of MFEs.
 
 | | |
 |---|---|
-| **Entrada** | `MicroFrontend` (contagem e tamanhos) |
-| **Detecção** | Razão entre a quantidade de MFEs e o tamanho mediano de cada um. Acusa sistema com muitos MFEs pequenos. |
-| **Saída** | Ocorrência única, sobre o sistema. Metadados: quantidade, mediana, distribuição de tamanhos. |
+| **Input** | `MicroFrontend` (count and sizes) |
+| **Detection** | Ratio between the number of MFEs and the median size of each. Flags a system with many small MFEs. |
+| **Output** | A single occurrence, about the system. Metadata: count, median, size distribution. |
 
-Sobrepõe-se a `Nano Frontend` — um olha a unidade, o outro o sistema.
-Implementar as duas só se a distinção for defendida no texto.
+Overlaps with `Nano Frontend` — one looks at the unit, the other at the
+system. Implement both only if the distinction is defended in the text.
 
 ## [Knot Micro Frontend](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Knot%20Micro%20Frontend)
-> Três ou mais MFEs se comunicam diretamente por interfaces específicas.
+> Three or more MFEs communicate directly through specific interfaces.
 
 | | |
 |---|---|
-| **Entrada** | `Communication`, `Composition` |
-| **Detecção** | Busca cliques de três ou mais nós — conjuntos em que todos se comunicam com todos. `networkx.find_cliques` resolve. |
-| **Saída** | Uma ocorrência por clique. Metadados: os MFEs do nó e os canais ou fragmentos que os ligam. |
+| **Input** | `Communication`, `Composition` |
+| **Detection** | Looks for cliques of three or more nodes — sets in which everyone communicates with everyone. `networkx.find_cliques` solves it. |
+| **Output** | One occurrence per clique. Metadata: the MFEs in the knot and the channels or fragments that connect them. |
 
 ## [Bidirectional Data Flow](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Bidirectional%20Data%20Flow)
-> Comunicação bidirecional entre a aplicação hospedeira e os MFEs remotos.
+> Bidirectional communication between the host application and the remote MFEs.
 
 | | |
 |---|---|
-| **Entrada** | `MicroFrontend.role`, `Communication`, `Composition`, `Navigation` |
-| **Detecção** | O papel `shell` já identifica a hospedeira. Acusa par com aresta nos dois sentidos envolvendo o shell, em qualquer relação. |
-| **Saída** | Uma ocorrência por par. Metadados: as relações em cada sentido. |
+| **Input** | `MicroFrontend.role`, `Communication`, `Composition`, `Navigation` |
+| **Detection** | The `shell` role already identifies the host. Flags a pair with edges in both directions involving the shell, in any relation. |
+| **Output** | One occurrence per pair. Metadata: the relations in each direction. |
 
 ## [Chatty Micro Frontends](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Chatty%20Micro%20Frontends)
-> Comunicação excessiva entre fragmentos, transmitindo evento a cada ação.
+> Excessive communication between fragments, broadcasting an event on every action.
 
 | | |
 |---|---|
-| **Entrada** | `Communication` |
-| **Detecção** | Conta pontos de publicação por par de MFEs e acusa acima de um limiar. |
-| **Saída** | Uma ocorrência por par. Metadados: canais, contagem de pontos de publicação. |
+| **Input** | `Communication` |
+| **Detection** | Counts publication points per pair of MFEs and flags above a threshold. |
+| **Output** | One occurrence per pair. Metadata: channels, count of publication points. |
 
-**Ressalva de natureza.** O catálogo descreve **frequência de execução**;
-a análise estática vê **pontos no código**. Um `publish` dentro de um
-laço conta um. É proxy fraco, e a regra não deve ser publicada sem essa
-ressalva junto — senão promete medir algo que não mede.
+**Caveat about its nature.** The catalogue describes **execution
+frequency**; static analysis sees **points in the code**. A `publish`
+inside a loop counts as one. It is a weak proxy, and the rule should not
+be published without this caveat attached — otherwise it promises to
+measure something it does not.
 
 ## [Spaghetti Architecture](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Spaghetti%20Architecture)
-> MFEs estruturados de forma desorganizada, com dependências emaranhadas.
+> MFEs structured in a disorganized way, with tangled dependencies.
 
 | | |
 |---|---|
-| **Entrada** | todas as arestas |
-| **Detecção** | Métricas de grafo: densidade, componentes fortemente conexos, ausência de estrutura em camadas. |
-| **Saída** | Ocorrência única, sobre o sistema. Metadados: as métricas calculadas. |
+| **Input** | all edges |
+| **Detection** | Graph metrics: density, strongly connected components, absence of a layered structure. |
+| **Output** | A single occurrence, about the system. Metadata: the computed metrics. |
 
-O conceito é difuso. A regra vale o que a operacionalização escolhida
-valer, e essa escolha precisa ser justificada no texto.
+The concept is diffuse. The rule is worth whatever the chosen
+operationalization is worth, and that choice must be justified in the
+text.
 
 
 ---
 
-# C — precisa de extração nova
+# C — needs new extraction
 
-Ordenados por esforço crescente.
+Ordered by increasing effort.
 
 ## [No CI&CD](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/No%20CI%26CD)
-> Falta pipeline automatizado de integração e entrega.
+> No automated integration and delivery pipeline.
 
 | | |
 |---|---|
-| **Extração nova** | Presença de `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `azure-pipelines.yml` por MFE |
-| **Entrada** | a extração acima |
-| **Detecção** | Ausência de qualquer um dos arquivos, por MFE e no repositório. |
-| **Saída** | Ocorrência por MFE sem pipeline, ou única se nenhum tiver. |
+| **New extraction** | Presence of `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `azure-pipelines.yml` per MFE |
+| **Input** | the extraction above |
+| **Detection** | Absence of all of these files, per MFE and in the repository. |
+| **Output** | One occurrence per MFE without a pipeline, or a single one if none has any. |
 
-Não é análise de código, é inspeção de repositório. O `SourceTree` já
-percorre a árvore.
+This is not code analysis, it is repository inspection. `SourceTree`
+already walks the tree.
 
 ## [No Versioning](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/No%20Versioning)
-> Os MFEs não são versionados.
+> The MFEs are not versioned.
 
 | | |
 |---|---|
-| **Extração nova** | Campo `version` do `package.json`; presença de tags no git |
-| **Entrada** | a extração acima |
-| **Detecção** | Acusa MFE sem `version`, ou com versão fixa que nunca muda no histórico. |
-| **Saída** | Uma ocorrência por MFE. |
+| **New extraction** | The `version` field of `package.json`; presence of git tags |
+| **Input** | the extraction above |
+| **Detection** | Flags an MFE without `version`, or with a fixed version that never changes in the history. |
+| **Output** | One occurrence per MFE. |
 
 ## [Framework Frenzy](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Framework%20Frenzy) · [Golden Hammer](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Golden%20Hammer)
-> Vários frameworks sem necessidade real · todos com a mesma tecnologia,
-> mesmo quando não serve.
+> Several frameworks with no real need · all with the same technology,
+> even when it does not fit.
 
 | | |
 |---|---|
-| **Extração nova** | Dependências declaradas no `package.json` de cada MFE, classificadas por família: react, vue, angular, svelte |
-| **Entrada** | a extração acima |
-| **Detecção** | `Framework Frenzy`: mais de N famílias no sistema. `Golden Hammer`: uma só, em todos. |
-| **Saída** | Ocorrência única em cada caso. Metadados: a família de cada MFE. |
+| **New extraction** | Dependencies declared in each MFE's `package.json`, classified by family: react, vue, angular, svelte |
+| **Input** | the extraction above |
+| **Detection** | `Framework Frenzy`: more than N families in the system. `Golden Hammer`: a single one, in all of them. |
+| **Output** | A single occurrence in each case. Metadata: the family of each MFE. |
 
-São o mesmo dado lido em direções opostas. **Golden Hammer é o mais
-delicado do catálogo**: homogeneidade é problema só quando alguma unidade
-precisava de outra tecnologia — e isso o código não diz. A detecção
-identifica a homogeneidade, não a inadequação.
+They are the same data read in opposite directions. **Golden Hammer is
+the most delicate in the catalogue**: homogeneity is a problem only when
+some unit needed a different technology — and the code does not say
+that. The detection identifies homogeneity, not unsuitability.
 
 ## [Dependency hell](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Dependency%20hell)
-> MFEs compartilham bibliotecas externas sem gestão consistente de versão.
+> MFEs share external libraries without consistent version management.
 
 | | |
 |---|---|
-| **Extração nova** | Dependências e faixas de versão por MFE |
-| **Entrada** | a extração acima |
-| **Detecção** | Mesma biblioteca com faixas incompatíveis entre MFEs. |
-| **Saída** | Uma ocorrência por biblioteca divergente. Metadados: as faixas e quem declara cada uma. |
+| **New extraction** | Dependencies and version ranges per MFE |
+| **Input** | the extraction above |
+| **Detection** | The same library with incompatible ranges across MFEs. |
+| **Output** | One occurrence per divergent library. Metadata: the ranges and who declares each one. |
 
-**Uma extração de manifesto resolve quatro regras** — esta,
-`Framework Frenzy`, `Golden Hammer` e `No Versioning`. É o melhor retorno
-por esforço de toda a faixa C, e abre a categoria *Development*, hoje sem
-nenhuma cobertura.
+**One manifest extraction solves four rules** — this one,
+`Framework Frenzy`, `Golden Hammer` and `No Versioning`. It is the best
+return on effort of the whole C band, and it opens the *Development*
+category, which today has no coverage at all.
 
 ## [Avoiding observability](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Avoiding%20observability)
-> Nenhuma observabilidade implementada.
+> No observability implemented.
 
 | | |
 |---|---|
-| **Extração nova** | Imports de bibliotecas de observabilidade — Sentry, Datadog, OpenTelemetry, LogRocket — por MFE |
-| **Entrada** | a extração acima |
-| **Detecção** | Ausência de sinal em um ou em todos os MFEs. |
-| **Saída** | Uma ocorrência por MFE sem sinal. |
+| **New extraction** | Imports of observability libraries — Sentry, Datadog, OpenTelemetry, LogRocket — per MFE |
+| **Input** | the extraction above |
+| **Detection** | Absence of signal in one or in all MFEs. |
+| **Output** | One occurrence per MFE without signal. |
 
-Mesma técnica do catálogo de clientes HTTP: reconhecimento pelo
-especificador do import.
+Same technique as the HTTP client catalogue: recognition by the import
+specifier.
 
-Regra de **ausência**, o que é mais frágil que presença: não achar pode
-significar instrumentação num pacote compartilhado. A saída deve dizer
-"nenhum sinal encontrado", não "não existe".
+An **absence** rule, which is more fragile than a presence rule: not
+finding it may mean instrumentation in a shared package. The output must
+say "no signal found", not "does not exist".
 
 ## [Lack of Skeleton](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Lack%20of%20Skeleton)
-> Não há esqueleto ou boilerplate padrão para criar novos MFEs.
+> There is no standard skeleton or boilerplate for creating new MFEs.
 
 | | |
 |---|---|
-| **Extração nova** | Estrutura de diretórios e arquivos de configuração de cada MFE |
-| **Entrada** | a extração acima |
-| **Detecção** | Similaridade estrutural entre os MFEs. Projetos gerados do mesmo esqueleto se parecem. |
-| **Saída** | Ocorrência única. Metadados: a matriz de similaridade. |
+| **New extraction** | Directory structure and configuration files of each MFE |
+| **Input** | the extraction above |
+| **Detection** | Structural similarity between the MFEs. Projects generated from the same skeleton look alike. |
+| **Output** | A single occurrence. Metadata: the similarity matrix. |
 
-Operacionalização delicada: baixa similaridade pode significar ausência
-de esqueleto ou divergência legítima ao longo do tempo.
+Delicate operationalization: low similarity may mean absence of a
+skeleton or legitimate divergence over time.
 
 ## [Dependent deployment](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Dependent%20deployment)
-> MFEs tão acoplados que a implantação exige coordenação entre times.
+> MFEs so coupled that deployment requires coordination between teams.
 
 | | |
 |---|---|
-| **Extração nova** | Sinais de release: versões fixadas entre MFEs, pipeline que publica vários juntos |
-| **Entrada** | acoplamento já existente + a extração acima |
-| **Detecção** | Acoplamento forte entre MFEs somado a sinal de release conjunto. |
-| **Saída** | Uma ocorrência por grupo que precisa ser implantado junto. |
+| **New extraction** | Release signals: versions pinned between MFEs, a pipeline that publishes several together |
+| **Input** | existing coupling + the extraction above |
+| **Detection** | Strong coupling between MFEs combined with a joint-release signal. |
+| **Output** | One occurrence per group that has to be deployed together. |
 
-Sem a extração de release, dá para tratar como regra **composta** sobre
-as detecções existentes — mas aí precisa ser nomeada como risco inferido,
-não como fato observado.
+Without the release extraction, it can be treated as a **composite**
+rule over the existing detections — but then it has to be named as an
+inferred risk, not as an observed fact.
 
 ## [Partial UI Migration](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Partial%20UI%20Migration)
-> Extrair parte da UI para um MFE e reembuti-la no monólito legado.
+> Extracting part of the UI into an MFE and re-embedding it in the legacy monolith.
 
 | | |
 |---|---|
-| **Extração nova** | Identificação do monólito e da direção do embutimento |
-| **Entrada** | a extração acima + `Composition` |
-| **Detecção** | MFE cujo fragmento é instanciado de volta dentro do legado. |
-| **Saída** | Uma ocorrência por fragmento reembutido. |
+| **New extraction** | Identification of the monolith and of the embedding direction |
+| **Input** | the extraction above + `Composition` |
+| **Detection** | An MFE whose fragment is instantiated back inside the legacy application. |
+| **Output** | One occurrence per re-embedded fragment. |
 
-Reconhecer uma aplicação **como legada** exige sinal que o código não dá
-sozinho. Provavelmente precisa de declaração do usuário.
+Recognizing an application **as legacy** requires a signal the code
+does not give on its own. It probably needs a declaration from the user.
 
 ## [Unmediated Legacy Integration](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Unmediated%20Legacy%20Integration)
-> Integrar sistema legado sem isolamento adequado.
+> Integrating a legacy system without proper isolation.
 
-Mesma dificuldade da anterior, agravada: exige identificar o legado **e**
-avaliar a qualidade do isolamento. É a mais distante da faixa C.
+Same difficulty as the previous one, made worse: it requires identifying
+the legacy system **and** assessing the quality of the isolation. It is
+the furthest away in band C.
 
 ## [Distributed Data Inconsistency](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Distributed%20Data%20Inconsistency)
-> Dados replicados entre MFEs sem propagação de mudança.
+> Data replicated across MFEs without change propagation.
 
 | | |
 |---|---|
-| **Extração nova** | Modelos de dado definidos em cada MFE — formas de tipo ou de objeto |
-| **Entrada** | a extração acima |
-| **Detecção** | Modelos equivalentes definidos em mais de um MFE. |
-| **Saída** | Uma ocorrência por modelo duplicado. |
+| **New extraction** | Data models defined in each MFE — type or object shapes |
+| **Input** | the extraction above |
+| **Detection** | Equivalent models defined in more than one MFE. |
+| **Output** | One occurrence per duplicated model. |
 
-Análise bem mais pesada que tudo que existe hoje, e com alta taxa de
-falso positivo — dois MFEs podem legitimamente ter tipos parecidos.
-**Eu deixaria fora do escopo.**
+A much heavier analysis than anything that exists today, and with a
+high false-positive rate — two MFEs may legitimately have similar types.
+**I would leave it out of scope.**
 
 ---
 
-# D — fora do alcance
+# D — out of reach
 
-Não são propriedades do código. Nenhuma análise estática de fonte as
-determina, e aproximá-las produziria número sem significado.
+These are not properties of the code. No static analysis of source code
+determines them, and approximating them would produce a number with no
+meaning.
 
 ## [Common Ownership](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Common%20Ownership)
-> Um único time gerencia todos os MFEs.
+> A single team manages all the MFEs.
 
-Estrutura organizacional. Existe aproximação possível — `CODEOWNERS` e
-autoria no histórico do git —, mas isso é metadado de repositório, não
-código, e mede **quem commitou**, não quem é dono.
+Organizational structure. An approximation is possible — `CODEOWNERS` and
+authorship in the git history —, but that is repository metadata, not
+code, and it measures **who committed**, not who owns.
 
-Se entrar, seria extensão de escopo declarada: análise de repositório,
-não de código.
+If it were included, it would be a declared scope extension: repository
+analysis, not code analysis.
 
 ## [Dismissing human factors](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Dismissing%20human%20factors)
-> Times perseguem metas técnicas sem considerar bem-estar e moral.
+> Teams pursue technical goals without considering well-being and morale.
 
-Não detectável por nenhum meio automático.
+Not detectable by any automatic means.
 
 ## [Micro Frontend as the goal](https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Micro%20Frontend%20as%20the%20goal)
-> Adotar a arquitetura MFE em contexto inadequado.
+> Adopting the MFE architecture in an unsuitable context.
 
-Exige julgar se o contexto justificava a decisão — informação que não
-está no artefato. `Nano Frontend` e `Micro Frontends Greedy` capturam
-sintomas correlatos, mas não a causa.
+Requires judging whether the context justified the decision —
+information that is not in the artefact. `Nano Frontend` and
+`Micro Frontends Greedy` capture related symptoms, but not the cause.
 
 ---
 
-# Resumo para o escopo
+# Summary for the scope
 
-**Cobertura atual:** 8 de 27. A categoria Intra-frontend está quase
-fechada: falta `Micro Frontends Greedy`
-das duas já implementadas.
+**Current coverage:** 8 of 27. The Intra-frontend category is almost
+closed: `Micro Frontends Greedy` is missing alongside
+the two already implemented.
 
-**Alcance sem extração nova:** 13 de 27 — quase metade do catálogo.
+**Reach without new extraction:** 13 of 27 — almost half the catalogue.
 
-**Melhor retorno por esforço:** a extração de manifesto — dependências e
-versões por MFE — habilita quatro regras de uma vez e abre a categoria
-*Development*, hoje sem cobertura.
+**Best return on effort:** the manifest extraction — dependencies and
+versions per MFE — enables four rules at once and opens the
+*Development* category, which today has no coverage.
 
-**Menor esforço restante:** `Micro Frontends Greedy` é a leitura no
-nível do sistema do que `nano-frontend` faz por unidade. Depende de uma
-noção de capacidade de negócio, que a v0 não tem.
+**Smallest remaining effort:** `Micro Frontends Greedy` is the
+system-level reading of what `nano-frontend` does per unit. It depends
+on a notion of business capability, which v0 does not have.
 
-**Teto realista:** 24 de 27. Três são sobre pessoas e processo, e
-declarar isso explicitamente é resultado: delimita o que análise estática
-de código pode afirmar sobre arquitetura.
+**Realistic ceiling:** 24 of 27. Three are about people and process, and
+stating that explicitly is a result: it delimits what static code
+analysis can claim about architecture.
 
-| categoria | total | A | B | C | D |
+| category | total | A | B | C | D |
 |---|---|---|---|---|---|
 | Inter-frontend | 15 | 6 | 4 | 5 | 0 |
 | Intra-frontend | 3 | 2 | 1 | 0 | 0 |
 | Operations | 4 | 0 | 0 | 4 | 0 |
 | Development | 5 | 0 | 0 | 2 | 3 |
 
-## Três regras que exigem declaração metodológica
+## Three rules that require a methodological statement
 
-Estas medem conceitos que **não estão no artefato**. Implementá-las é
-possível; publicá-las sem declarar a operacionalização, não.
+These measure concepts that **are not in the artefact**. Implementing
+them is possible; publishing them without stating the
+operationalization is not.
 
-| regra | o que o catálogo descreve | o que se consegue observar |
+| rule | what the catalogue describes | what can be observed |
 |---|---|---|
-| `Chatty Micro Frontends` | frequência de execução | pontos de publicação no código |
-| `Golden Hammer` | tecnologia inadequada à necessidade | homogeneidade tecnológica |
+| `Chatty Micro Frontends` | execution frequency | publication points in the code |
+| `Golden Hammer` | technology unsuited to the need | technological homogeneity |
 
-Em todas, a detecção identifica o sintoma observável, não a causa
-descrita. A distância entre os dois é ameaça à validade, e vale enunciá-la.
+In all of them, the detection identifies the observable symptom, not
+the described cause. The distance between the two is a threat to
+validity, and it is worth stating.

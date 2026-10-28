@@ -1,10 +1,10 @@
 """
-Cliente HTTP embrulhado numa função do projeto, e o do Angular.
+HTTP client wrapped in a project function, and Angular's.
 
-A função que repassa um parâmetro como URL de um cliente é cliente
-também. Os exemplos seguem a documentação do `fetch`
-(https://developer.mozilla.org/docs/Web/API/Fetch_API), do axios
-(https://axios-http.com/docs/instance) e do `HttpClient` do Angular
+A function that forwards a parameter as a client's URL is a client
+too. The examples follow the documentation of `fetch`
+(https://developer.mozilla.org/docs/Web/API/Fetch_API), of axios
+(https://axios-http.com/docs/instance) and of Angular's `HttpClient`
 (https://angular.dev/guide/http/making-requests).
 """
 
@@ -16,8 +16,8 @@ from mfad.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
 ROOT = root_config({"@org/catalog": "/catalog", "@org/checkout": "/checkout"})
 
 
-#: O embrulho mais comum: base de ambiente, cabeçalho e opções
-#: repassadas ao `fetch`.
+#: The most common wrapper: environment base, header and options
+#: forwarded to `fetch`.
 FETCH_API = """
     const API_BASE_URL = process.env.API_URL;
 
@@ -59,7 +59,7 @@ def test_function_that_forwards_the_url_is_a_client(system):
 
     assert calls_of(architecture) == [
         ("catalog", "GET", "/accounts", "fetch"),
-        # O verbo vem das opções que quem chama passou e a função repassou.
+        # The verb comes from the options the caller passed and the function forwarded.
         ("checkout", "POST", "/accounts", "fetch"),
     ]
 
@@ -69,7 +69,7 @@ def test_function_that_forwards_the_url_is_a_client(system):
 
 
 def test_wrappers_are_followed_in_layers_and_through_local_values(system):
-    """Um serviço que chama a embrulhadora com o próprio parâmetro, e a URL montada antes."""
+    """A service that calls the wrapper with its own parameter, and the URL built beforehand."""
 
     architecture = system(
         {
@@ -146,7 +146,7 @@ def test_wrapper_members_of_a_default_export_and_of_a_namespace(system):
 
 
 def test_client_instance_created_in_another_module(system):
-    """`axios.create()` num módulo, usado pelo nome que ele exporta."""
+    """`axios.create()` in a module, used by the name it exports."""
 
     architecture = system(
         {
@@ -170,7 +170,7 @@ def test_client_instance_created_in_another_module(system):
 
 
 def test_prefix_that_is_already_a_path_stays_a_call_of_its_own(system):
-    """`"/api/" + endpoint` já nomeia algo; a função não vira embrulhadora."""
+    """`"/api/" + endpoint` already names something; the function does not become a wrapper."""
 
     architecture = system(
         {
@@ -190,7 +190,7 @@ def test_prefix_that_is_already_a_path_stays_a_call_of_its_own(system):
 
 
 def test_angular_http_client_injected_by_type(system):
-    """O `HttpClient` é injetado; o tipo do campo é o que o identifica."""
+    """`HttpClient` is injected; the field's type is what identifies it."""
 
     architecture = system(
         angular_unit(
@@ -235,7 +235,7 @@ def test_angular_http_client_injected_by_type(system):
 
 
 def test_angular_services_that_wrap_the_http_client(system):
-    """Um serviço genérico de requisição e um serviço de domínio por cima dele."""
+    """A generic request service and a domain service on top of it."""
 
     architecture = system(
         angular_unit(
@@ -287,15 +287,15 @@ def test_angular_services_that_wrap_the_http_client(system):
         )
     )
 
-    # A base vem do ambiente e termina em `/`; quem chama passa o
-    # caminho relativo a ela.
+    # The base comes from the environment and ends in `/`; the caller
+    # passes the path relative to it.
     assert calls_of(architecture) == [
         ("billing", "GET", "/parametro", "@angular/common/http"),
     ]
 
 
 def test_call_in_a_function_nobody_calls_is_not_counted(system):
-    """O mesmo critério de código morto da comunicação e do estado global."""
+    """The same dead-code criterion as for communication and global state."""
 
     architecture = system(
         {

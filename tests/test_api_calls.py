@@ -1,4 +1,4 @@
-"""Chamadas a serviço externo e o `hammering-apis` que depende delas."""
+"""Calls to external services and the `hammering-apis` that depends on them."""
 
 from conftest import mfe, root_config
 
@@ -9,7 +9,7 @@ ROOT = root_config({"@org/catalog": "/catalog", "@org/checkout": "/checkout"})
 
 
 def test_url_after_an_environment_base_keeps_its_path(system):
-    """`${API_URL}/users` é a forma comum: a base vem de variável de ambiente."""
+    """`${API_URL}/users` is the common form: the base comes from an environment variable."""
 
     architecture = system(
         {
@@ -37,8 +37,8 @@ def test_url_after_an_environment_base_keeps_its_path(system):
 
     assert calls == [
         ("catalog", "/products", "exact"),
-        # O trecho de runtime vira `{param}`: o recurso continua
-        # identificado pelo que vem depois dele.
+        # The runtime part becomes `{param}`: the resource is still
+        # identified by what comes after it.
         ("catalog", "/users/{param}", "pattern"),
         ("checkout", "/products", "exact"),
     ]
@@ -50,7 +50,7 @@ def test_url_after_an_environment_base_keeps_its_path(system):
 
 
 def test_unknown_base_is_never_a_navigation(system):
-    """`${CDN}/checkout` pode ser outra origem; não é rota do sistema."""
+    """`${CDN}/checkout` may be another origin; it is not a route of the system."""
 
     architecture = system(
         {
@@ -70,8 +70,8 @@ def test_unknown_base_is_never_a_navigation(system):
 
 def test_storage_key_built_at_runtime_keeps_its_format(system):
     """
-    `"cart_" + id` é a mesma fatia para todo id: a chave vira
-    `cart_{param}`. Sem nenhum texto conhecido, não há chave.
+    `"cart_" + id` is the same slice for every id: the key becomes
+    `cart_{param}`. With no known text at all, there is no key.
     """
 
     architecture = system(
@@ -114,7 +114,7 @@ def test_path_without_a_literal_segment_is_not_an_endpoint(system):
 
 
 def test_runtime_segment_keeps_the_rest_of_the_path(system):
-    """`/account/${id}/statement` e `/account/${id}/transfers` são rotas diferentes."""
+    """`/account/${id}/statement` and `/account/${id}/transfers` are different routes."""
 
     architecture = system(
         {
@@ -132,7 +132,7 @@ def test_runtime_segment_keeps_the_rest_of_the_path(system):
         prefix="@org/",
     )
 
-    # A barra no fim e a repetida não mudam o recurso.
+    # The trailing slash and the repeated one do not change the resource.
     assert sorted(call.path for call in architecture.api_calls) == [
         "/account/{param}/statement",
         "/account/{param}/statement",

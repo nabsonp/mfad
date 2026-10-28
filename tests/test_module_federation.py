@@ -1,7 +1,7 @@
 """
-Module Federation: o que o hospedeiro carrega e o que só roda sozinho.
+Module Federation: what the host loads and what only runs standalone.
 
-Configuração na forma da documentação do plugin:
+Configuration in the shape of the plugin's documentation:
 https://webpack.js.org/plugins/module-federation-plugin/
 """
 
@@ -55,7 +55,7 @@ SYSTEM = {
 
 
 def remote(name: str, page: str, page_code: str) -> dict:
-    """Um remoto com a página publicada e o `main.jsx` de quando roda sozinho."""
+    """A remote with the published page and the `main.jsx` for when it runs standalone."""
 
     return {
         f"{name}/package.json": {"name": name},
@@ -65,7 +65,7 @@ def remote(name: str, page: str, page_code: str) -> dict:
             remotes={"library": "library@http://x/remoteEntry.js"},
         ),
         f"{name}/src/{page}.jsx": page_code,
-        # Só roda em desenvolvimento, com o remoto aberto sozinho.
+        # Only runs in development, with the remote opened standalone.
         f"{name}/src/main.jsx": f"""
             import {{ createRoot }} from "react-dom/client";
             import ThemeProvider from "library/ThemeProvider";
@@ -92,9 +92,9 @@ def test_import_only_in_the_standalone_entry_is_not_a_composition(system):
     pairs = sorted((item.consumer, item.provider, item.fragment) for item in architecture.compositions)
 
     assert ("pharmacy", "library", "./ThemeProvider") not in pairs
-    # Na página publicada o import é real.
+    # On the published page the import is real.
     assert ("billing", "library", "./ThemeProvider") in pairs
-    # O hospedeiro compõe as páginas remotas.
+    # The host composes the remote pages.
     assert ("host", "pharmacy", "./Pharmacy") in pairs
 
 

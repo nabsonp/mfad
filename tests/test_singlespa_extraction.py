@@ -1,8 +1,8 @@
 """
-Extração single-spa: fragmentos, eventos, estado, navegação e registro.
+single-spa extraction: fragments, events, state, navigation and registration.
 
-Cada caso é uma forma comum de escrever a mesma coisa que a extração
-já reconhecia em outra forma.
+Each case is a common way of writing the same thing that the
+extraction already recognized in another form.
 """
 
 from conftest import by_id, mfe, package, react_lifecycles, root_config
@@ -20,7 +20,7 @@ def channels(architecture, mechanism="CustomEvent"):
 
 
 # ----------------------------------------------------------------------
-# Eventos
+# Events
 # ----------------------------------------------------------------------
 
 
@@ -95,7 +95,7 @@ def test_event_name_from_a_shared_constant(system):
 
 
 # ----------------------------------------------------------------------
-# Estado
+# State
 # ----------------------------------------------------------------------
 
 
@@ -126,7 +126,7 @@ def test_storage_key_in_a_constant(system):
 
 
 def test_constant_with_two_values_is_not_resolved(system):
-    """O mesmo nome com valores diferentes: não se sabe qual é."""
+    """The same name with different values: it is unknown which one it is."""
 
     architecture = system(
         {
@@ -149,7 +149,7 @@ def test_constant_with_two_values_is_not_resolved(system):
 
 
 # ----------------------------------------------------------------------
-# Navegação
+# Navigation
 # ----------------------------------------------------------------------
 
 
@@ -176,7 +176,7 @@ def test_route_declarations_and_fetch_are_not_navigations(system):
         prefix="@org/",
     )
 
-    # O `path` da `<Route>` declara; o do componente do projeto navega.
+    # The `<Route>`'s `path` declares; the project component's navigates.
     assert sorted(item.at.code for item in architecture.navigations) == [
         'path="/checkout"',
         'to="/checkout"',
@@ -187,12 +187,12 @@ def test_route_declarations_and_fetch_are_not_navigations(system):
 
 
 # ----------------------------------------------------------------------
-# Inventário
+# Inventory
 # ----------------------------------------------------------------------
 
 
 def test_locals_inside_exported_functions_are_not_fragments(system):
-    """O `let el` de `export function domElementGetter()` não é exportado."""
+    """The `let el` of `export function domElementGetter()` is not exported."""
 
     architecture = system(
         {
@@ -237,7 +237,7 @@ def test_shorthand_custom_props_are_channels(system):
 
 
 def test_registration_with_a_runtime_name_is_not_an_application(system):
-    """`registerApplication(appName, ...)` num laço não cria a aplicação `appName`."""
+    """`registerApplication(appName, ...)` in a loop does not create the application `appName`."""
 
     architecture = system(
         {
@@ -257,7 +257,7 @@ def test_registration_with_a_runtime_name_is_not_an_application(system):
 
 
 def test_redux_store_created_inside_the_unit_is_local_state(system):
-    """Cada unidade com o próprio `createStore`: mesma fatia, stores diferentes."""
+    """Each unit with its own `createStore`: same slice, different stores."""
 
     def unit(directory, name):
         return mfe(directory, name, """
@@ -301,7 +301,7 @@ def test_redux_store_injected_by_the_shell_is_shared(system):
 
 
 def test_text_method_arguments_are_not_navigations(system):
-    """`url.endsWith("/catalog")` compara texto; não leva a lugar nenhum."""
+    """`url.endsWith("/catalog")` compares text; it leads nowhere."""
 
     architecture = system(
         {
@@ -348,7 +348,7 @@ def test_typescript_as_const_object_resolves(system):
 
 
 def test_event_from_a_function_nobody_calls_is_not_a_channel(system):
-    """O arquivo é importado, mas não a função que dispara o evento."""
+    """The file is imported, but not the function that fires the event."""
 
     architecture = system(
         {
@@ -386,7 +386,7 @@ def test_event_from_a_function_nobody_calls_is_not_a_channel(system):
 
 
 def test_typed_event_is_still_the_event(system):
-    """`new CustomEvent("x") as EventoTipado` em TypeScript."""
+    """`new CustomEvent("x") as EventoTipado` in TypeScript."""
 
     architecture = system(
         {
@@ -413,7 +413,7 @@ def test_typed_event_is_still_the_event(system):
 
 
 def test_navigation_knows_the_screen_it_leaves_from(system):
-    """O botão que leva ao checkout está na tela do catálogo."""
+    """The button that leads to checkout is on the catalog screen."""
 
     architecture = system(
         {

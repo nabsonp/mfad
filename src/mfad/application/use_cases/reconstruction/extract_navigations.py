@@ -1,4 +1,4 @@
-"""Extrair as navegações que cruzam a fronteira entre aplicações."""
+"""Extract the navigations that cross the boundary between applications."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class ExtractNavigationsUseCase(UseCase[NavigationsResult]):
         self.repository_path = repository_path
         self.reconstructor = reconstructor
 
-        # Quando já foram extraídas, não se extrai de novo.
+        # When already extracted, they are not extracted again.
         self.microfrontends = microfrontends
 
     def execute(self) -> NavigationsResult:

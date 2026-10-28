@@ -1,10 +1,10 @@
 """
-Uso real de fragmentos entre aplicações.
+Actual use of fragments across applications.
 
-O catálogo de fragmentos é o que dá precisão aqui: sem ele não
-há como distinguir um fragmento de qualquer outro export do
-mesmo pacote, nem reconhecer uma instanciação em JSX sem apelar
-para convenção de nome.
+The fragment catalog is what gives precision here: without it there
+is no way to tell a fragment from any other export of the same
+package, nor to recognize an instantiation in JSX without resorting
+to naming conventions.
 """
 
 from __future__ import annotations
@@ -68,12 +68,12 @@ class CompositionExtractor:
 
             found.extend(self._from_file(file_path, root, source))
 
-        # O fragmento raramente é instanciado no arquivo da própria
-        # tela. Ele costuma estar num componente que a tela usa, uma
-        # ou duas camadas abaixo, e perguntar só pelo arquivo
-        # devolveria quase nada. O fecho transitivo de imports
-        # relativos é o que liga uma coisa à outra — o mesmo caminho
-        # que já atribui chamada externa a tela.
+        # The fragment is rarely instantiated in the screen's own file.
+        # It usually sits in a component the screen uses, one or two
+        # layers below, and asking only about the file would return
+        # almost nothing. The transitive closure of relative imports is
+        # what links one to the other — the same path that already
+        # attributes an external call to a screen.
         for item in found:
             for render in item.renders:
 
@@ -110,8 +110,8 @@ class CompositionExtractor:
 
         consumer = self.ownership.of_file(file_path)
 
-        # Import de fragmento fora de qualquer unidade — pacote
-        # compartilhado, exemplo — não liga dois micro frontends.
+        # A fragment import outside any unit — shared package, example —
+        # does not link two micro frontends.
         if not consumer:
             return []
 
@@ -161,8 +161,8 @@ class CompositionExtractor:
                 )
             )
 
-            # <Parcel config={Modal} /> — o componente renderizado é
-            # sempre `Parcel`, e o fragmento de verdade está na prop.
+            # <Parcel config={Modal} /> — the rendered component is
+            # always `Parcel`, and the real fragment is in the prop.
             if tag.endswith("Parcel"):
 
                 for name in self._parcel_config(opening, source):
@@ -182,7 +182,7 @@ class CompositionExtractor:
 
     @staticmethod
     def _parcel_config(opening: Node, source: bytes) -> list[str]:
-        """O identificador passado em `config={...}` de um `<Parcel>`."""
+        """The identifier passed in `config={...}` of a `<Parcel>`."""
 
         found = jsx.attributes(opening, source).get("config", "")
 
@@ -196,20 +196,20 @@ class CompositionExtractor:
         sites: dict[str, list[RenderLocation]],
     ) -> dict[str, list[RenderLocation]]:
         """
-        Montagem manual de parcel: o outro jeito de compor.
+        Manual parcel mounting: the other way of composing.
 
-        Um parcel é um componente agnóstico de framework que uma
-        aplicação exporta e outra monta à mão, sem JSX:
+        A parcel is a framework-agnostic component that one application
+        exports and another mounts by hand, without JSX:
 
             mountRootParcel(Modal, { domElement })
             props.mountParcel(Modal, { domElement })
 
-        Procurar só por elemento JSX perde isso inteiro, e um sistema
-        composto por parcels voltaria sem consumo de fragmento algum
-        — resultado que parece válido e não é.
+        Looking only for JSX elements misses this entirely, and a system
+        composed of parcels would come back with no fragment
+        consumption at all — a result that looks valid and is not.
 
-        O primeiro argumento é a configuração do parcel, que é o
-        fragmento importado.
+        The first argument is the parcel's configuration, which is the
+        imported fragment.
         """
 
         MOUNTS = {"mountRootParcel", "mountParcel"}
@@ -224,7 +224,7 @@ class CompositionExtractor:
             if not function or not arguments:
                 continue
 
-            # `mountRootParcel(...)` e `props.mountParcel(...)`
+            # `mountRootParcel(...)` and `props.mountParcel(...)`
             name = AstReader.text(function, source).split(".")[-1].strip()
 
             if name not in MOUNTS:

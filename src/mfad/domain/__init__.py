@@ -1,8 +1,8 @@
 """
-O núcleo do hexágono.
+The core of the hexagon.
 
-Entidades puras: sem dependência de framework, de I/O ou de
-qualquer tecnologia de micro frontend. Tudo mais aponta para cá.
+Pure entities: no dependency on frameworks, I/O or any micro
+frontend technology. Everything else points here.
 """
 
 from mfad.domain.communication import (

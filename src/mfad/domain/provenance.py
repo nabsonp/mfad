@@ -1,11 +1,11 @@
 """
-Procedência: de onde os artefatos vieram e sob qual esquema.
+Provenance: where the artifacts came from and under which schema.
 
-Sem isto um conjunto de artefatos é anônimo — não diz qual versão
-da ferramenta o produziu, nem de qual revisão de qual repositório.
-Para a avaliação empírica isso é fatal: o resultado deixa de ser
-reproduzível no momento em que o repositório analisado recebe um
-commit.
+Without this a set of artifacts is anonymous — it does not say which
+version of the tool produced it, nor from which revision of which
+repository. For the empirical evaluation that is fatal: the result
+stops being reproducible the moment the analyzed repository receives
+a commit.
 """
 
 from __future__ import annotations
@@ -13,38 +13,38 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
-#: Versão do ESQUEMA dos artefatos, não da ferramenta.
+#: Version of the artifacts' SCHEMA, not of the tool.
 #:
-#: Sobe quando a forma dos arquivos muda de um jeito que quebra
-#: quem os lê. Separada de `__version__` de propósito: correção de
-#: bug no extrator muda a ferramenta e não o esquema, e durante uma
-#: coleta longa é preciso poder dizer "todos os resultados são
-#: esquema 1.0.0" mesmo tendo trocado de versão no meio.
+#: Bumped when the shape of the files changes in a way that breaks
+#: their readers. Kept apart from `__version__` on purpose: a bug fix
+#: in the extractor changes the tool and not the schema, and during a
+#: long collection one must be able to say "all results are schema
+#: 1.0.0" even after switching versions midway.
 SCHEMA_VERSION = "3.3.0"
 
 
 @dataclass
 class SourceRepository:
-    """Um repositório analisado, na revisão em que foi analisado."""
+    """An analyzed repository, at the revision at which it was analyzed."""
 
-    #: caminho relativo à raiz da análise. Nunca absoluto — o
-    #: artefato é versionado, e caminho de máquina sujaria o diff.
+    #: path relative to the analysis root. Never absolute — the
+    #: artifact is versioned, and a machine path would pollute the diff.
     path: str
 
-    #: URL de origem, sem credencial.
+    #: origin URL, without credentials.
     remote: str = ""
 
-    #: SHA completo do HEAD, vazio quando não é um repositório git.
+    #: full SHA of HEAD, empty when it is not a git repository.
     commit: str = ""
 
-    #: Havia alteração não commitada no momento da análise. Quando
-    #: verdadeiro, o `commit` NÃO identifica o que foi lido.
+    #: There were uncommitted changes at the time of the analysis. When
+    #: true, `commit` does NOT identify what was read.
     dirty: bool = False
 
 
 @dataclass
 class Provenance:
-    """O cabeçalho que torna um conjunto de artefatos autodescritivo."""
+    """The header that makes a set of artifacts self-describing."""
 
     schema: str = SCHEMA_VERSION
     tool: str = ""

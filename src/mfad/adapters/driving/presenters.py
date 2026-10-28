@@ -1,10 +1,10 @@
 """
-Apresentação para terminal.
+Terminal presentation.
 
-Todo o texto que o usuário lê nasce aqui, e só aqui. Os casos de
-uso devolvem dados; traduzi-los em linhas é responsabilidade do
-adaptador condutor. Trocar este arquivo por um que emita JSON não
-toca em nenhuma regra da aplicação.
+All the text the user reads is born here, and only here. The use
+cases return data; turning it into lines is the driving adapter's
+responsibility. Swapping this file for one that emits JSON touches
+no application rule.
 """
 
 from __future__ import annotations
@@ -47,15 +47,15 @@ def _application(microfrontend: MicroFrontend, write: Writer) -> None:
 
     write(f"{microfrontend.id}{marker}")
 
-    write(f"  rotas:      {', '.join(microfrontend.routes) or DASH}")
+    write(f"  routes:     {', '.join(microfrontend.routes) or DASH}")
 
     write(
-        f"  tamanho:    {microfrontend.size.code_lines} linhas de código "
-        f"em {microfrontend.size.files} arquivos"
+        f"  size:       {microfrontend.size.code_lines} lines of code "
+        f"in {microfrontend.size.files} files"
     )
 
     write(
-        "  fragmentos: "
+        "  fragments:  "
         + (
             ", ".join(item.name for item in microfrontend.fragments)
             or DASH
@@ -63,7 +63,7 @@ def _application(microfrontend: MicroFrontend, write: Writer) -> None:
     )
 
     write(
-        "  telas:      "
+        "  screens:    "
         + (
             ", ".join(item.component for item in microfrontend.screens)
             or DASH
@@ -79,7 +79,7 @@ def compositions(
 ) -> None:
 
     write("")
-    write(f"{len(result.compositions)} imports entre micro frontends")
+    write(f"{len(result.compositions)} imports between micro frontends")
     write("")
 
     for item in result.compositions:
@@ -87,19 +87,19 @@ def compositions(
         write(f"{item.consumer} → {item.provider} : {item.fragment}")
 
         write(
-            f"  importado em:   "
+            f"  imported at:    "
             f"{item.imported_at.file}:{item.imported_at.line}"
         )
 
         if not item.renders:
-            write("  renderizado em: — (importado, nunca instanciado)")
+            write("  rendered at:    — (imported, never instantiated)")
 
         for render in item.renders:
 
             props = ", ".join(render.props) or DASH
 
             write(
-                f"  renderizado em: "
+                f"  rendered at:    "
                 f"{render.file}:{render.line}  props: {props}"
             )
 
@@ -109,7 +109,7 @@ def compositions(
 def navigations(result: NavigationsResult, write: Writer) -> None:
 
     write("")
-    write(f"{len(result.navigations)} navegações entre micro frontends")
+    write(f"{len(result.navigations)} navigations between micro frontends")
     write("")
 
     for item in result.navigations:
@@ -132,13 +132,13 @@ def communications(result: CommunicationsResult, write: Writer) -> None:
     write("")
 
     write(
-        f"{len(result.communications)} comunicações entre micro frontends"
+        f"{len(result.communications)} communications between micro frontends"
     )
 
     if not result.configured:
         write(
-            "  (nenhum mecanismo próprio declarado — só primitivas da "
-            "plataforma e barramentos conhecidos)"
+            "  (no custom mechanism declared — only platform "
+            "primitives and known buses)"
         )
     write("")
 
@@ -146,14 +146,14 @@ def communications(result: CommunicationsResult, write: Writer) -> None:
 
         write(
             f"{item.source} → {item.target}  "
-            f"[{item.mechanism}] canal: {item.channel}"
+            f"[{item.mechanism}] channel: {item.channel}"
         )
 
         for location in item.produced_at:
-            write(f"  publica  {location.file}:{location.line}")
+            write(f"  publishes  {location.file}:{location.line}")
 
         for location in item.consumed_at:
-            write(f"  assina   {location.file}:{location.line}")
+            write(f"  subscribes {location.file}:{location.line}")
 
         write("")
 
@@ -164,14 +164,14 @@ def communication_setup(
 ) -> None:
 
     write("")
-    write(f"Declaração gravada em: {result.written}")
+    write(f"Declaration written to: {result.written}")
 
     if not result.spec:
         write("")
         write(
-            "É um modelo comentado. Edite com as funções reais do "
-            "seu projeto — a extração usa exatamente o que estiver "
-            "declarado ali."
+            "It is a commented template. Edit it with your project's real "
+            "functions — the extraction uses exactly what is "
+            "declared there."
         )
 
 
@@ -187,8 +187,8 @@ def api_calls(result: ApiCallsResult, write: Writer) -> None:
         ).add(item.microfrontend)
 
     write(
-        f"{len(result.api_calls)} chamadas a "
-        f"{len(endpoints)} endpoints distintos"
+        f"{len(result.api_calls)} calls to "
+        f"{len(endpoints)} distinct endpoints"
     )
     write("")
 
@@ -209,7 +209,7 @@ def state_accesses(result: StateAccessesResult, write: Writer) -> None:
     write("")
 
     if not result.state_accesses:
-        write("Nenhum estado global encontrado.")
+        write("No global state found.")
         return
 
     slices: dict[str, set[str]] = {}
@@ -222,13 +222,13 @@ def state_accesses(result: StateAccessesResult, write: Writer) -> None:
     libraries = sorted({item.library for item in result.state_accesses})
 
     write(
-        f"{len(result.state_accesses)} acessos ao estado global "
-        f"em {len(slices)} fatias ({', '.join(libraries)})"
+        f"{len(result.state_accesses)} global state accesses "
+        f"in {len(slices)} slices ({', '.join(libraries)})"
     )
     write("")
 
-    # As fatias acessadas por mais de um micro frontend vêm primeiro:
-    # são elas que caracterizam acoplamento.
+    # The slices accessed by more than one micro frontend come first:
+    # they are what characterizes coupling.
     for path, readers in sorted(
         slices.items(),
         key=lambda item: (-len(item[1]), item[0]),
@@ -239,7 +239,7 @@ def state_accesses(result: StateAccessesResult, write: Writer) -> None:
         )
 
         write(f"{path}")
-        write(f"    lido por {len(readers)}: {names}")
+        write(f"    read by {len(readers)}: {names}")
 
     write("")
 
@@ -251,13 +251,13 @@ def reconstruction(result: ReconstructionResult, write: Writer) -> None:
     write("")
     write(
         f"{len(architecture.microfrontends)} micro frontends, "
-        f"{len(architecture.fragments)} fragmentos, "
-        f"{len(architecture.screens)} telas, "
-        f"{len(architecture.compositions)} imports e "
-        f"{len(architecture.navigations)} navegações e "
-        f"{len(architecture.communications)} comunicações entre micro "
-        f"frontends · {len(architecture.api_calls)} chamadas externas · "
-        f"{len(architecture.state_accesses)} acessos ao estado global"
+        f"{len(architecture.fragments)} fragments, "
+        f"{len(architecture.screens)} screens, "
+        f"{len(architecture.compositions)} imports, "
+        f"{len(architecture.navigations)} navigations and "
+        f"{len(architecture.communications)} communications between micro "
+        f"frontends · {len(architecture.api_calls)} external calls · "
+        f"{len(architecture.state_accesses)} global state accesses"
     )
     write("")
 
@@ -276,13 +276,13 @@ def _unmatched(names: list[str], write: Writer) -> None:
 
     for name in names:
         write(
-            f"  aviso: o mecanismo declarado {name!r} não produziu "
-            "comunicação nenhuma"
+            f"  warning: the declared mechanism {name!r} produced no "
+            "communication"
         )
 
     write(
-        "  verifique se `module` bate com o especificador real do "
-        "import, e se os dois lados existem no código"
+        "  check that `module` matches the real import specifier, "
+        "and that both sides exist in the code"
     )
     write("")
 
@@ -294,15 +294,15 @@ def detection(result: DetectionResult, write: Writer) -> None:
     if not result.detections:
 
         write(
-            f"Nenhum anti-padrão encontrado "
-            f"({result.rules_applied} regras aplicadas)."
+            f"No anti-pattern found "
+            f"({result.rules_applied} rules applied)."
         )
 
     else:
 
         write(
-            f"{len(result.detections)} ocorrências "
-            f"({result.rules_applied} regras aplicadas):"
+            f"{len(result.detections)} occurrences "
+            f"({result.rules_applied} rules applied):"
         )
 
         write("")
@@ -316,7 +316,7 @@ def detection(result: DetectionResult, write: Writer) -> None:
             write(f"  {detection.message}")
 
             for location in detection.locations:
-                write(f"  em {location.file}:{location.line}")
+                write(f"  at {location.file}:{location.line}")
 
             write("")
 
@@ -335,4 +335,4 @@ def visualization(result: VisualizationResult, write: Writer) -> None:
 def _written(paths, write: Writer) -> None:
 
     for path in paths:
-        write(f"  gravado: {path}")
+        write(f"  written: {path}")

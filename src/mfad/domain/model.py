@@ -1,13 +1,13 @@
 """
-O modelo neutro de artefatos arquiteturais.
+The neutral model of architectural artifacts.
 
-Este módulo é o CONTRATO entre os três módulos do CLI.
-Nada aqui pode falar de single-spa, Module Federation ou
-qualquer outro framework: quem traduz o vocabulário de um
-framework para estes tipos é o módulo de reconstruction.
+This module is the CONTRACT between the three CLI modules.
+Nothing here may talk about single-spa, Module Federation or
+any other framework: translating a framework's vocabulary into
+these types is the job of the reconstruction module.
 
-Detalhes específicos de framework, quando valem a pena,
-vão no campo `metadata` de cada entidade.
+Framework-specific details, when worth keeping, go in the
+`metadata` field of each entity.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class SourceLocation:
-    """Onde algo aparece no código-fonte."""
+    """Where something appears in the source code."""
 
     file: str
     line: int
@@ -33,17 +33,17 @@ class SourceLocation:
 @dataclass
 class Placement:
     """
-    De onde um trecho de código é alcançado: por quais telas e por
-    quais fragmentos, seguindo os imports internos do micro frontend.
+    Where a piece of code is reached from: by which screens and by
+    which fragments, following the micro frontend's internal imports.
 
-    É o que permite perguntar se duas coisas acontecem na MESMA tela.
-    Uma tela alcança o próprio código diretamente; o código de outro
-    micro frontend só chega a ela através de um fragmento que a tela
-    renderiza — por isso os fragmentos são guardados à parte, e quem
-    precisa da tela completa segue as composições.
+    It is what allows asking whether two things happen on the SAME
+    screen. A screen reaches its own code directly; another micro
+    frontend's code only gets to it through a fragment that the
+    screen renders — that is why fragments are kept apart, and
+    whoever needs the complete screen follows the compositions.
 
-    Vazio significa que nem tela nem fragmento alcançam o arquivo:
-    código morto, ou código que só o orquestrador monta.
+    Empty means neither a screen nor a fragment reaches the file:
+    dead code, or code that only the orchestrator mounts.
     """
 
     screens: list[str] = field(default_factory=list)
@@ -52,46 +52,44 @@ class Placement:
 
 @dataclass
 class RenderLocation:
-    """Onde um fragmento é de fato instanciado na interface."""
+    """Where a fragment is actually instantiated in the interface."""
 
     file: str
     line: int
     props: list[str] = field(default_factory=list)
 
-    #: As telas em que esta instanciação aparece.
+    #: The screens in which this instantiation appears.
     #:
-    #: Saber que `mfe-checkout` consome `DeliveryEstimateFragment`
-    #: responde quem depende de quem; saber que ele aparece na tela
-    #: de Carrinho responde ONDE aquilo é visto, que é a pergunta de
-    #: quem vai mexer no sistema.
+    #: Knowing that `mfe-checkout` consumes `DeliveryEstimateFragment`
+    #: answers who depends on whom; knowing that it appears on the Cart
+    #: screen answers WHERE it is seen, which is the question of whoever
+    #: is going to change the system.
     #:
-    #: Mais de uma tela é resposta comum e correta: o fragmento pode
-    #: estar num componente compartilhado, alcançado a partir de
-    #: várias. Vazio significa que nenhuma tela alcança o arquivo —
-    #: instanciação em código morto, ou em arquivo que só o shell
-    #: monta.
+    #: More than one screen is a common and correct answer: the fragment
+    #: may be in a shared component, reached from several. Empty means
+    #: no screen reaches the file — instantiation in dead code, or in a
+    #: file that only the shell mounts.
     screens: list[str] = field(default_factory=list)
 
-    #: Os fragmentos cujo código alcança esta instanciação.
+    #: The fragments whose code reaches this instantiation.
     #:
-    #: É o aninhamento: um fragmento que renderiza outro fragmento.
-    #: `screens` não vê esse caso, porque a tela que renderiza o
-    #: primeiro fragmento é de outro micro frontend, e a
-    #: alcançabilidade não atravessa a fronteira do pacote. Seguir
-    #: esta lista a partir dos fragmentos de uma tela devolve tudo o
-    #: que é montado nela, em qualquer profundidade.
+    #: This is nesting: a fragment that renders another fragment.
+    #: `screens` does not see this case, because the screen that renders
+    #: the first fragment belongs to another micro frontend, and
+    #: reachability does not cross the package boundary. Following this
+    #: list from a screen's fragments returns everything that is mounted
+    #: on it, at any depth.
     fragments: list[str] = field(default_factory=list)
 
 
 @dataclass
 class CodeSize:
     """
-    Tamanho do código de uma unidade.
+    Code size of a unit.
 
-    `lines` é a contagem física; `code_lines` desconta linhas em
-    branco e linhas que são apenas comentário — as segundas
-    identificadas pela árvore sintática, não por heurística de
-    texto.
+    `lines` is the physical count; `code_lines` discounts blank lines
+    and lines that are only comments — the latter identified by the
+    syntax tree, not by a text heuristic.
     """
 
     files: int = 0
@@ -102,8 +100,8 @@ class CodeSize:
 @dataclass
 class Fragment:
     """
-    Uma unidade de interface que uma aplicação expõe para
-    que outras consumam.
+    A unit of interface that an application exposes for
+    others to consume.
     """
 
     name: str
@@ -118,7 +116,7 @@ class Fragment:
 
 @dataclass
 class Screen:
-    """Uma tela roteável de uma aplicação."""
+    """A routable screen of an application."""
 
     component: str
     microfrontend: str
@@ -127,15 +125,15 @@ class Screen:
     file: str | None = None
     line: int = 0
 
-    #: Se o componente raiz alcança o arquivo que declara esta tela.
+    #: Whether the root component reaches the file that declares this screen.
     #:
-    #: Uma tela declarada num arquivo que ninguém importa existe no
-    #: código e não existe em execução. As duas coisas interessam, e
-    #: por motivos diferentes: a reconstrução responde quais telas o
-    #: micro frontend define, e esta marca responde quais delas estão
-    #: ligadas hoje. Decidir o que fazer com a diferença é de quem lê
-    #: o resultado — tela desligada costuma ser refatoração pela
-    #: metade, não erro de extração.
+    #: A screen declared in a file that nobody imports exists in the
+    #: code and does not exist at runtime. Both things matter, and for
+    #: different reasons: the reconstruction answers which screens the
+    #: micro frontend defines, and this flag answers which of them are
+    #: wired today. Deciding what to do with the difference is up to
+    #: whoever reads the result — a disconnected screen is usually a
+    #: half-done refactoring, not an extraction error.
     reachable: bool = True
 
     @property
@@ -146,11 +144,10 @@ class Screen:
 @dataclass
 class MicroFrontend:
     """
-    Uma unidade de implantação independente — o que o
-    single-spa chama de microfrontend e o Module Federation
-    chama de remote.
+    An independent deployment unit — what single-spa calls a
+    microfrontend and Module Federation calls a remote.
 
-    `role` distingue o orquestrador das demais.
+    `role` tells the orchestrator apart from the others.
     """
 
     id: str
@@ -159,13 +156,13 @@ class MicroFrontend:
     routes: list[str] = field(default_factory=list)
     role: str = "microfrontend"
 
-    #: As unidades que este monta, quando ele é o orquestrador.
+    #: The units this one mounts, when it is the orchestrator.
     #:
-    #: Campo, e não entrada de `metadata`, porque é contrato: toda
-    #: tecnologia tem quem componha as demais, e quem escreve um
-    #: reconstrutor novo precisa ver isso na porta em vez de
-    #: descobrir uma chave combinada em algum lugar. `metadata` é
-    #: para o que só faz sentido dentro de uma tecnologia.
+    #: A field, and not a `metadata` entry, because it is a contract:
+    #: every technology has something that composes the others, and
+    #: whoever writes a new reconstructor needs to see that in the port
+    #: instead of discovering a key agreed upon somewhere. `metadata` is
+    #: for what only makes sense within one technology.
     mounts: list[str] = field(default_factory=list)
     fragments: list[Fragment] = field(default_factory=list)
     screens: list[Screen] = field(default_factory=list)
@@ -176,10 +173,10 @@ class MicroFrontend:
 @dataclass
 class Composition:
     """
-    Aresta: uma aplicação consome um fragmento de outra.
+    Edge: one application consumes a fragment of another.
 
-    `renders` vazio significa import sem uso — o fragmento
-    foi importado mas nunca instanciado.
+    Empty `renders` means an unused import — the fragment was
+    imported but never instantiated.
     """
 
     consumer: str
@@ -193,20 +190,20 @@ class Composition:
 @dataclass
 class ApiCall:
     """
-    Aresta: um micro frontend chama um serviço externo.
+    Edge: a micro frontend calls an external service.
 
-    Diferente das demais, esta aresta não liga dois micro
-    frontends — liga um deles a um endereço fora do sistema. O
-    acoplamento aparece quando dois consomem o mesmo endpoint.
+    Unlike the others, this edge does not link two micro frontends —
+    it links one of them to an address outside the system. The
+    coupling appears when two of them consume the same endpoint.
 
-    `path` costuma ser relativo, porque a base normalmente vem de
-    variável de ambiente e não é determinável estaticamente.
+    `path` is usually relative, because the base normally comes from
+    an environment variable and cannot be determined statically.
 
-    `screens` e `fragments` dizem quem alcança a chamada seguindo
-    os imports internos do micro frontend. São listas porque um
-    módulo de serviço compartilhado é alcançado por várias telas —
-    e ficam vazias quando a chamada não é alcançável a partir de
-    nenhuma delas, o que também é informação.
+    `screens` and `fragments` say who reaches the call by following
+    the micro frontend's internal imports. They are lists because a
+    shared service module is reached by several screens — and they
+    are empty when the call is not reachable from any of them, which
+    is also information.
     """
 
     microfrontend: str
@@ -222,43 +219,45 @@ class ApiCall:
 @dataclass
 class Endpoint:
     """
-    Um serviço externo consumido pelo sistema.
+    An external service consumed by the system.
 
-    É o único nó do modelo que está FORA da fronteira: ninguém o
-    implanta, ninguém o versiona junto, e mesmo assim dois micro
-    frontends que o chamam estão acoplados pelo contrato dele. Sem
-    ele, esse acoplamento não tinha onde morar — `ApiCall` guardava
-    o caminho como texto, e o "mesmo endpoint" do `hammering-apis`
-    não era uma coisa, era uma coincidência de string.
+    It is the only node of the model that lies OUTSIDE the boundary:
+    nobody deploys it, nobody versions it alongside, and still two
+    micro frontends that call it are coupled through its contract.
+    Without it, that coupling had nowhere to live — `ApiCall` kept
+    the path as text, and the "same endpoint" of `hammering-apis`
+    was not a thing, it was a string coincidence.
 
-    Derivado das chamadas, não extraído: o caminho é a identidade,
-    e os métodos são os verbos vistos sobre ele.
+    Derived from the calls, not extracted: the path is the identity,
+    and the methods are the verbs seen on it.
     """
 
     path: str
     methods: list[str] = field(default_factory=list)
 
-    #: quem o chama, por identificador
+    #: who calls it, by identifier
     microfrontends: list[str] = field(default_factory=list)
 
 
 @dataclass
 class StateAccess:
     """
-    Um micro frontend acessa uma parte do estado global.
+    A micro frontend accesses a part of the global state.
 
-    Acoplamento sem mensagem e sem import: dois micro frontends que
-    tocam a mesma fatia dependem do mesmo formato de dado, e uma
-    mudança nela quebra os dois — ainda que não se conheçam.
+    Coupling without a message and without an import: two micro
+    frontends that touch the same slice depend on the same data
+    shape, and a change to it breaks both — even if they do not know
+    each other.
 
-    Nas bibliotecas de estado, só a leitura entra. A escrita também
-    acopla, mas o que o código revela no ponto da chamada é o nome
-    da ação despachada, não a fatia alterada — descobrir a fatia
-    exigiria seguir o redutor, que pode viver noutro pacote.
+    In state libraries, only reads go in. Writes also couple, but
+    what the code reveals at the call site is the name of the
+    dispatched action, not the altered slice — finding the slice
+    would require following the reducer, which may live in another
+    package.
 
-    No armazenamento do navegador a escrita entra, porque ali ela
-    revela a fatia: `setItem("token", …)` diz a chave tanto quanto
-    `getItem("token")`. `access` distingue os dois.
+    In browser storage writes go in, because there they reveal the
+    slice: `setItem("token", …)` tells the key as much as
+    `getItem("token")`. `access` distinguishes the two.
     """
 
     microfrontend: str
@@ -266,19 +265,19 @@ class StateAccess:
     path: str
     at: SourceLocation
 
-    #: `read` ou `write`
+    #: `read` or `write`
     access: str = "read"
 
 
 @dataclass
 class Navigation:
     """
-    Aresta: código de uma aplicação leva o usuário para uma
-    rota pertencente a outra.
+    Edge: code of one application takes the user to a route
+    belonging to another.
 
-    `match` diz o grau de confiança: `exact` quando a URL foi
-    resolvida por inteiro, `prefix` quando só o começo dela
-    pôde ser determinado estaticamente.
+    `match` tells the degree of confidence: `exact` when the URL was
+    fully resolved, `prefix` when only its beginning could be
+    determined statically.
     """
 
     source: str
@@ -288,21 +287,21 @@ class Navigation:
     match: str
     at: SourceLocation
 
-    #: Telas e fragmentos que alcançam o código que navega.
+    #: Screens and fragments that reach the navigating code.
     #:
-    #: É o lado de ORIGEM visto como lugar: o botão de "Finalizar
-    #: compra" está na tela do carrinho. O destino é a rota, que já
-    #: diz a tela de chegada.
+    #: It is the ORIGIN side seen as a place: the "Checkout" button is
+    #: on the cart screen. The destination is the route, which already
+    #: tells the arrival screen.
     on: Placement = field(default_factory=Placement)
 
 
 @dataclass
 class MicroFrontendArchitecture:
-    """Tudo que a reconstrução extraiu de um repositório."""
+    """Everything the reconstruction extracted from a repository."""
 
-    #: nome do projeto analisado, para identificar o relatório.
-    #: Só o nome, nunca o caminho absoluto — o artefato é
-    #: versionado, e caminho de máquina sujaria o diff.
+    #: name of the analyzed project, to identify the report.
+    #: Only the name, never the absolute path — the artifact is
+    #: versioned, and a machine path would pollute the diff.
     project: str = ""
     microfrontends: list[MicroFrontend] = field(default_factory=list)
     compositions: list[Composition] = field(default_factory=list)
@@ -311,8 +310,8 @@ class MicroFrontendArchitecture:
     api_calls: list[ApiCall] = field(default_factory=list)
     state_accesses: list[StateAccess] = field(default_factory=list)
 
-    #: De onde isto veio: versão do esquema, versão da ferramenta,
-    #: extrator usado e a revisão de cada repositório lido.
+    #: Where this came from: schema version, tool version,
+    #: extractor used and the revision of each repository read.
     provenance: "Provenance" = field(default_factory=Provenance)
 
     def microfrontend(self, identifier: str) -> MicroFrontend | None:
@@ -336,10 +335,10 @@ class MicroFrontendArchitecture:
     @property
     def endpoints(self) -> list["Endpoint"]:
         """
-        Os serviços externos, agrupados pelas chamadas.
+        The external services, grouped by the calls.
 
-        Derivado, como `fragments` e `screens`: não é coleção
-        gravada, é a leitura das chamadas por caminho.
+        Derived, like `fragments` and `screens`: it is not a stored
+        collection, it is the reading of the calls by path.
         """
 
         grouped: dict[str, Endpoint] = {}

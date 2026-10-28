@@ -1,9 +1,9 @@
 """
-Persistência em JSON — um arquivo por coleção.
+JSON persistence: one file per collection.
 
-Implementa a porta `ArtifactRepository`. Os comandos não sabem
-que existe JSON nem sistema de arquivos: trocar por um banco é
-escrever outra implementação da mesma porta.
+Implements the `ArtifactRepository` port. The commands do not know
+that JSON or a file system exists: switching to a database means
+writing another implementation of the same port.
 """
 
 from __future__ import annotations
@@ -50,12 +50,12 @@ class JsonArtifactRepository(ArtifactRepository):
 
     def save(self, architecture: MicroFrontendArchitecture, destination: Path) -> list[Path]:
         """
-        Grava TODAS as coleções, inclusive as vazias.
+        Writes ALL collections, including the empty ones.
 
-        Pular a coleção vazia deixaria o arquivo da execução
-        anterior no lugar, e a etapa seguinte leria dado que não
-        corresponde mais ao código — uma discrepância que não
-        levanta erro nenhum e produz resultado plausível.
+        Skipping an empty collection would leave the previous run's
+        file in place, and the next step would read data that no
+        longer matches the code: a discrepancy that raises no error
+        at all and produces a plausible result.
         """
 
         destination.mkdir(parents=True, exist_ok=True)
@@ -85,15 +85,15 @@ class JsonArtifactRepository(ArtifactRepository):
     @staticmethod
     def _manifest(architecture: MicroFrontendArchitecture, colecoes: list[tuple]) -> dict:
         """
-        O cabeçalho que torna o conjunto autodescritivo.
+        The header that makes the set self-describing.
 
-        A chave `mfad` é a versão do ESQUEMA; `tool_version` é a da
-        ferramenta. Separadas porque corrigir um bug no extrator muda
-        a segunda e não a primeira, e uma coleta longa precisa poder
-        afirmar que todos os resultados seguem o mesmo esquema.
+        The `mfad` key is the SCHEMA version; `tool_version` is the
+        tool's. They are separate because fixing a bug in the extractor
+        changes the second and not the first, and a long collection run
+        must be able to state that all results follow the same schema.
 
-        O índice de coleções com a contagem fica aqui, e não no
-        domínio: nomes de arquivo são detalhe deste adaptador.
+        The index of collections with their counts lives here, not in
+        the domain: file names are a detail of this adapter.
         """
 
         provenance = architecture.provenance
@@ -203,12 +203,12 @@ class JsonArtifactRepository(ArtifactRepository):
 
 def _provenance(manifest: dict) -> Provenance:
     """
-    Lê o cabeçalho, tolerando artefato anterior ao versionamento.
+    Reads the header, tolerating artifacts older than versioning.
 
-    Manifesto sem a chave `mfad` é de uma execução antes do
-    esquema 1.0.0. Vale mais devolver procedência vazia e seguir do
-    que recusar o arquivo: quem precisa da revisão exata checa o
-    campo e encontra vazio.
+    A manifest without the `mfad` key comes from a run before schema
+    1.0.0. It is better to return an empty provenance and carry on
+    than to reject the file: whoever needs the exact revision checks
+    the field and finds it empty.
     """
 
     return Provenance(
@@ -228,10 +228,10 @@ def _dump(value: Any) -> Any:
     return asdict(value) if is_dataclass(value) else value
 
 
-#: Campos que guardam outra dataclass, POR TIPO — e não por nome de
-#: campo. O mesmo nome significa coisas diferentes em entidades
-#: diferentes: `MicroFrontend.screens` são telas, `RenderLocation.screens`
-#: são identificadores de tela. Um mapa global confundiria os dois.
+#: Fields that hold another dataclass, BY TYPE, not by field
+#: name. The same name means different things in different
+#: entities: `MicroFrontend.screens` are screens, `RenderLocation.screens`
+#: are screen identifiers. A global map would confuse the two.
 _NESTED: dict[type, dict[str, type]] = {
     MicroFrontend: {
         "fragments": Fragment,
@@ -256,7 +256,7 @@ _NESTED: dict[type, dict[str, type]] = {
 
 
 def _load(target: type, payload: dict) -> Any:
-    """Reconstrói uma dataclass, descendo nos campos aninhados."""
+    """Rebuilds a dataclass, descending into nested fields."""
 
     known = {field.name for field in fields(target)}
 

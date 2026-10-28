@@ -1,9 +1,9 @@
 """
-Estado compartilhado de uma reconstrução.
+Shared state of a reconstruction.
 
-O repositório é varrido UMA vez. Durante essa varredura são
-colhidas, juntas, as duas coisas que o resto do processo
-precisa: as constantes do repositório e os `registerApplication`.
+The repository is scanned ONCE. During that scan the two things the
+rest of the process needs are collected together: the repository's
+constants and the `registerApplication` calls.
 """
 
 from __future__ import annotations
@@ -32,10 +32,10 @@ from mfad.domain import CodeSize
 @dataclass
 class Registration:
     """
-    Um `registerApplication` encontrado no orquestrador.
+    A `registerApplication` found in the orchestrator.
 
-    É a fonte de verdade do single-spa sobre quais aplicações
-    existem — inclusive as que não têm pacote próprio.
+    It is single-spa's source of truth about which applications exist
+    — including the ones that have no package of their own.
     """
 
     name: str
@@ -43,29 +43,29 @@ class Registration:
     specifier: str | None
     declared_in: Path
 
-    #: Como o `activeWhen` foi escrito: `literal` quando são strings
-    #: ou lista de strings, `function` quando é função de atividade,
-    #: `absent` quando não há.
+    #: How `activeWhen` was written: `literal` when it is strings or a
+    #: list of strings, `function` when it is an activity function,
+    #: `absent` when there is none.
     #:
-    #: A API aceita `(location) => boolean`, e função não se resolve
-    #: estaticamente. O que se extrai dela são os literais de string
-    #: que aparecem dentro, o que acerta os casos comuns e erra em
-    #: silêncio nos demais — função sem literal devolve rota
-    #: nenhuma, função que testa um literal negativamente devolve uma
-    #: rota que a aplicação não possui. Quem consome precisa saber a
-    #: diferença.
+    #: The API accepts `(location) => boolean`, and a function cannot
+    #: be resolved statically. What is extracted from it are the string
+    #: literals that appear inside, which gets the common cases right
+    #: and silently gets the rest wrong — a function with no literal
+    #: returns no route, a function that tests a literal negatively
+    #: returns a route the application does not own. Consumers need to
+    #: know the difference.
     active_when_form: str = "absent"
 
-    #: `customProps` como chave -> valor, com valor vazio quando ele
-    #: não é literal.
+    #: `customProps` as key -> value, with an empty value when it is
+    #: not a literal.
     custom_props: dict[str, str] = field(default_factory=dict)
 
-    #: Arquivo de entrada, quando já se sabe qual é.
+    #: Entry file, when it is already known.
     #:
-    #: Preenchido pela descoberta de baixo para cima, que parte do
-    #: arquivo que exporta os ciclos de vida em vez de partir do
-    #: registro. Nesse caminho não há especificador a resolver: o
-    #: arquivo É o ponto de partida.
+    #: Filled in by the bottom-up discovery, which starts from the file
+    #: that exports the lifecycles instead of starting from the
+    #: registration. On that path there is no specifier to resolve: the
+    #: file IS the starting point.
     entrypoint: Path | None = None
 
 
@@ -79,26 +79,26 @@ class ScanContext:
     registrations: list[Registration] = field(default_factory=list)
     packages: dict[str, Path] = field(default_factory=dict)
 
-    #: aplicação -> rotas declaradas em template de layout
+    #: application -> routes declared in a layout template
     layout_routes: dict[str, list[str]] = field(default_factory=dict)
 
-    #: arquivo de layout -> (aplicação -> rotas). Quem declara o
-    #: layout é o orquestrador das aplicações que ele nomeia.
+    #: layout file -> (application -> routes). Whoever declares the
+    #: layout is the orchestrator of the applications it names.
     layouts: dict[Path, dict[str, list[str]]] = field(default_factory=dict)
 
-    #: caminho -> (linhas físicas, linhas de código)
+    #: path -> (physical lines, lines of code)
     measurements: dict[Path, tuple[int, int]] = field(default_factory=dict)
 
     _templates: AngularTemplates | None = field(default=None, repr=False)
 
     _symbols: SymbolIndex | None = field(default=None, repr=False)
 
-    #: chamadas HTTP já extraídas, por conjunto de unidades: a
-    #: navegação também precisa delas (`api_calls.requests_of`)
+    #: HTTP calls already extracted, per set of units: navigation needs
+    #: them too (`api_calls.requests_of`)
     _api: dict = field(default_factory=dict, repr=False)
 
-    #: arquivo de rotas do Angular → prefixos sob os quais um
-    #: `loadChildren` o monta (`routers.angular`)
+    #: Angular routes file → prefixes under which a `loadChildren`
+    #: mounts it (`routers.angular`)
     _angular_mounts: dict | None = field(default=None, repr=False)
 
     @classmethod
@@ -137,14 +137,14 @@ class ScanContext:
 
     def layout_routes_of(self, name: str) -> list[str] | None:
         """
-        As rotas que o layout dá a uma aplicação, ou `None` se ele não a nomeia.
+        The routes the layout gives an application, or `None` if it does not name it.
 
-        O layout nomeia a aplicação pelo especificador do import map,
-        e a unidade se chama pelo `package.json`. Quando os dois
-        coincidem, a ligação é direta. Quando não, a convenção do
-        single-spa é o especificador ser `@org/<pacote>`: compara-se o
-        nome sem o escopo. Semelhança além disso — prefixos, sufixos —
-        seria adivinhar, e fica de fora.
+        The layout names the application by the import map specifier,
+        and the unit is named by its `package.json`. When the two
+        match, the link is direct. When they do not, the single-spa
+        convention is for the specifier to be `@org/<pacote>`: the name
+        without the scope is compared. Any similarity beyond that —
+        prefixes, suffixes — would be guessing, and is left out.
         """
 
         if name in self.layout_routes:
@@ -158,16 +158,16 @@ class ScanContext:
             if unscoped(declared) == wanted
         ]
 
-        # Dois especificadores de escopos diferentes com o mesmo nome:
-        # ambíguo, e nenhum dos dois é escolhido.
+        # Two specifiers from different scopes with the same name:
+        # ambiguous, and neither is chosen.
         return matches[0] if len(matches) == 1 else None
 
     def templates(self) -> AngularTemplates:
         """
-        A ligação por template entre componentes, indexada uma vez.
+        The template-based link between components, indexed once.
 
-        Preguiçosa: só quem pergunta pelo alcance precisa dela, e o
-        índice lê todo arquivo que declara componente.
+        Lazy: only whoever asks about reachability needs it, and the
+        index reads every file that declares a component.
         """
 
         if self._templates is None:
@@ -178,14 +178,14 @@ class ScanContext:
         return self._templates
 
     def symbols(self) -> SymbolIndex:
-        """Funções, exports e a quem cada chamada se refere — lidos sob demanda."""
+        """Functions, exports and what each call refers to — read on demand."""
 
         if self._symbols is None:
             self._symbols = SymbolIndex(self.reader, self.package_entry)
 
         return self._symbols
 
-    #: Onde um pacote declara o código que se importa dele, em ordem.
+    #: Where a package declares the code that is imported from it, in order.
     #: https://nodejs.org/api/packages.html#package-entry-points
     ENTRY_FIELDS = ("source", "module", "main", "types", "typings")
 
@@ -193,9 +193,9 @@ class ScanContext:
 
     def package_entry(self, specifier: str) -> Path | None:
         """
-        O arquivo que `import ... from "@org/common"` carrega, quando o
-        pacote está no próprio corpus: workspace de monorepo ou
-        repositório irmão. Pacote de fora (`react`) fica sem arquivo.
+        The file that `import ... from "@org/common"` loads, when the
+        package is in the corpus itself: a monorepo workspace or a
+        sibling repository. An outside package (`react`) has no file.
         """
 
         if not specifier or specifier.startswith((".", "/")):
@@ -225,8 +225,8 @@ class ScanContext:
 
         for entry in [item for item in entries if isinstance(item, str)] + list(self.ENTRY_FALLBACKS):
 
-            # O `main` costuma apontar para o build (`dist/index.js`), que
-            # não está no repositório; o `.d.ts` aponta para o fonte ao lado.
+            # `main` usually points to the build (`dist/index.js`), which
+            # is not in the repository; the `.d.ts` points to the source next to it.
             entry = entry.removesuffix(".d.ts")
 
             found = ModuleResolver.resolve("./" + entry.lstrip("./"), directory / "package.json")
@@ -237,7 +237,7 @@ class ScanContext:
         return None
 
     def size_of(self, directory: Path) -> "CodeSize":
-        """Soma as medições dos arquivos sob um diretório."""
+        """Sums the measurements of the files under a directory."""
 
         return sizing.total(
             [
@@ -251,8 +251,8 @@ class ScanContext:
 
         directory = file_path.parent
 
-        # O segundo teste para na raiz do disco: caminho resolvido por
-        # link simbólico pode não ter o repositório como ancestral.
+        # The second test stops at the filesystem root: a path resolved
+        # through a symbolic link may not have the repository as an ancestor.
         while directory != self.repository and directory != directory.parent:
 
             if (directory / "package.json").is_file():
@@ -295,8 +295,8 @@ class ScanContext:
 
             self.measurements[file_path] = sizing.measure(root, source)
 
-            # A forma JavaScript do layout mora no código, não no
-            # template, então é aqui que ela é colhida.
+            # The JavaScript form of the layout lives in the code, not in
+            # the template, so this is where it is collected.
             declared = layout.routes_from_construct(root, source, AstReader)
 
             if declared:
@@ -339,7 +339,7 @@ class ScanContext:
         file_path: Path,
     ) -> Registration | None:
         """
-        Lê um `registerApplication` nas duas formas aceitas:
+        Reads a `registerApplication` in the two accepted forms:
 
             registerApplication({ name, app, activeWhen })
             registerApplication(name, loadingFn, activeWhen)
@@ -446,13 +446,13 @@ class ScanContext:
     @staticmethod
     def _literal_name(node: Node, source: bytes) -> str | None:
         """
-        O nome da aplicação, só quando escrito como texto.
+        The application name, only when written as text.
 
-        `registerApplication(appName, ...)` dentro de um laço registra
-        o que vier em tempo de execução. Tomar o texto do identificador
-        como nome criava uma aplicação chamada `appName`. Sem nome
-        literal o registro é descartado, e a descoberta pelos ciclos
-        de vida acha a unidade pelo próprio pacote.
+        `registerApplication(appName, ...)` inside a loop registers
+        whatever comes at runtime. Taking the identifier's text as the
+        name created an application called `appName`. Without a literal
+        name the registration is discarded, and the lifecycle-based
+        discovery finds the unit through its own package.
         """
 
         if node.type == "string":
@@ -465,12 +465,13 @@ class ScanContext:
 
         return None
 
-    #: Formas de função de atividade que se resolvem estaticamente.
+    #: Activity function forms that resolve statically.
     #:
-    #: A API aceita `(location) => boolean`, e função qualquer não se
-    #: resolve. Mas as que aparecem em código real são poucas e têm
-    #: forma fixa, e reconhecê-las é a diferença entre extrair a rota
-    #: certa e varrer literais torcendo para acertar.
+    #: The API accepts `(location) => boolean`, and an arbitrary
+    #: function cannot be resolved. But the ones that appear in real
+    #: code are few and have a fixed shape, and recognizing them is the
+    #: difference between extracting the right route and sweeping
+    #: literals hoping to get it right.
     ACTIVITY_SHAPES = (
         # (l) => l.pathname.startsWith("/users")
         r"""\.startsWith\(\s*["'`](?P<r>[^"'`]+)["'`]""",
@@ -488,15 +489,15 @@ class ScanContext:
         source: bytes,
     ) -> tuple[list[str], str]:
         """
-        As rotas do `activeWhen`, e como elas foram obtidas.
+        The routes of `activeWhen`, and how they were obtained.
 
-        `literal` quando são strings ou lista de strings, e aí não há
-        o que interpretar. `function` quando é função de atividade de
-        forma reconhecida — `startsWith`, comparação de `pathname`,
-        `includes`, `pathToActiveWhen` —, que se resolve com a mesma
-        confiança de um literal. `opaque` quando é função de forma
-        desconhecida: aí sobram os literais de string que houver
-        dentro, que podem não ser rota nenhuma.
+        `literal` when they are strings or a list of strings, and then
+        there is nothing to interpret. `function` when it is an activity
+        function of a recognized shape — `startsWith`, `pathname`
+        comparison, `includes`, `pathToActiveWhen` —, which resolves
+        with the same confidence as a literal. `opaque` when it is a
+        function of unknown shape: then what remains are whatever string
+        literals are inside, which may not be routes at all.
         """
 
         FUNCTIONS = {
@@ -542,27 +543,27 @@ class ScanContext:
 
         return self._string_literals(node, source), "opaque"
 
-    #: Nós cujo texto é o próprio valor.
+    #: Nodes whose text is the value itself.
     LITERALS = {"string", "number", "true", "false", "null"}
 
     @classmethod
     def _property_names(cls, node: Node, source: bytes) -> dict[str, str]:
         """
-        As chaves de um literal de objeto, e os valores que forem
-        estáticos.
+        The keys of an object literal, and the values that are static.
 
-        Valor literal é configuração escrita à mão e diz algo sobre o
-        sistema. Valor que é função ou variável é dado montado em
-        tempo de execução, e aí só a chave sobrevive — registrada com
-        valor vazio, porque saber que a chave existe já é informação.
+        A literal value is hand-written configuration and says
+        something about the system. A value that is a function or a
+        variable is data built at runtime, and then only the key
+        survives — recorded with an empty value, because knowing the
+        key exists is already information.
         """
 
         found: dict[str, str] = {}
 
         for pair in node.named_children:
 
-            # `customProps: { store }` — a forma abreviada também é
-            # chave, e costuma ser justamente a do objeto compartilhado.
+            # `customProps: { store }` — the shorthand form is also a
+            # key, and it is usually precisely the shared object's.
             if pair.type == "shorthand_property_identifier":
                 found[AstReader.text(pair, source)] = ""
                 continue
@@ -600,7 +601,7 @@ class ScanContext:
     @staticmethod
     def _loader_specifier(node: Node, source: bytes) -> str | None:
         """
-        Extrai o módulo carregado pelo `app`:
+        Extracts the module loaded by `app`:
 
             () => System.import("@org/mfe-users")
             () => import("./monolito")
@@ -638,6 +639,6 @@ class ScanContext:
 
 
 def unscoped(name: str) -> str:
-    """`@org/Meu_App` → `meu-app`: o nome do pacote sem o escopo."""
+    """`@org/Meu_App` → `meu-app`: the package name without the scope."""
 
     return name.rpartition("/")[2].lower().replace("_", "-")

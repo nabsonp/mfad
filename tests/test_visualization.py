@@ -1,8 +1,8 @@
 """
-A página: visões por pergunta, estado global como fatia e telas.
+The page: views per question, global state as a slice, and screens.
 
-O desenho é gerado em Python e tem de ser o mesmo a cada execução;
-os testes olham o que vai para a página, não pixels.
+The drawing is generated in Python and has to be the same on every
+run; the tests look at what goes into the page, not at pixels.
 """
 
 import re
@@ -29,7 +29,7 @@ def at(file: str, line: int = 1) -> SourceLocation:
 
 
 def architecture() -> MicroFrontendArchitecture:
-    """Loja com catálogo, carrinho e conta, montados por um orquestrador."""
+    """A store with catalog, cart and account, mounted by an orchestrator."""
 
     return MicroFrontendArchitecture(
         project="loja",
@@ -82,10 +82,10 @@ def architecture() -> MicroFrontendArchitecture:
                 produced_at=[at("catalog/Product.js", 20)],
                 consumed_at=[at("cart/store.js", 3)],
                 produced_on=Placement(screens=["catalog#Product"]),
-                # O assinante está num módulo que nenhuma tela alcança.
+                # The subscriber is in a module that no screen reaches.
                 consumed_on=Placement(),
             ),
-            # Os pares que a reconstrução deriva do estado global.
+            # The pairs that the reconstruction derives from global state.
             Communication(source="catalog", target="cart", mechanism="global-state",
                           channel="localStorage:token", directed=False),
             Communication(source="cart", target="catalog", mechanism="global-state",
@@ -101,7 +101,7 @@ def architecture() -> MicroFrontendArchitecture:
 
 
 def test_shared_state_is_a_slice_not_a_pair_per_reader():
-    """Uma fatia com N participantes é um nó com N ligações, não N² arestas."""
+    """A slice with N participants is a node with N links, not N² edges."""
 
     data = payload.build(architecture(), [])
 
@@ -112,7 +112,7 @@ def test_shared_state_is_a_slice_not_a_pair_per_reader():
     assert slice_["id"] == "localStorage:token"
     assert slice_["microfrontends"] == ["account", "cart", "catalog"]
 
-    # `theme` só é tocada por um: não é acoplamento.
+    # `theme` is touched by only one: it is not coupling.
     assert "localStorage:theme" not in [item["id"] for item in data["slices"]]
 
 
@@ -123,14 +123,14 @@ def test_relations_at_screen_level():
         for edge in payload.build(architecture(), [])["screen_edges"]
     }
 
-    # A tela que instancia → o fragmento do provedor.
+    # The instantiating screen → the provider's fragment.
     assert ("composition", "catalog#Product", "cart#MiniCart") in edges
 
-    # Ponta em código que nenhuma tela alcança fica no micro frontend.
+    # An end in code that no screen reaches stays on the micro frontend.
     assert ("communication", "catalog#Product", "cart") in edges
 
-    # A navegação chega à tela cuja rota recebe a URL: `/catalog/:id`
-    # é mais específica que `/catalog` para `/catalog/42`.
+    # Navigation arrives at the screen whose route receives the URL: `/catalog/:id`
+    # is more specific than `/catalog` for `/catalog/42`.
     assert ("navigation", "cart#Cart", "catalog#Product") in edges
 
 
@@ -138,7 +138,7 @@ def test_force_layout_has_no_overlap_and_is_deterministic():
 
     sizes = {f"mfe-{index}": (140 + index * 3, layout.NODE_HEIGHT) for index in range(30)}
 
-    # Anel com cordas: os 25 primeiros ligados, sem laço.
+    # Ring with chords: the first 25 linked, with no self-loop.
     edges = [(f"mfe-{index}", f"mfe-{(index + step) % 25}", 1.0) for index in range(25) for step in (1, 5)]
 
     first = layout.force(sizes, edges)
@@ -148,7 +148,7 @@ def test_force_layout_has_no_overlap_and_is_deterministic():
 
     boxes, isolated, _, _ = first
 
-    # Os cinco sem aresta ficam à parte, não espalhados entre os ligados.
+    # The five without edges stay apart, not scattered among the linked ones.
     assert isolated == ["mfe-25", "mfe-26", "mfe-27", "mfe-28", "mfe-29"]
 
     placed = sorted(boxes.items())
@@ -159,7 +159,7 @@ def test_force_layout_has_no_overlap_and_is_deterministic():
 
 
 def test_screen_groups_flow_left_to_right():
-    """Quem publica fica à esquerda de quem recebe."""
+    """Whoever publishes sits to the left of whoever receives."""
 
     groups = [
         layout.Group(id=name, title_width=80, members=[(f"{name}#Screen", 120)])
@@ -179,16 +179,16 @@ def test_page_has_one_view_per_question():
 
     page = HtmlRenderer().render(architecture(), [])
 
-    # Um card por grafo no dashboard, todos à vista: sem abas.
+    # One card per graph on the dashboard, all in view: no tabs.
     cards = re.findall(r'<section class="block view" data-view="([^"]+)"', page)
 
     assert cards == ["overview", "composition", "navigation", "communication", "state", "screens"]
     assert 'class="tab"' not in page and 'data-zoom="expand"' in page
 
-    # Sem endpoint compartilhado, sem card de backend.
+    # No shared endpoint, no backend card.
     assert 'data-view="backend"' not in page
 
-    # Um recorte da visão de telas por micro frontend envolvido.
+    # One cut of the screens view per micro frontend involved.
     assert sorted(re.findall(r'<template data-variant="([^"]+)"', page)) == ["cart", "catalog"]
 
 
@@ -196,13 +196,13 @@ def test_metrics_count_messages_and_slices_not_state_pairs():
 
     page = HtmlRenderer().render(architecture(), [])
 
-    assert re.search(r"<strong>1</strong><span[^>]*>comunicações</span>", page)
-    # O estado global não tem aba: as fatias estão na detecção.
+    assert re.search(r"<strong>1</strong><span[^>]*>communications</span>", page)
+    # Global state has no tab: the slices are in the detection.
     assert 'data-page="slices"' not in page
 
 
 def test_pair_view_draws_each_direction_with_its_own_arrow():
-    """Ida e volta são dois arcos com uma seta cada, não uma linha de duas pontas."""
+    """Back and forth are two arcs with one arrow each, not a double-headed line."""
 
     data = payload.build(architecture(), [])
 
@@ -225,22 +225,22 @@ def test_pair_view_draws_each_direction_with_its_own_arrow():
 
 
 def test_legend_says_what_the_arrow_means():
-    """Sem a frase, `A → B` na composição não diz quem exibe quem."""
+    """Without the sentence, `A → B` in composition does not say who displays whom."""
 
     page = HtmlRenderer().render(architecture(), [])
 
     text = re.sub(r"<[^>]+>", "", page)
 
-    assert "A → B: A exibe um fragmento de B" in text
-    assert "A → B: A leva o usuário para uma rota de B" in text
-    assert "A → B: a tela A exibe o fragmento B" in text
+    assert "A → B: A displays a fragment of B" in text
+    assert "A → B: A takes the user to a route of B" in text
+    assert "A → B: the screen A displays the fragment B" in text
 
-    # E o tooltip de cada aresta diz com os nomes.
-    assert re.search(r"<title[^>]*>catalog exibe um fragmento de cart", page)
+    # And each edge's tooltip says it with the names.
+    assert re.search(r"<title[^>]*>catalog displays a fragment of cart", page)
 
 
 def test_every_text_has_both_languages_with_the_same_slots():
-    """Uma tradução que esquece `{n}` mostraria a frase sem o número."""
+    """A translation that forgets `{n}` would show the sentence without the number."""
 
     from mfad.adapters.driven import i18n
 
@@ -248,7 +248,7 @@ def test_every_text_has_both_languages_with_the_same_slots():
 
         versions = {language: entry.get(language) for language in i18n.LANGUAGES}
 
-        assert all(versions.values()), f"{key} sem um dos idiomas"
+        assert all(versions.values()), f"{key} is missing one of the languages"
 
         def slots(value):
             texts = value.values() if isinstance(value, dict) else [value]
@@ -277,19 +277,19 @@ def test_page_title_is_the_architecture_name():
 
 
 def test_detection_text_is_kept_as_a_reference_for_the_page():
-    """A regra grava a frase em português e a referência, que a página traduz."""
+    """The rule writes the sentence in English and the reference, which the page translates."""
 
     from mfad.adapters.driven import i18n
     from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
 
     [found] = GlobalStateCommunication().check(architecture())
 
-    assert found.message.startswith("3 micro frontends compartilham 1 fatia")
-    assert i18n.t(found.metadata["text"]["message"], "en").startswith("3 micro frontends share 1 slice")
+    assert found.message.startswith("3 micro frontends share 1 slice")
+    assert i18n.t(found.metadata["text"]["message"], "pt").startswith("3 micro frontends compartilham 1 fatia")
 
 
 def test_header_numbers_are_tabs_to_the_lists_they_count():
-    """Cada número leva à tabela que ele soma, com uma linha por item contado."""
+    """Each number leads to the table it sums, with one row per counted item."""
 
     page = HtmlRenderer().render(architecture(), [])
 
@@ -303,8 +303,8 @@ def test_header_numbers_are_tabs_to_the_lists_they_count():
 
         section = page.split(f'<div class="page hidden" data-page="{name}"', 1)[1].split('<div class="page', 1)[0]
 
-        # A aba de chamadas tem duas tabelas, endpoints e chamadas: conta
-        # a última. Sem item, não há tabela.
+        # The calls tab has two tables, endpoints and calls: count
+        # the latter. With no item, there is no table.
         bodies = section.split("<tbody>")[1:]
 
         rows = bodies[-1].count('<tr class="item"') if bodies else 0
@@ -313,7 +313,7 @@ def test_header_numbers_are_tabs_to_the_lists_they_count():
 
 
 def test_file_paths_live_in_the_row_detail_not_in_the_row():
-    """A linha cabe na tela; caminho de arquivo é detalhe, que a linha abre."""
+    """The row fits on the screen; the file path is a detail, which the row expands."""
 
     page = HtmlRenderer().render(architecture(), [])
 
@@ -325,7 +325,7 @@ def test_file_paths_live_in_the_row_detail_not_in_the_row():
     assert not any(".js" in row for row in rows)
     assert any("catalog/Product.js" in detail and ">:9<" in detail for detail in details)
 
-    # E todo detalhe leva a algum lugar do mapa.
+    # And every detail leads somewhere on the map.
     assert all('class="link-button go"' in detail for detail in details)
 
 
@@ -341,13 +341,13 @@ def test_screen_rows_show_the_fragments_mounted_on_them():
 
 
 def test_fragment_rows_show_who_mounts_them_and_on_which_screens():
-    """Fragmentos e composições numa tabela só, aberta pela aba de composições."""
+    """Fragments and compositions in a single table, opened from the compositions tab."""
 
     page = HtmlRenderer().render(architecture(), [])
 
     assert 'data-page="compositions"' not in page.split('<div class="pages">', 1)[1]
-    # Uma aba só, a de composições: duas caixas da mesma tabela
-    # ficavam selecionadas juntas.
+    # A single tab, the compositions one: two boxes of the same table
+    # used to be selected together.
     assert len(re.findall(r'role="tab" data-page="fragments"', page)) == 1
     assert 'data-t="metric.compositions"' in page and 'data-t="metric.fragments"' not in page
 
@@ -357,21 +357,21 @@ def test_fragment_rows_show_who_mounts_them_and_on_which_screens():
 
     cells = re.findall(r"<td[^>]*>(.*?)</td>", mini_cart)
 
-    # chevron, fragmento, provedor, composições, telas
+    # chevron, fragment, provider, compositions, screens
     assert "MiniCart" in cells[1] and cells[3] == "1" and "Product" in cells[4]
 
-    # Quem monta é lista que cresce com o reúso: fica no detalhe.
+    # Who mounts is a list that grows with reuse: it stays in the detail.
     detail = section.split(mini_cart, 1)[1].split("</tr>", 1)[0]
 
     assert ">catalog<" in detail
 
-    # Quem monta é o título do grupo do "composto em", não um campo à parte.
+    # Who mounts is the title of the "composed in" group, not a separate field.
     assert 'data-t="col.defined_at"' in detail and 'data-t="col.composed_at"' in detail
     assert 'data-t="col.mounted_by"' not in detail
 
 
 def test_external_call_detail_says_where_it_is_called_from():
-    """Além do micro frontend: a tela ou o fragmento, e o arquivo."""
+    """Besides the micro frontend: the screen or the fragment, and the file."""
 
     from mfad.domain import ApiCall
 
@@ -390,16 +390,16 @@ def test_external_call_detail_says_where_it_is_called_from():
 
     details = re.sub(r"<[^>]+>", "", " ".join(re.findall(r'<tr class="detail hidden">.*?</tr>', section)))
 
-    assert "fragmento MiniCart" in details and "cart/MiniCart.js:7" in details
-    assert "tela Product" in details and "catalog/Product.js:30" in details
+    assert "fragment MiniCart" in details and "cart/MiniCart.js:7" in details
+    assert "screen Product" in details and "catalog/Product.js:30" in details
 
-    # O cliente também, e uma tabela só: a de cada chamada repetia o endpoint.
+    # The client too, and a single table: the per-call one repeated the endpoint.
     assert "fetch" in details
     assert section.split('<div class="page', 1)[0].count('<table') == 1
 
 
 def test_locations_are_grouped_by_micro_frontend_without_its_directory():
-    """O micro frontend aparece uma vez por grupo; o caminho, sem o diretório dele."""
+    """The micro frontend appears once per group; the path, without its directory."""
 
     system = architecture()
 
@@ -426,7 +426,7 @@ def test_locations_are_grouped_by_micro_frontend_without_its_directory():
 
 
 def test_locations_in_the_same_file_are_one_line():
-    """O arquivo que importa e instancia o fragmento aparece uma vez, com as duas linhas."""
+    """The file that imports and instantiates the fragment appears once, with both lines."""
 
     page = HtmlRenderer().render(architecture(), [])
 
@@ -438,7 +438,7 @@ def test_locations_in_the_same_file_are_one_line():
 
 
 def test_detections_are_rows_with_one_field_per_fact():
-    """A frase cheia de números vira campos; a dimensão não aparece."""
+    """The sentence full of numbers becomes fields; the dimension does not appear."""
 
     from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
 
@@ -454,18 +454,18 @@ def test_detections_are_rows_with_one_field_per_fact():
     assert "global-state-communication" in row
     assert 'data-t="fact.slices"' in detail
 
-    # Qual estado é acessado, por quem e onde: a fatia, não só a contagem.
+    # Which state is accessed, by whom and where: the slice, not just the count.
     assert 'data-t="fact.slice_list"' in detail and "<strong>token</strong>" in detail
     assert 'data-t="col.writers"' in detail
 
-    # Cada fatia fecha: a detecção não cresce com o número de acessos.
+    # Each slice is collapsed: the detection does not grow with the number of accesses.
     assert '<details class="slice">' in detail and 'data-t="slice.summary"' in detail
     assert 'class="dimension"' not in section
     assert 'data-focus="0"' in detail
 
 
 def test_route_detections_of_one_anti_pattern_are_one_row_with_a_block_per_route():
-    """Uma linha para o hammering, com um bloco que abre por rota."""
+    """One row for hammering, with a block that expands per route."""
 
     from mfad.adapters.driven.antipatterns.rules.hammering_apis import HammeringApis
     from mfad.domain import ApiCall
@@ -497,34 +497,34 @@ def test_route_detections_of_one_anti_pattern_are_one_row_with_a_block_per_route
     assert "<strong>/cart</strong>" in detail and "<strong>/user</strong>" in detail
     assert 'data-t="endpoint.summary"' in detail
 
-    # Quem martela cada rota está na linha fechada dela.
+    # Who hammers each route is in its collapsed row.
     assert re.search(r'<strong>/cart</strong>.*?<span class="slice-callers">cart, catalog</span>.*?</summary>', detail)
 
-    # O foco mostra as rotas todas no grafo.
+    # The focus shows all the routes in the graph.
     assert 'data-focus="0,1"' in detail
 
 
 def test_same_label_in_one_file_is_shown_once_with_its_lines():
-    """Três chamadas iguais no mesmo arquivo: a etiqueta uma vez, as três linhas juntas."""
+    """Three identical calls in the same file: the label once, the three lines together."""
 
     from mfad.adapters.driven.visualization import tables
 
     rendered = tables.grouped(
         [
-            ("plan", "plan/a.ts", 57, "GET tela X"),
-            ("plan", "plan/a.ts", 36, "GET tela X"),
-            ("plan", "plan/a.ts", 90, "POST tela Y"),
+            ("plan", "plan/a.ts", 57, "GET screen X"),
+            ("plan", "plan/a.ts", 36, "GET screen X"),
+            ("plan", "plan/a.ts", 90, "POST screen Y"),
         ],
         {"plan": "plan"},
     )
 
-    assert rendered.count("GET tela X") == 1
-    assert ":36, :57</span> GET tela X" in rendered
-    assert ":90</span> POST tela Y" in rendered
+    assert rendered.count("GET screen X") == 1
+    assert ":36, :57</span> GET screen X" in rendered
+    assert ":90</span> POST screen Y" in rendered
 
 
 def test_detection_without_locations_has_no_code_field():
-    """Nano e mega não apontam linha: o campo de código não aparece vazio."""
+    """Nano and mega point to no line: the code field does not appear empty."""
 
     from mfad.domain import AntiPatternDetection
 
@@ -543,7 +543,7 @@ def test_detection_without_locations_has_no_code_field():
 
 
 def test_micro_frontend_detail_lists_its_screens_and_fragments():
-    """A linha conta telas e fragmentos; o detalhe diz quais são."""
+    """The row counts screens and fragments; the detail says which they are."""
 
     page = HtmlRenderer().render(architecture(), [])
 
@@ -553,12 +553,12 @@ def test_micro_frontend_detail_lists_its_screens_and_fragments():
 
     detail = section.split(cart, 1)[1].split("</tr>", 1)[0]
 
-    assert 'data-t="list.screens"' in detail and ">telas 1<" in detail and "<li>Cart <code>/cart</code></li>" in detail
-    assert 'data-t="list.fragments"' in detail and ">fragmentos 1<" in detail and "<li>MiniCart</li>" in detail
+    assert 'data-t="list.screens"' in detail and ">screens 1<" in detail and "<li>Cart <code>/cart</code></li>" in detail
+    assert 'data-t="list.fragments"' in detail and ">fragments 1<" in detail and "<li>MiniCart</li>" in detail
 
 
 def test_details_are_a_closed_sidebar_with_a_close_button():
-    """Os detalhes só aparecem ao clicar: a barra lateral começa fechada."""
+    """The details only appear on click: the sidebar starts closed."""
 
     page = HtmlRenderer().render(architecture(), [])
 
@@ -567,12 +567,12 @@ def test_details_are_a_closed_sidebar_with_a_close_button():
     assert 'aria-hidden="true"' in drawer and "open" not in drawer
     assert 'id="side-close"' in page and 'data-t="side.close"' in page
 
-    # O voltar só aparece depois de seguir um link da barra.
+    # The back button only appears after following a link in the sidebar.
     assert re.search(r'<button class="drawer-back hidden" id="side-back"', page)
 
 
 def test_table_rows_carry_keys_for_the_sidebar_links():
-    """A barra lateral leva à linha pela chave: o micro frontend, a tela, o par."""
+    """The sidebar leads to the row by key: the micro frontend, the screen, the pair."""
 
     import html
 
@@ -588,7 +588,7 @@ def test_table_rows_carry_keys_for_the_sidebar_links():
 
 
 def test_each_anti_pattern_is_a_tag_with_its_own_color():
-    """Na tabela de detecções, o nome é uma etiqueta colorida, uma cor por anti-padrão."""
+    """In the detections table, the name is a colored label, one color per anti-pattern."""
 
     from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication
     from mfad.adapters.driven.visualization import tables
@@ -599,13 +599,13 @@ def test_each_anti_pattern_is_a_tag_with_its_own_color():
 
     assert '<span class="ap-tag ap-violet">global-state-communication</span>' in page
 
-    # Cores distintas entre os anti-padrões conhecidos, e uma para qualquer outro.
+    # Distinct colors among the known anti-patterns, and one for any other.
     assert len(set(tables.COLORS.values())) == len(tables.COLORS)
     assert tables.color_of("um-novo") in tables.PALETTE
 
 
 def test_endpoint_count_is_method_and_path():
-    """GET e POST no mesmo caminho são dois endpoints; duas chamadas iguais, um."""
+    """GET and POST on the same path are two endpoints; two identical calls, one."""
 
     from mfad.domain import ApiCall
 
@@ -625,9 +625,9 @@ def test_endpoint_count_is_method_and_path():
 
 def test_each_detection_links_to_its_definition_in_the_catalog(tmp_path):
     """
-    Quem avalia a ocorrência sem conhecer o anti-padrão consulta a
-    definição: a detecção leva a referência do catálogo, e a página a
-    mostra como link no detalhe da linha.
+    Whoever evaluates the occurrence without knowing the anti-pattern
+    looks up the definition: the detection carries the catalog
+    reference, and the page shows it as a link in the row's detail.
     """
 
     from mfad.adapters.driven.antipatterns.rules.global_state_communication import GlobalStateCommunication

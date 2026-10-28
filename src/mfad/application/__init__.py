@@ -1,1 +1,1 @@
-"""Camada de aplicação: casos de uso e as portas do hexágono."""
+"""Application layer: use cases and the hexagon's ports."""

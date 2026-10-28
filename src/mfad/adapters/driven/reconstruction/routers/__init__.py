@@ -1,14 +1,14 @@
 """
-Leitores de roteamento.
+Routing readers.
 
-Eixo distinto do de integração. single-spa e Module Federation
-dizem como as unidades viram um sistema; React Router, Angular
-Router e Vue Router dizem como UMA unidade declara suas telas, e
-qualquer combinação dos dois existe: single-spa com Angular,
-Module Federation com React.
+An axis separate from integration. single-spa and Module Federation
+say how the units become a system; React Router, Angular Router and
+Vue Router say how ONE unit declares its screens, and any combination
+of the two exists: single-spa with Angular, Module Federation with
+React.
 
-Um leitor por tecnologia de roteamento, usado pelos reconstrutores
-dos dois eixos.
+One reader per routing technology, used by the reconstructors of
+both axes.
 """
 
 from mfad.adapters.driven.reconstruction.routers.angular import (

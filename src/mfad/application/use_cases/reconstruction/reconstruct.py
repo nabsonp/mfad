@@ -1,9 +1,9 @@
 """
-Reconstrução completa: compõe os casos de uso de extração.
+Full reconstruction: composes the extraction use cases.
 
-É o Command tirando proveito de si mesmo — um caso de uso cuja
-execução é executar outros. A montagem do `MicroFrontendArchitecture` mora aqui,
-na aplicação, e não no adaptador que extrai.
+It is the Command taking advantage of itself — a use case whose
+execution is executing others. The assembly of the `MicroFrontendArchitecture` lives here,
+in the application, and not in the adapter that extracts.
 """
 
 from __future__ import annotations
@@ -100,11 +100,11 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
             self.extract_state_accesses.execute().state_accesses
         )
 
-        # O acoplamento por estado global entra no MESMO grafo das
-        # demais comunicações. Ele é derivado aqui, na composição, e
-        # não no extrator: o extrator de estado não conhece os outros
-        # micro frontends, e a aresta só existe quando dois deles
-        # leem a mesma fatia.
+        # Global-state coupling goes into the SAME graph as the
+        # other communications. It is derived here, in the composition,
+        # and not in the extractor: the state extractor does not know the
+        # other micro frontends, and the edge only exists when two of them
+        # read the same slice.
         communications = communications + edges_from_state(state_accesses)
 
         architecture = MicroFrontendArchitecture(
@@ -118,8 +118,8 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
             state_accesses=state_accesses,
         )
 
-        # Quem lê procura o micro frontend pelo repositório, não pelo
-        # nome com que ele é registrado.
+        # Readers look a micro frontend up by its repository, not by the
+        # name under which it is registered.
         by_directory(architecture)
 
         written = (
@@ -136,12 +136,12 @@ class ReconstructUseCase(UseCase[ReconstructionResult]):
 
     def _provenance(self) -> Provenance:
         """
-        O carimbo da execução.
+        The run's stamp.
 
-        A revisão de cada repositório é o que torna o resultado
-        reproduzível: sem ela, um conjunto de artefatos não diz
-        sobre QUAL versão do código ele fala, e deixa de ser
-        verificável assim que o repositório recebe um commit.
+        The revision of each repository is what makes the result
+        reproducible: without it, a set of artifacts does not say
+        WHICH version of the code it is about, and it stops being
+        verifiable as soon as the repository receives a commit.
         """
 
         return Provenance(

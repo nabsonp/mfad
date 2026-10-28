@@ -1,23 +1,23 @@
 """
-Um micro frontend conectado a quase todos os outros.
+A micro frontend connected to almost all the others.
 
-O sintoma é um micro frontend que toca praticamente todo o
-sistema — seja porque todos dependem dele, seja porque ele
-depende de todos. Nos dois casos ele deixa de ser uma parte
-implantável de forma independente e vira o centro do sistema:
-qualquer mudança nele repercute em toda parte, e ele precisa
-acompanhar a evolução de todos.
+The symptom is a micro frontend that touches practically the whole
+system — either because everyone depends on it, or because it
+depends on everyone. In both cases it stops being an independently
+deployable part and becomes the center of the system: any change to
+it ripples everywhere, and it has to keep up with everyone's
+evolution.
 
-A conexão é contada sem direção. Depender de todos e ser
-dependido por todos são problemas diferentes — a proporção de
-cada um vai no metadata —, mas ambos caracterizam o mesmo
-acoplamento excessivo.
+The connection is counted without direction. Depending on everyone
+and being depended on by everyone are different problems — the
+share of each goes into the metadata — but both characterize the
+same excessive coupling.
 
-Arestas simétricas não entram. O estado global vira, na
-reconstrução, uma aresta entre cada par de quem toca a mesma fatia
-— uma chave de token lida por todos liga todos a todos, e a regra
-acusaria quase o sistema inteiro por um acoplamento que não tem
-centro. Esse acoplamento já tem regra própria, o
+Symmetric edges are left out. In the reconstruction, global state
+becomes an edge between every pair that touches the same slice — a
+token key read by everyone links everyone to everyone, and the rule
+would flag almost the whole system for a coupling that has no
+center. That coupling already has its own rule,
 `global-state-communication`.
 """
 
@@ -35,8 +35,8 @@ class OneForAll(Rule):
     anti_pattern = AntiPattern(
         name="one-for-all",
         description=(
-            "Micro frontend conectado a quase todos os outros, por "
-            "fragmento, navegação ou comunicação."
+            "Micro frontend connected to almost all the others, by "
+            "fragment, navigation or communication."
         ),
         category="Inter-frontend",
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/One%20Micro%20Frontend%20for%20all",
@@ -47,21 +47,20 @@ class OneForAll(Rule):
         ratio: float = 0.9,
         min_microfrontends: int = 5,
     ):
-        #: Fração dos demais a que o micro frontend precisa estar
-        #: conectado para ser acusado.
+        #: Fraction of the others the micro frontend must be
+        #: connected to in order to be flagged.
         self.ratio = ratio
 
-        #: Piso de tamanho do sistema. Num sistema pequeno, estar
-        #: conectado a todos os outros é o normal, não um desvio —
-        #: abaixo deste tamanho a regra se abstém em vez de acusar
-        #: todo mundo.
+        #: System size floor. In a small system, being connected to
+        #: all the others is normal, not a deviation — below this size
+        #: the rule abstains instead of flagging everyone.
         self.min_microfrontends = min_microfrontends
 
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
 
-        # O orquestrador é excluído: alcançar todos é a função
-        # dele. Mantê-lo no cálculo ainda inflaria o grau de todos
-        # os outros, já que ele navega para o sistema inteiro.
+        # The orchestrator is excluded: reaching everyone is its job.
+        # Keeping it in the computation would also inflate the degree
+        # of all the others, since it navigates to the whole system.
         peers = [
             microfrontend.id
             for microfrontend in architecture.microfrontends
@@ -103,7 +102,7 @@ class OneForAll(Rule):
         architecture: MicroFrontendArchitecture,
         known: set[str],
     ) -> tuple[dict[str, set[str]], dict[str, set[str]]]:
-        """Vizinhos de saída e de entrada, unindo as três relações."""
+        """Outgoing and incoming neighbours, joining the three relations."""
 
         outgoing: dict[str, set[str]] = defaultdict(set)
         incoming: dict[str, set[str]] = defaultdict(set)
@@ -120,7 +119,7 @@ class OneForAll(Rule):
             + [
                 (item.source, item.target)
                 for item in architecture.communications
-                # O teste é a propriedade, não o mecanismo, como no
+                # The test is the property, not the mechanism, as in
                 # cyclic-dependency.
                 if item.directed
             ]

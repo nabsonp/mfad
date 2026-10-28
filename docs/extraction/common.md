@@ -67,11 +67,11 @@ The base almost always comes from an environment variable, so discarding the who
 > **when** `this.<field>.get|post|put|patch|delete|head|options|jsonp(url)` or `request(method, url)` is called
 > **then** an external call is recorded.
 
-> **Given** a function of the project whose URL argument to a recognised client is one of its own parameters, at the end of the URL, with at most an unknown base and text before it (`` fetch(`${BASE}${url}`, { ...options }) ``)
+> **Given** a function of the project whose URL argument to a recognised client is one of its own parameters — at any position of its signature — with at most an unknown base and text before it, and nothing or more path (`/`, `?`) after it (`` fetch(`${BASE}${url}`, { ...options }) ``, `` `${BASE}${endpoint}/${id}` ``)
 > **when** another call in the repository resolves to that function — by name, by import, as a member of a default-exported object or namespace, through `this`, or through a field whose type is the function's class
 > **then** that call is an external call with the URL from the argument in that position, the verb from the options it passes (when the function forwards them) or fixed by the function, and the client underneath.
 
-Applied in layers until nothing new is found, so a service calling the wrapper with its own parameter is a wrapper too. A URL held in a local variable or returned by a function of the project (`const url = statementUrl(id)`) is followed. When the text before the parameter is already a path (`"/api/" + endpoint`) the function is not a wrapper and its own call is recorded as before (`/api/{param}`), because what the parameter completes is unknown.
+Applied in layers until nothing new is found, so a service calling the wrapper with its own parameter is a wrapper too. Text after the parameter stays, with `{param}` for what is runtime. A ternary between two URL forms (`` cond ? `${base}${url}/${id}` : `${base}${url}` ``) counts for what the two have in common, when that ends in the parameter. A URL held in a local variable or returned by a function of the project (`const url = statementUrl(id)`) is followed. When the text before the parameter is already a path (`"/api/" + endpoint`) the function is not a wrapper and its own call is recorded as before (`/api/{param}`), because what the parameter completes is unknown.
 
 > **Given** an external call inside a named function
 > **when** that function, or one around it, has no use (the rule of §4 for ends of channels)
@@ -87,7 +87,7 @@ Reachability follows such an import only when the file it reaches is inside the 
 
 > **Given** an external call and its file
 > **when** attributing it to a micro frontend
-> **then** the longest unit directory containing the call's file decides; a file under no unit is dropped.
+> **then** the longest unit directory containing the call's file decides; a file of a shared package that is no unit counts for every unit that imports it (the recorded location stays the package's file); a file under no unit and imported by none is dropped.
 
 > **Given** an external call and the screens of that micro frontend
 > **when** attributing it to a screen
@@ -120,13 +120,13 @@ The call site reveals the action's name, not the slice it changes; finding the s
 > **when** the call is `getItem(key)`, `setItem(key, …)` or `removeItem(key)`
 > **then** an access is recorded, with the storage as library, the key as path, and `read` or `write`.
 
-Web Storage is global state, not a message: the key is the slice, and whoever writes sends nothing to anyone — it leaves the data there for whoever comes. The writes enter here, unlike in the libraries, because `setItem("token", …)` names the slice as plainly as `getItem("token")` does. The receiver must be `localStorage` or `sessionStorage` itself: matching on the method name alone would turn every class with a `getItem` into shared state. The key must be a **literal** or a constant that resolves; a key held in a variable yields nothing. That costs recall and buys precision, and the trade was paid for — falling back to the variable's name paired two copies of the same theme provider that had nothing to do with each other, each with a parameter called `storageKey`.
+Web Storage is global state, not a message: the key is the slice, and whoever writes sends nothing to anyone — it leaves the data there for whoever comes. The writes enter here, unlike in the libraries, because `setItem("token", …)` names the slice as plainly as `getItem("token")` does. The receiver must be `localStorage` or `sessionStorage` itself: matching on the method name alone would turn every class with a `getItem` into shared state. The key must carry **literal** text — a literal, a constant that resolves, or a template whose runtime segments become `{param}`; a key held in a variable yields nothing. That costs recall and buys precision, and the trade was paid for — falling back to the variable's name paired two copies of the same theme provider that had nothing to do with each other, each with a parameter called `storageKey`.
 
 > **Given** a function of the project whose key argument to `localStorage`/`sessionStorage` is one of its own parameters, with at most literal text before and after it (`` localStorage.getItem(`app:${key}`) ``)
 > **when** another call in the repository resolves to that function — by name, by import, as a member of a default-exported object or namespace, through `this`, or through a field whose type is the function's class
 > **then** that call is a storage access with the key from the argument in that position, wrapped in the same text, and `read` or `write` for each storage call the function makes.
 
-Applied in layers until nothing new is found, as with HTTP wrappers. The access belongs to the **caller's** file and unit, not the function's: a helper in a shared package is no unit's, and the units that call it are the ones coupled by the key. The key must still be whole once filled in: `` save(`cart_${id}`) `` yields nothing.
+Applied in layers until nothing new is found, as with HTTP wrappers. The access belongs to the **caller's** file and unit, not the function's: a helper in a shared package is no unit's, and the units that call it are the ones coupled by the key. Once filled in, a runtime segment of the key becomes `{param}`, as below: `` save(`cart_${id}`) `` is `cart_{param}`.
 
 > **Given** a state access inside a named function
 > **when** that function, or one around it, has no use (the rule of §4 for ends of channels)
@@ -136,7 +136,7 @@ Applied in layers until nothing new is found, as with HTTP wrappers. The access 
 > **when** it reads through `react-redux`
 > **then** the read is **not** recorded: it reads its own store, which no other unit shares — two units with a `lookup` slice each, in two stores, share nothing.
 
-The key resolves only when it is whole: `"cart_" + id` names no slice, and its prefix would merge different keys into one. A constant (`const CART_KEY = "cart"`) resolves by name when the name has a single value in the repository.
+A runtime segment of the key becomes `{param}`: `` `${user.handle}_provider` `` is `{param}_provider`, the same slice for every user — the contract is the key's format, like the path of a URL. A key with no literal text at all (`getItem(key)`) names no slice and yields nothing. A constant (`const CART_KEY = "cart"`) resolves by name when the name has a single value in the repository.
 
 > **Given** every state access already extracted, and a slice accessed by two or more micro frontends
 > **then** undirected `global-state` communication edges are derived between every pair.

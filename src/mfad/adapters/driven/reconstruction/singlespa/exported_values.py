@@ -1,17 +1,19 @@
 """
-O que um nome exportado é: componente ou dado.
+What an exported name is: component or data.
 
-Fragmento é componente publicado para outro micro frontend montar.
-Componente, no React, é função ou classe (https://react.dev/reference/react/Component);
-no Angular, classe; no Vue, também o objeto de opções
-(https://vuejs.org/api/options-state.html). Um objeto de textos, uma
-lista, um número ou um tipo do TypeScript saem pelo mesmo `export`,
-mas ninguém os monta: não são fragmento.
+A fragment is a component published for another micro frontend to
+mount. A component, in React, is a function or a class
+(https://react.dev/reference/react/Component); in Angular, a class; in
+Vue, also the options object
+(https://vuejs.org/api/options-state.html). A texts object, a list, a
+number or a TypeScript type leave through the same `export`, but nobody
+mounts them: they are not fragments.
 
-Segue o nome pelos `export ... from` e pelos `import` do projeto até a
-declaração. O que não dá para seguir — pacote externo, valor montado
-em tempo de execução, chamada de função — fica como componente: é a
-resposta de antes, e errar para menos esconderia um fragmento real.
+Follows the name through the project's `export ... from` and `import`
+statements up to the declaration. What cannot be followed — external
+package, value built at runtime, function call — stays a component: it
+is the previous answer, and erring on the low side would hide a real
+fragment.
 """
 
 from __future__ import annotations
@@ -24,22 +26,22 @@ from mfad.adapters.driven.reconstruction.ast import AstReader, ModuleResolver
 from mfad.adapters.driven.reconstruction.ast.symbols import unwrap
 
 
-#: Valores que não são componente em framework nenhum.
+#: Values that are not a component in any framework.
 DATA = frozenset({
     "string", "template_string", "number", "true", "false", "null",
     "undefined", "array", "regex",
 })
 
-#: Declarações que só existem para o compilador do TypeScript, ou
-#: valores que não se montam (`enum`).
+#: Declarations that exist only for the TypeScript compiler, or values
+#: that cannot be mounted (`enum`).
 NOT_COMPONENT_DECLARATIONS = frozenset({
     "interface_declaration", "type_alias_declaration", "enum_declaration",
 })
 
-#: Opções sem as quais um objeto Vue não mostra nada: o modelo, a
-#: função de renderização ou o `setup` que a devolve
-#: (https://vuejs.org/api/options-rendering.html). `components` sozinho
-#: não basta: um objeto de textos também tem uma chave assim.
+#: Options without which a Vue object shows nothing: the template, the
+#: render function or the `setup` that returns it
+#: (https://vuejs.org/api/options-rendering.html). `components` alone
+#: is not enough: a texts object can also have such a key.
 VUE_OPTIONS = frozenset({"render", "template", "setup"})
 
 MAX_DEPTH = 8
@@ -52,12 +54,12 @@ class ExportedValues:
         self._where: Path | None = None
 
     def is_data(self, path: Path, name: str) -> bool:
-        """Se o que `path` exporta como `name` é, com certeza, dado e não componente."""
+        """Whether what `path` exports as `name` is, for sure, data and not a component."""
 
         return self._kind(path, name, 0, set()) == "data"
 
     def origin(self, path: Path, name: str) -> Path | None:
-        """O arquivo que declara o que `path` exporta como `name`, seguindo os reexports."""
+        """The file that declares what `path` exports as `name`, following the re-exports."""
 
         self._where = None
         self._kind(path, name, 0, set())
@@ -88,7 +90,7 @@ class ExportedValues:
             if found is not False:
                 return found
 
-        # `export * from "./x"`: o nome pode estar em qualquer um.
+        # `export * from "./x"`: the name may be in any of them.
         for statement in root.named_children:
 
             if statement.type != "export_statement" or name == "default":
@@ -109,7 +111,7 @@ class ExportedValues:
         return None
 
     def _from_export(self, statement, path, root, source, name, depth, seen):
-        """O tipo do nome, se esta declaração o exporta; `False` se não exporta."""
+        """The kind of the name, if this declaration exports it; `False` if it does not."""
 
         is_default = any(child.type == "default" for child in statement.children)
 
@@ -145,9 +147,9 @@ class ExportedValues:
 
         module = statement.child_by_field_name("source")
 
-        # `export * as ns from "./x"` exporta o objeto de namespace do
-        # módulo (https://tc39.es/ecma262/#sec-module-namespace-objects):
-        # não é função nem classe, ninguém o monta.
+        # `export * as ns from "./x"` exports the module's namespace
+        # object (https://tc39.es/ecma262/#sec-module-namespace-objects):
+        # it is neither a function nor a class, nobody mounts it.
         for clause in statement.named_children:
 
             if clause.type == "namespace_export" and any(
@@ -184,7 +186,7 @@ class ExportedValues:
         return False
 
     def _local(self, name, path, root, source, depth, seen):
-        """O tipo de um nome declarado ou importado no topo do módulo."""
+        """The kind of a name declared or imported at the top of the module."""
 
         for statement in root.named_children:
 
@@ -219,7 +221,7 @@ class ExportedValues:
 
     @staticmethod
     def _imported(statement: Node, name: str, source: bytes) -> str | None:
-        """O nome exportado por trás do nome local `name`, se este import o cria."""
+        """The exported name behind the local name `name`, if this import creates it."""
 
         for clause in statement.named_children:
 
@@ -274,6 +276,6 @@ class ExportedValues:
         if value.type in ("arrow_function", "function", "function_expression", "class"):
             return "component"
 
-        # Chamada (`memo(...)`, `lazy(...)`, `defineComponent(...)`) e o
-        # resto: não dá para saber sem executar.
+        # A call (`memo(...)`, `lazy(...)`, `defineComponent(...)`) and
+        # the rest: there is no way to know without executing.
         return None

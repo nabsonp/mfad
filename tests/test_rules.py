@@ -1,8 +1,9 @@
 """
-Regras de detecção, sobre arquiteturas montadas à mão.
+Detection rules, over hand-built architectures.
 
-A detecção só lê artefatos, então os casos são escritos direto no
-modelo: o teste prova a regra sem depender de extrator nenhum.
+Detection only reads artifacts, so the cases are written directly in
+the model: the test proves the rule without depending on any
+extractor.
 """
 
 from mfad.adapters.driven.antipatterns.rules.cyclic_dependency import CyclicDependency
@@ -56,15 +57,15 @@ def _cyclic_architecture() -> MicroFrontendArchitecture:
             MicroFrontend(id=C, screens=[Screen("Page", C)]),
         ],
         compositions=[
-            # Home (de A) monta FB; FB monta FA: ciclo A → B → A na Home.
+            # Home (of A) mounts FB; FB mounts FA: cycle A → B → A on Home.
             Composition(A, B, "FB", "FB", at("a/home.js"), [RenderLocation("a/home.js", 3, screens=[f"{A}#Home"])]),
             Composition(B, A, "FA", "FA", at("b/fb.js"), [RenderLocation("b/fb.js", 5, fragments=[f"{B}#FB"])]),
         ],
         communications=[
-            # Na Home: A publica, FB (de B) consome; FB publica, A consome.
+            # On Home: A publishes, FB (of B) consumes; FB publishes, A consumes.
             event(A, B, "x", Placement([f"{A}#Home"]), Placement(fragments=[f"{B}#FB"])),
             event(B, A, "y", Placement(fragments=[f"{B}#FB"]), Placement([f"{A}#Home"])),
-            # A ↔ C, mas cada ponta numa tela diferente: não coexistem.
+            # A ↔ C, but each end on a different screen: they do not coexist.
             event(A, C, "z", Placement([f"{A}#Other"]), Placement([f"{C}#Page"])),
             event(C, A, "w", Placement([f"{C}#Page"]), Placement([f"{A}#Other"])),
         ],
@@ -133,7 +134,7 @@ def test_one_for_all_counts_directed_edges():
 
 
 def test_one_for_all_ignores_shared_state():
-    """Um token lido por todos liga todos a todos, sem centro."""
+    """A token read by everyone links everyone to everyone, with no center."""
 
     peers = _peers(6)
 
@@ -187,7 +188,7 @@ def test_storage_key_touched_by_two_units_is_reported():
 
 
 def _hosting(fragments: list[tuple[str, str]]) -> MicroFrontendArchitecture:
-    """Uma tela de A que instancia os fragmentos dados (provedor, nome)."""
+    """A screen of A that instantiates the given fragments (provider, name)."""
 
     return MicroFrontendArchitecture(
         microfrontends=[MicroFrontend(id=A, screens=[Screen("Home", A)]), MicroFrontend(id=B), MicroFrontend(id=C)],
@@ -199,7 +200,7 @@ def _hosting(fragments: list[tuple[str, str]]) -> MicroFrontendArchitecture:
 
 
 def test_hub_counts_distinct_fragments_not_render_sites():
-    """O mesmo card repetido cinco vezes é uma dependência só."""
+    """The same card repeated five times is a single dependency."""
 
     repeated = _hosting([(B, "Card")] * 5)
 
@@ -209,7 +210,7 @@ def test_hub_counts_distinct_fragments_not_render_sites():
 
     [found] = HubLikeDependency().check(distinct)
 
-    assert "5 fragmentos" in found.message
+    assert "5 fragments" in found.message
 
 
 # ----------------------------------------------------------------------
@@ -226,7 +227,7 @@ def _sized(name: str, screens: int, lines: int) -> MicroFrontend:
 
 
 def test_few_screens_with_much_code_is_not_nano():
-    """Duas rotas, dezenas de abas: poucas telas, das maiores em código."""
+    """Two routes, dozens of tabs: few screens, among the largest in code."""
 
     architecture = MicroFrontendArchitecture(
         microfrontends=[

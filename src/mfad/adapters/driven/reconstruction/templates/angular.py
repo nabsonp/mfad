@@ -1,24 +1,25 @@
 """
-Composição por template do Angular.
+Angular template composition.
 
-Escrito a partir da documentação de `@Component` e de seletores em
-https://angular.dev/guide/components/selectors — não de repositório
-algum.
+Written from the documentation of `@Component` and selectors at
+https://angular.dev/guide/components/selectors, not from any particular
+repository.
 
-No React, a tela que renderiza um componente o importa: o JSX usa
-o identificador, e o identificador vem de um import. No Angular, não.
-A tela escreve `<app-tabela>` no template, e quem liga o seletor à
-classe é o `NgModule` que declara os dois. O `.ts` da tela não
-importa o filho, e seguir só os imports deixa fora tudo o que ela
-renderiza — e os serviços que esses filhos usam.
+In React, the screen that renders a component imports it: the JSX uses
+the identifier, and the identifier comes from an import. Not in Angular.
+The screen writes `<app-tabela>` in the template, and what links the
+selector to the class is the `NgModule` that declares both. The
+screen's `.ts` does not import the child, and following only imports
+leaves out everything it renders, along with the services those
+children use.
 
-Este módulo devolve essa ligação: para um componente, os arquivos dos
-componentes e diretivas que o template dele usa. O alcance trata isso
-como mais um import.
+This module returns that link: for a component, the files of the
+components and directives its template uses. Reachability treats this
+as one more import.
 
-A fronteira é a mesma dos imports relativos: o pacote. Um seletor
-só casa com componente declarado no mesmo pacote — o de biblioteca
-externa (`<mat-table>`) não é código da unidade.
+The boundary is the same as for relative imports: the package. A
+selector only matches a component declared in the same package; one
+from an external library (`<mat-table>`) is not the unit's code.
 """
 
 from __future__ import annotations
@@ -33,27 +34,27 @@ from tree_sitter import Node
 from mfad.adapters.driven.reconstruction.ast import AstReader
 
 
-#: Os decoradores que declaram seletor. Diretiva entra porque também
-#: é código que a tela põe no ar ao usar o atributo.
+#: The decorators that declare a selector. Directives are included because
+#: they are also code the screen brings to life when it uses the attribute.
 DECORATORS = ("Component", "Directive")
 
-#: `<app-tabela` — o nome do elemento, no template.
+#: `<app-tabela`: the element name, in the template.
 _TAG = re.compile(r"<([a-zA-Z][\w-]*)([^>]*)>?", re.S)
 
-#: Um atributo dentro da marca de abertura, nas formas de ligação:
+#: An attribute inside the opening tag, in its binding forms:
 #: `appX`, `[appX]`, `(appX)`, `[(appX)]`, `*appX`.
 _ATTRIBUTE = re.compile(r"(?:^|\s)[\[(*]*([a-zA-Z_][\w-]*)")
 
-#: Pedaços de um seletor: o elemento no começo e os atributos
-#: entre colchetes. Classe e `:not(...)` não identificam um uso
-#: com segurança e ficam de fora.
+#: Parts of a selector: the element at the start and the attributes
+#: in brackets. Classes and `:not(...)` do not reliably identify a use
+#: and are left out.
 _SELECTOR_ELEMENT = re.compile(r"^([a-zA-Z][\w-]*)")
 _SELECTOR_ATTRIBUTE = re.compile(r"\[([\w-]+)")
 
 
 @dataclass
 class _Declaration:
-    """O que um arquivo declara: seletores e o template que usa."""
+    """What a file declares: selectors and the template it uses."""
 
     elements: set[str] = field(default_factory=set)
     attributes: set[str] = field(default_factory=set)
@@ -61,16 +62,16 @@ class _Declaration:
 
 
 class AngularTemplates:
-    """Componentes usados pelo template de cada componente."""
+    """Components used by each component's template."""
 
     def __init__(self, reader: AstReader, files: list[Path]):
 
         self.reader = reader
 
-        #: arquivo → o que ele declara
+        #: file → what it declares
         self._declared: dict[Path, _Declaration] = {}
 
-        #: pacote → seletor → arquivos
+        #: package → selector → files
         self._elements: dict[Path, dict[str, set[Path]]] = {}
         self._attributes: dict[Path, dict[str, set[Path]]] = {}
 
@@ -98,7 +99,7 @@ class AngularTemplates:
                 ).add(file_path)
 
     def used_by(self, file_path: Path) -> set[Path]:
-        """Os arquivos que o template deste componente põe no ar."""
+        """The files this component's template brings to life."""
 
         declaration = self._declared.get(file_path)
 
@@ -131,9 +132,9 @@ class AngularTemplates:
         if file_path.suffix != ".ts":
             return None
 
-        # O leitor já guarda a árvore e o texto de todo arquivo desde a
-        # varredura do contexto; ler de novo do disco custava minutos
-        # num repositório grande.
+        # The reader already holds the tree and text of every file since the
+        # context scan; reading from disk again cost minutes on a large
+        # repository.
         try:
             root, source = self.reader.parse(file_path)
         except Exception:
@@ -161,7 +162,7 @@ class AngularTemplates:
 
     @staticmethod
     def _metadata(decorator: Node, source: bytes) -> dict[str, Node] | None:
-        """Os campos de `@Component({...})`, se for um deles."""
+        """The fields of `@Component({...})`, if it is one of those."""
 
         for call in decorator.named_children:
 
@@ -209,10 +210,10 @@ class AngularTemplates:
         found: _Declaration,
     ) -> None:
         """
-        `app-x`, `[appX]`, `button[appX]` e listas `a, b`.
+        `app-x`, `[appX]`, `button[appX]` and lists `a, b`.
 
-        Seletor de elemento com atributo (`button[appX]`) é guardado
-        pelo atributo: `button` sozinho casaria todo botão.
+        An element selector with an attribute (`button[appX]`) is stored
+        by the attribute: `button` alone would match every button.
         """
 
         if node is None or node.type not in ("string", "template_string"):
@@ -241,7 +242,7 @@ class AngularTemplates:
         source: bytes,
         file_path: Path,
     ) -> str:
-        """O template em linha ou o arquivo de `templateUrl`."""
+        """The inline template or the `templateUrl` file."""
 
         inline = fields.get("template")
 
@@ -263,7 +264,7 @@ class AngularTemplates:
             return ""
 
     def _package(self, file_path: Path) -> Path:
-        """O diretório com `package.json` mais próximo — a fronteira."""
+        """The nearest directory with `package.json`: the boundary."""
 
         directory = file_path.parent
 

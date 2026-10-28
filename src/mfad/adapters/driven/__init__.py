@@ -1,1 +1,1 @@
-"""Adaptadores conduzidos: a aplicação os aciona."""
+"""Driven adapters: the application drives them."""

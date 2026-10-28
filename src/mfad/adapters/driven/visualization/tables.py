@@ -1,19 +1,19 @@
 """
-As tabelas de cada aba do cabeçalho: tudo o que os números contam.
+The tables of each header tab: everything the numbers count.
 
-O mapa responde quem se liga a quem; a tabela responde quantos,
-quais e onde, linha a linha, com o arquivo e a linha de cada coisa.
-Cada número do cabeçalho leva à lista que o soma — o número que não
-se pode abrir pede confiança, o que se pode abrir se confere.
+The map answers who links to whom; the table answers how many, which
+and where, row by row, with the file and line of each thing. Each
+header number leads to the list that adds it up: a number that cannot
+be opened asks for trust, one that can be opened can be checked.
 
-A tabela mostra poucas colunas, as que identificam o item; o resto
-fica num detalhe que a linha abre ao ser clicada. Com todas as
-colunas lado a lado, a tabela não cabia na tela e era preciso rolar
-para o lado para ler uma linha só. O detalhe traz também o atalho
-para o item no mapa.
+The table shows few columns, the ones that identify the item; the rest
+goes into a detail that the row opens when clicked. With all columns
+side by side, the table did not fit on the screen and one had to
+scroll sideways to read a single row. The detail also carries the
+shortcut to the item on the map.
 
-As tabelas saem prontas do Python, como o resto da página. O script
-só filtra, ordena e abre as linhas que já estão lá.
+The tables come out of Python ready, like the rest of the page. The
+script only filters, sorts and opens the rows that are already there.
 """
 
 from __future__ import annotations
@@ -30,16 +30,16 @@ from mfad.domain import MicroFrontendArchitecture
 @dataclass
 class Column:
 
-    #: chave do cabeçalho em `texts.json`
+    #: header key in `texts.json`
     key: str
 
     numeric: bool = False
 
-    #: na linha; as demais vão para o detalhe
+    #: in the row; the others go into the detail
     summary: bool = True
 
-    #: no detalhe, ocupa a largura toda: listas de caminhos não cabem
-    #: numa coluna da grade
+    #: in the detail, takes the full width: lists of paths do not fit
+    #: in a grid column
     wide: bool = False
 
 
@@ -48,20 +48,20 @@ class Row:
 
     cells: list[str]
 
-    #: o atalho para o item no mapa: (chave do texto do botão, atributos `data-go-*`)
+    #: the shortcut to the item on the map: (button text key, `data-go-*` attributes)
     go: tuple[str, dict[str, str]] | None = None
 
-    #: `data-key` são as chaves da linha, separadas por espaço: os
-    #: links da barra lateral a acham por elas
+    #: `data-key` holds the row's keys, separated by spaces: the
+    #: sidebar links find it through them
     attrs: dict[str, str] = field(default_factory=dict)
 
-    #: campos só desta linha, antes dos das colunas: o rótulo (já
-    #: marcado para tradução), o valor e, opcional, se ocupa a largura
-    #: toda; para tabela cujos itens não têm todos os mesmos campos,
-    #: como as detecções
+    #: fields of this row only, before the column ones: the label (already
+    #: marked for translation), the value and, optionally, whether it takes
+    #: the full width; for a table whose items do not all have the same
+    #: fields, such as the detections
     fields: list[tuple] = field(default_factory=list)
 
-    #: botão no lugar do atalho `go`, para a ação que não é ir a uma aba
+    #: button in place of the `go` shortcut, for an action that is not going to a tab
     action: str = ""
 
 
@@ -73,9 +73,9 @@ def short(identifier: str) -> str:
     return escape(payload.short(identifier))
 
 
-#: A cor de cada anti-padrão, fixa: o mesmo nome tem a mesma cor em
-#: qualquer sistema. As de grafo têm a cor da relação que as mostra
-#: (estado global violeta, backend âmbar).
+#: The color of each anti-pattern, fixed: the same name has the same color in
+#: any system. The graph ones have the color of the relation that shows them
+#: (global state violet, backend amber).
 COLORS = {
     "cyclic-dependency": "red",
     "hub-like-dependency": "orange",
@@ -90,7 +90,7 @@ PALETTE = ("red", "orange", "pink", "amber", "violet", "blue", "cyan", "green", 
 
 
 def color_of(name: str) -> str:
-    """A cor do anti-padrão; um que não está na lista ganha uma pelo nome."""
+    """The anti-pattern color; one not in the list gets one from its name."""
 
     return COLORS.get(name) or PALETTE[sum(map(ord, name)) % len(PALETTE)]
 
@@ -105,8 +105,8 @@ def names(identifiers) -> str:
 
 def few(identifiers, limit: int = 3) -> str:
     """
-    Os primeiros nomes e quantos faltam, para a linha caber na tela;
-    a lista inteira vai para o detalhe.
+    The first names and how many are left, so the row fits on the
+    screen; the full list goes into the detail.
     """
 
     identifiers = list(identifiers)
@@ -118,7 +118,7 @@ def few(identifiers, limit: int = 3) -> str:
 
 
 def screen_names(identifiers) -> str:
-    """`mfe#Tela` vira `Tela`: a coluna já diz de que micro frontend é."""
+    """`mfe#Tela` becomes `Tela`: the column already says which micro frontend it belongs to."""
 
     return ", ".join(escape(item.partition("#")[2] or item) for item in identifiers) or "—"
 
@@ -133,8 +133,8 @@ def where(file: str | None, line: int) -> str:
 
 def place(screens: list[str], fragments: list[str]) -> str:
     """
-    Onde, na interface, o código roda: as telas e os fragmentos que o
-    alcançam, ou fora de tela quando nenhum alcança.
+    Where in the interface the code runs: the screens and fragments
+    that reach it, or off-screen when none does.
     """
 
     parts = []
@@ -150,23 +150,23 @@ def place(screens: list[str], fragments: list[str]) -> str:
 
 def grouped(entries: list[tuple[str, str | None, int, str]], roots: dict[str, str]) -> str:
     """
-    Localizações agrupadas por micro frontend e, dentro dele, por arquivo.
+    Locations grouped by micro frontend and, within it, by file.
 
-    Cada entrada é `(micro frontend, arquivo, linha, etiqueta)`; a
-    etiqueta diz o que acontece naquela linha (lê, importa, o método).
-    O micro frontend aparece uma vez, como título do grupo, e o
-    diretório dele sai do caminho. Cada arquivo aparece uma vez, com
-    as linhas dele ao lado: o mesmo arquivo que importa e instancia um
-    fragmento é uma linha só, não duas separadas por outras. O caminho
-    inteiro fica no `title`.
+    Each entry is `(micro frontend, file, line, label)`; the label says
+    what happens on that line (reads, imports, the method). The micro
+    frontend appears once, as the group title, and its directory is
+    stripped from the path. Each file appears once, with its lines next
+    to it: the same file that imports and instantiates a fragment is a
+    single row, not two separated by others. The full path goes in
+    `title`.
     """
 
     if not entries:
         return "—"
 
-    # Por arquivo, as linhas de cada etiqueta juntas: três chamadas
-    # iguais no mesmo arquivo são uma etiqueta com três linhas, não a
-    # etiqueta repetida três vezes.
+    # Per file, the lines of each label together: three identical calls
+    # in the same file are one label with three lines, not the
+    # label repeated three times.
     groups: dict[str, dict[str | None, dict[str, list[int]]]] = {}
 
     for owner, file, line, label in entries:
@@ -178,8 +178,8 @@ def grouped(entries: list[tuple[str, str | None, int, str]], roots: dict[str, st
 
     def hits(labels: dict[str, list[int]]) -> str:
 
-        # O número logo depois do arquivo, como `arquivo:linha`; o que
-        # acontece ali vem depois.
+        # The number right after the file, as `file:line`; what
+        # happens there comes after.
         return '<span class="sep">·</span>'.join(
             '<span class="hit">'
             + (f'<span class="mono lines">{", ".join(f":{line}" for line in sorted(lines))}</span>' if lines else "")
@@ -223,7 +223,7 @@ def grouped(entries: list[tuple[str, str | None, int, str]], roots: dict[str, st
 
 
 def owner_of(file: str, directories: dict[str, str]) -> str:
-    """O micro frontend do arquivo: o de diretório mais longo que o contém."""
+    """The micro frontend of the file: the one with the longest directory that contains it."""
 
     candidates = [
         (len(directory), identifier)
@@ -244,12 +244,12 @@ def to_map(identifier: str) -> tuple[str, dict[str, str]]:
 
 def table(columns: list[Column], rows: list[Row]) -> str:
     """
-    A tabela com o filtro e a contagem em cima.
+    The table with the filter and the count on top.
 
-    Cada item são duas linhas: a de resumo, com as colunas marcadas
-    `summary`, e a de detalhe, escondida, com todas as colunas e o
-    atalho para o mapa. Coluna numérica é ordenada pelo número, não
-    pelo texto: "10" depois de "9".
+    Each item is two rows: the summary one, with the columns marked
+    `summary`, and the detail one, hidden, with all columns and the
+    shortcut to the map. A numeric column is sorted by number, not by
+    text: "10" after "9".
     """
 
     if not rows:
@@ -292,7 +292,7 @@ def table(columns: list[Column], rows: list[Row]) -> str:
             ("<div class=\"wide\">" if columns[index].wide else "<div>")
             + f"{mark(columns[index].key, 'dt')}<dd>{row.cells[index]}</dd></div>"
             for index in detail
-            # Célula `None`: o campo não se aplica a esta linha.
+            # `None` cell: the field does not apply to this row.
             if row.cells[index] is not None
         )
 
@@ -329,7 +329,7 @@ def table(columns: list[Column], rows: list[Row]) -> str:
 
 
 # ----------------------------------------------------------------------
-# Uma tabela por aba
+# One table per tab
 # ----------------------------------------------------------------------
 
 
@@ -376,7 +376,7 @@ def microfrontends(data: dict) -> str:
             ],
             to_map(item["id"]),
             attrs={"data-key": item["id"]},
-            # O que o micro frontend define, com a contagem no rótulo.
+            # What the micro frontend defines, with the count in the label.
             fields=[
                 (
                     mark(i18n.ref("list.screens", n=len(item["screens"]))),
@@ -402,14 +402,14 @@ def microfrontends(data: dict) -> str:
 
 def screens(architecture: MicroFrontendArchitecture, data: dict) -> str:
 
-    # Só a tela que participa de alguma relação está na aba Telas; as
-    # outras levam ao micro frontend.
+    # Only a screen that takes part in some relation is in the Screens tab; the
+    # others lead to the micro frontend.
     related = {edge["source"] for edge in data["screen_edges"]} | {
         edge["target"] for edge in data["screen_edges"]
     }
 
-    # Os fragmentos de outros micro frontends que cada tela instancia:
-    # é o que a tela mostra que não é dela.
+    # The fragments of other micro frontends that each screen instantiates:
+    # what the screen shows that is not its own.
     mounted: dict[str, list[str]] = {}
 
     for item in architecture.compositions:
@@ -452,12 +452,13 @@ def screens(architecture: MicroFrontendArchitecture, data: dict) -> str:
 
 def fragments(architecture: MicroFrontendArchitecture) -> str:
     """
-    Fragmentos e composições numa tabela só: uma linha por fragmento.
+    Fragments and compositions in a single table: one row per fragment.
 
-    A composição é o fragmento visto de quem o monta. Em tabelas
-    separadas, saber em que telas um fragmento aparece pedia cruzar
-    as duas; aqui a linha já diz, e o detalhe traz cada composição —
-    o consumidor, onde importa e onde instancia.
+    A composition is the fragment seen from whoever mounts it. In
+    separate tables, knowing which screens a fragment appears on
+    required crossing the two; here the row already says it, and the
+    detail brings each composition: the consumer, where it imports and
+    where it instantiates.
     """
 
     by_fragment: dict[tuple[str, str], list] = {}
@@ -471,8 +472,8 @@ def fragments(architecture: MicroFrontendArchitecture) -> str:
         for fragment in microfrontend.fragments
     ]
 
-    # Fragmento composto que a extração não listou como exposto entra
-    # também: nenhuma composição pode sumir da tabela.
+    # A composed fragment that extraction did not list as exposed also
+    # goes in: no composition may disappear from the table.
     known = {(provider, name) for provider, name, _, _ in exposed}
 
     exposed += [
@@ -484,11 +485,11 @@ def fragments(architecture: MicroFrontendArchitecture) -> str:
     columns = [
         Column("col.fragment"),
         Column("col.provider"),
-        # Quem monta é uma lista que cresce com o reúso: na linha fica a
-        # contagem, que ordena; os nomes vão para o detalhe.
+        # Who mounts it is a list that grows with reuse: the row keeps the
+        # count, which sorts; the names go into the detail.
         Column("col.compositions", True),
         Column("col.mounted_on"),
-        # Quem monta já é o título de cada grupo do "composto em".
+        # Who mounts it is already the title of each group in "composed in".
         Column("col.defined_at", summary=False, wide=True),
         Column("col.composed_at", summary=False, wide=True),
     ]
@@ -553,7 +554,7 @@ def fragments(architecture: MicroFrontendArchitecture) -> str:
 
 
 def _relation(source: str, target: str, relation: str) -> tuple[str, dict[str, str]]:
-    """O atalho para a aresta: a aba da relação, com o painel dela aberto."""
+    """The shortcut to the edge: the relation's tab, with its panel open."""
 
     return (
         "table.show_relation",
@@ -593,7 +594,7 @@ def navigations(architecture: MicroFrontendArchitecture) -> str:
 
 
 def communications(architecture: MicroFrontendArchitecture) -> str:
-    """Só as que têm sentido: o estado global está na aba de fatias."""
+    """Only the meaningful ones: global state is in the slices tab."""
 
     columns = [
         Column("col.source"),
@@ -632,11 +633,12 @@ def communications(architecture: MicroFrontendArchitecture) -> str:
 
 def state_slices(entries: list[dict], directories: dict[str, str]) -> str:
     """
-    As fatias do estado global, cada uma com quem lê, quem grava e
-    onde, agrupado por micro frontend e arquivo.
+    The global-state slices, each with who reads, who writes and
+    where, grouped by micro frontend and file.
 
-    Fica no detalhe da detecção de estado global: é a evidência dela,
-    e numa aba à parte repetia o que a detecção já diz.
+    It lives in the detail of the global-state detection: it is its
+    evidence, and a separate tab repeated what the detection already
+    says.
     """
 
     if not entries:
@@ -649,9 +651,9 @@ def state_slices(entries: list[dict], directories: dict[str, str]) -> str:
         readers = sorted({item["microfrontend"] for item in entry["accesses"] if item["access"] != "write"})
         writers = sorted({item["microfrontend"] for item in entry["accesses"] if item["access"] == "write"})
 
-        # Cada fatia fecha: com dezenas de acessos, abertas todas
-        # empurravam o porquê da detecção para longe. A linha fechada
-        # já diz quantos micro frontends e quantos acessos há nela.
+        # Each slice is closed: with dozens of accesses, all open pushed
+        # the detection's reason far away. The closed row
+        # already says how many micro frontends and how many accesses it has.
         blocks.append(
             '<details class="slice">'
             '<summary class="slice-head"><span class="caret">›</span>'
@@ -685,7 +687,7 @@ def state_slices(entries: list[dict], directories: dict[str, str]) -> str:
 
 
 def endpoints(data: dict, architecture: MicroFrontendArchitecture) -> str:
-    """Os endpoints, os compartilhados primeiro: são o acoplamento por backend."""
+    """The endpoints, shared ones first: they are the backend coupling."""
 
     columns = [
         Column("col.method"),
@@ -722,7 +724,7 @@ def endpoints(data: dict, architecture: MicroFrontendArchitecture) -> str:
                     names(entry["callers"]),
                     _calls(calls.get(entry["path"], []), directories),
                 ],
-                # Só o compartilhado está na aba Backend.
+                # Only the shared one is in the Backend tab.
                 ("table.show_endpoint", {"kind": "slot", "target": entry["path"], "view": "backend"})
                 if shared
                 else to_map(entry["callers"][0]),
@@ -734,7 +736,7 @@ def endpoints(data: dict, architecture: MicroFrontendArchitecture) -> str:
 
 
 def _calls(calls: list, directories: dict[str, str]) -> str:
-    """As chamadas a um endpoint, agrupadas por micro frontend e arquivo."""
+    """The calls to an endpoint, grouped by micro frontend and file."""
 
     return grouped(
         [
@@ -754,9 +756,10 @@ def _calls(calls: list, directories: dict[str, str]) -> str:
 
 def shared_endpoints(paths, data: dict, architecture: MicroFrontendArchitecture) -> str:
     """
-    As rotas compartilhadas, mais chamadas primeiro, cada uma num bloco
-    que abre: os métodos e quem chama na linha fechada; as chamadas, por micro frontend e
-    arquivo, dentro. O mesmo desenho das fatias do estado global.
+    The shared routes, most called first, each in a block that
+    opens: the methods and the callers in the closed row; the calls, by
+    micro frontend and file, inside. The same design as the global-state
+    slices.
     """
 
     wanted = set(paths)
@@ -784,7 +787,7 @@ def shared_endpoints(paths, data: dict, architecture: MicroFrontendArchitecture)
             '<summary class="slice-head"><span class="caret">›</span>'
             f'<code><strong>{escape(entry["path"])}</strong></code>'
             f' <span class="muted mono">{escape(", ".join(entry["methods"]))}</span>'
-            # Quem martela a rota, já na linha fechada.
+            # Who hammers the route, already in the closed row.
             + f'<span class="slice-callers">{few(entry["callers"])}</span>'
             + mark(
                 i18n.ref("endpoint.summary", mfes=len(entry["callers"]), n=len(found)),
@@ -803,7 +806,7 @@ def shared_endpoints(paths, data: dict, architecture: MicroFrontendArchitecture)
 
 
 def _access(access: str) -> str:
-    """A etiqueta da leitura ou escrita, traduzida quando há texto para ela."""
+    """The read or write label, translated when there is a text for it."""
 
     key = f"value.{access}"
 

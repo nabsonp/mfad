@@ -1,4 +1,4 @@
-"""Extrair o consumo de fragmentos através das fronteiras."""
+"""Extract the consumption of fragments across boundaries."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class ExtractCompositionsUseCase(UseCase[CompositionsResult]):
         self.repository_path = repository_path
         self.reconstructor = reconstructor
 
-        # Quando já foram extraídas, não se extrai de novo.
+        # When already extracted, they are not extracted again.
         self.microfrontends = microfrontends
 
     def execute(self) -> CompositionsResult:

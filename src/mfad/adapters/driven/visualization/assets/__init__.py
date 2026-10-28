@@ -1,1 +1,1 @@
-"""Folha de estilo e script do relatório HTML."""
+"""Stylesheet and script of the HTML report."""

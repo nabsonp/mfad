@@ -1,9 +1,9 @@
 """
-Correções da revisão da reconstrução (agent-judge, outubro de 2026).
+Fixes from the reconstruction review (agent-judge, October 2026).
 
-Um teste por defeito, cada um com um repositório mínimo escrito a
-partir da documentação da tecnologia. A lista dos defeitos e das
-correções está em `estudo/avaliacao/correcoes-reconstrucao.md`.
+One test per defect, each with a minimal repository written from the
+technology's documentation. The list of defects and fixes is in
+`estudo/avaliacao/correcoes-reconstrucao.md`.
 """
 
 from conftest import angular_unit, by_id, mfe, package, react_lifecycles, root_config
@@ -13,15 +13,15 @@ ROOT = root_config({"@org/catalog": "/catalog", "@org/checkout": "/checkout"})
 
 
 # ----------------------------------------------------------------------
-# 1. A URL de uma requisição HTTP não é navegação
+# 1. The URL of an HTTP request is not navigation
 # ----------------------------------------------------------------------
 
 
 def test_http_request_to_a_path_that_is_another_route_is_not_navigation(system):
     """
-    `axios.get(url)` busca um recurso (https://axios-http.com/docs/api_intro),
-    e a função que repassa a URL a um cliente é cliente também: mesmo que o
-    caminho coincida com a rota de outra aplicação, ninguém vai até lá.
+    `axios.get(url)` fetches a resource (https://axios-http.com/docs/api_intro),
+    and the function that forwards the URL to a client is a client too: even
+    if the path matches another application's route, nobody goes there.
     """
 
     architecture = system(
@@ -54,15 +54,15 @@ def test_http_request_to_a_path_that_is_another_route_is_not_navigation(system):
 
 
 # ----------------------------------------------------------------------
-# 2. O servidor que entrega o pacote não navega
+# 2. The server that serves the bundle does not navigate
 # ----------------------------------------------------------------------
 
 
 def test_server_module_routes_are_not_navigation(system):
     """
-    O Express declara rotas com `app.get(caminho, handler)`
-    (https://expressjs.com/en/guide/routing.html), num módulo que roda no
-    Node: importa `path`, que o webpack 5 e o Vite não levam ao navegador.
+    Express declares routes with `app.get(path, handler)`
+    (https://expressjs.com/en/guide/routing.html), in a module that runs on
+    Node: it imports `path`, which webpack 5 and Vite do not bring to the browser.
     """
 
     architecture = system(
@@ -93,15 +93,15 @@ def test_server_module_routes_are_not_navigation(system):
 
 
 # ----------------------------------------------------------------------
-# 3. Comparar com a URL atual não é navegar
+# 3. Comparing with the current URL is not navigating
 # ----------------------------------------------------------------------
 
 
 def test_route_matchers_are_not_navigation(system):
     """
-    `useMatch(padrão)` devolve se a URL atual casa com o padrão
-    (https://reactrouter.com/en/main/hooks/use-match), e `matchPath` faz o
-    mesmo fora de componente: nenhum dos dois leva o usuário à rota.
+    `useMatch(pattern)` returns whether the current URL matches the pattern
+    (https://reactrouter.com/en/main/hooks/use-match), and `matchPath` does the
+    same outside a component: neither of them takes the user to the route.
     """
 
     architecture = system(
@@ -126,15 +126,15 @@ def test_route_matchers_are_not_navigation(system):
 
 
 # ----------------------------------------------------------------------
-# 4. Fragmento é componente, não qualquer export
+# 4. A fragment is a component, not just any export
 # ----------------------------------------------------------------------
 
 
 def test_exported_data_is_not_a_fragment(system):
     """
-    Componente React é função ou classe (https://react.dev/reference/react/Component).
-    O objeto de textos e o tipo do TypeScript saem pelo mesmo `export`, mas
-    ninguém os monta. Segue o `export ... from` até a declaração.
+    A React component is a function or a class (https://react.dev/reference/react/Component).
+    The texts object and the TypeScript type come out through the same
+    `export`, but nobody mounts them. Follows `export ... from` to the declaration.
     """
 
     architecture = system(
@@ -167,15 +167,15 @@ def test_exported_data_is_not_a_fragment(system):
 
 
 # ----------------------------------------------------------------------
-# 5. Rota que só redireciona não é tela
+# 5. A route that only redirects is not a screen
 # ----------------------------------------------------------------------
 
 
 def test_redirect_route_is_not_a_screen(system):
     """
     `<Redirect>` (React Router v5, https://v5.reactrouter.com/web/api/Redirect)
-    e `<Navigate>` (v6, https://reactrouter.com/6.30.0/components/navigate)
-    levam a outra rota: a rota que os renderiza não mostra tela.
+    and `<Navigate>` (v6, https://reactrouter.com/6.30.0/components/navigate)
+    lead to another route: the route that renders them shows no screen.
     """
 
     architecture = system(
@@ -208,15 +208,15 @@ def test_redirect_route_is_not_a_screen(system):
 
 
 # ----------------------------------------------------------------------
-# 6. Rotas carregadas sob demanda respondem abaixo de quem as carrega
+# 6. Lazily loaded routes respond below whoever loads them
 # ----------------------------------------------------------------------
 
 
 def test_lazy_loaded_angular_routes_keep_the_parent_path(system):
     """
-    `{ path: "admin", loadChildren: () => import("./admin.routes") }` põe as
-    rotas carregadas sob `/admin` (https://angular.dev/guide/ngmodules/lazy-loading),
-    seja o arquivo das rotas, seja o `NgModule` que as registra com `forChild`.
+    `{ path: "admin", loadChildren: () => import("./admin.routes") }` puts the
+    loaded routes under `/admin` (https://angular.dev/guide/ngmodules/lazy-loading),
+    whether it is the routes file or the `NgModule` that registers them with `forChild`.
     """
 
     architecture = system(
@@ -263,15 +263,16 @@ def test_lazy_loaded_angular_routes_keep_the_parent_path(system):
 
 
 # ----------------------------------------------------------------------
-# 7. O local da tela e do fragmento é a definição do componente
+# 7. The location of the screen and the fragment is the component definition
 # ----------------------------------------------------------------------
 
 
 def test_screen_and_fragment_point_to_the_component_definition(system):
     """
-    A rota (no componente raiz) e o `export` (no entrypoint) estão em outro
-    arquivo; o local é o do componente: o arquivo e a linha da declaração,
-    ou do `export default` quando o import padrão lhe dá outro nome.
+    The route (in the root component) and the `export` (in the entrypoint) are
+    in another file; the location is the component's: the file and line of the
+    declaration, or of the `export default` when the default import gives it
+    another name.
     """
 
     architecture = system(
@@ -328,15 +329,15 @@ def test_screen_and_fragment_point_to_the_component_definition(system):
 
 
 # ----------------------------------------------------------------------
-# 9. O micro frontend é identificado pelo diretório
+# 9. The micro frontend is identified by its directory
 # ----------------------------------------------------------------------
 
 
 def test_microfrontend_is_named_after_its_directory(system):
     """
-    O nome do `registerApplication` (https://single-spa.js.org/docs/api#registerapplication)
-    é o que o orquestrador usa; quem lê procura o micro frontend pelo
-    repositório. O nome registrado fica guardado, e toda referência segue.
+    The name in `registerApplication` (https://single-spa.js.org/docs/api#registerapplication)
+    is what the orchestrator uses; readers look the micro frontend up by
+    repository. The registered name is kept, and every reference follows.
     """
 
     architecture = system(
@@ -361,16 +362,16 @@ def test_microfrontend_is_named_after_its_directory(system):
 
 
 # ----------------------------------------------------------------------
-# 10. O raiz que só monta providers não é a tela
+# 10. The root that only mounts providers is not the screen
 # ----------------------------------------------------------------------
 
 
 def test_root_that_only_wraps_providers_is_not_the_screen(system):
     """
-    Sem roteador interno, o micro frontend mostra uma tela no prefixo do
-    `activeWhen`. O componente raiz que só monta `<Provider>` do Redux
-    (https://react-redux.js.org/api/provider) em volta do `App` não é ela:
-    a tela é o `App`, o primeiro com conteúdo próprio.
+    Without an internal router, the micro frontend shows one screen at the
+    `activeWhen` prefix. The root component that only mounts Redux's
+    `<Provider>` (https://react-redux.js.org/api/provider) around `App` is not
+    it: the screen is `App`, the first one with content of its own.
     """
 
     architecture = system(
@@ -404,16 +405,16 @@ def test_root_that_only_wraps_providers_is_not_the_screen(system):
 
 
 # ----------------------------------------------------------------------
-# 11. O molde de um gerador não é micro frontend
+# 11. A generator template is not a micro frontend
 # ----------------------------------------------------------------------
 
 
 def test_generator_template_is_not_a_microfrontend(system):
     """
-    O `package.json` com marcação de modelo (`"<%= name %>"`, sem aspas em
-    volta do valor) não é JSON, e o npm não instala o pacote
-    (https://docs.npmjs.com/cli/configuring-npm/package-json): os ciclos
-    de vida no molde não fazem dele uma unidade.
+    A `package.json` with template markup (`"<%= name %>"`, with no quotes
+    around the value) is not JSON, and npm does not install the package
+    (https://docs.npmjs.com/cli/configuring-npm/package-json): the lifecycles
+    in the template do not make it a unit.
     """
 
     architecture = system(

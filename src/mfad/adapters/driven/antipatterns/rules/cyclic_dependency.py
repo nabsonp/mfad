@@ -1,27 +1,26 @@
 """
-Ciclo de dependência entre micro frontends.
+Dependency cycle between micro frontends.
 
-Micro frontends existem para poder ser implantados de forma
-independente. Um ciclo quebra essa premissa: nenhuma das partes
-do ciclo pode evoluir sem considerar as outras.
+Micro frontends exist so they can be deployed independently. A
+cycle breaks that premise: none of the parts of the cycle can evolve
+without considering the others.
 
-A regra procura ciclos DENTRO DE UMA MESMA TELA. Num grafo do
-sistema inteiro, arestas que nunca coexistem em execução se
-encadeiam — a composição de uma tela com a comunicação de outra —
-e em sistema grande o número de ciclos explode sem que nenhum deles
-seja montado de fato. Numa tela, as partes do ciclo estão no ar ao
-mesmo tempo, e é aí que o acoplamento se manifesta.
+The rule looks for cycles WITHIN A SINGLE SCREEN. In a graph of the
+whole system, edges that never coexist at runtime get chained — the
+composition of one screen with the communication of another — and in
+a large system the number of cycles explodes without any of them
+actually being mounted. On a screen, the parts of the cycle are live
+at the same time, and that is where the coupling shows up.
 
-Estar na tela significa ser alcançado por ela: o código que o
-componente da tela importa, os fragmentos que ele renderiza e, em
-qualquer profundidade, os fragmentos que esses renderizam. Micro
-frontends montados lado a lado pelo orquestrador, sem que a tela
-os renderize, não entram.
+Being on the screen means being reached by it: the code the screen
+component imports, the fragments it renders and, at any depth, the
+fragments those render. Micro frontends mounted side by side by the
+orchestrator, without the screen rendering them, are not included.
 
-As relações continuam avaliadas separadamente, porque um ciclo
-significa coisas diferentes em cada uma. Navegação não entra: ela
-liga uma tela a OUTRA, e ida e volta entre telas é fluxo do produto,
-não acoplamento.
+The relations are still evaluated separately, because a cycle means
+different things in each one. Navigation is not included: it links
+one screen to ANOTHER, and going back and forth between screens is
+product flow, not coupling.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ from mfad.domain import (
 
 @dataclass(frozen=True)
 class Edge:
-    """Uma aresta de uma relação, já situada nas telas em que acontece."""
+    """An edge of a relation, already placed on the screens where it happens."""
 
     source: str
     target: str
@@ -55,12 +54,12 @@ class Edge:
 
 @dataclass(frozen=True)
 class Relation:
-    """Uma família de arestas e o que um ciclo nela significa."""
+    """A family of edges and what a cycle in it means."""
 
     key: str
 
-    #: chaves de texto em `i18n/texts.json`: o nome da relação e o
-    #: que um ciclo nela significa
+    #: text keys in `i18n/texts.json`: the name of the relation and
+    #: what a cycle in it means
     label: str
     explanation: str
 
@@ -70,25 +69,26 @@ class Relation:
 @dataclass
 class Stage:
     """
-    O que cada tela monta, em qualquer profundidade de fragmento.
+    What each screen mounts, at any fragment depth.
 
-    Calculado uma vez e compartilhado pelas relações, porque as duas
-    fazem a mesma pergunta — em que telas este trecho de código está
-    no ar — e a resposta depende só das composições.
+    Computed once and shared by the relations, because both ask the
+    same question — on which screens is this piece of code live — and
+    the answer depends only on the compositions.
     """
 
     architecture: MicroFrontendArchitecture
 
-    #: tela → fragmentos montados nela, transitivamente
+    #: screen → fragments mounted on it, transitively
     fragments: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self):
 
         screens = {screen.id for screen in self.architecture.screens}
 
-        # Uma instanciação é alcançada por telas diretamente e por
-        # fragmentos quando está dentro de outro fragmento. O fecho
-        # parte das telas e desce pelos fragmentos montados.
+        # An instantiation is reached by screens directly and by
+        # fragments when it is inside another fragment. The closure
+        # starts from the screens and descends through the mounted
+        # fragments.
         by_screen: dict[str, set[str]] = {}
         by_fragment: dict[str, set[str]] = {}
 
@@ -122,7 +122,7 @@ class Stage:
             self.fragments[screen] = seen
 
     def screens_of(self, placement: Placement) -> frozenset[str]:
-        """As telas em que um trecho de código está no ar."""
+        """The screens on which a piece of code is live."""
 
         found = set(placement.screens)
 
@@ -161,17 +161,17 @@ def _composition_edges(stage: Stage):
 
 def _communication_edges(stage: Stage):
     """
-    Só as arestas cujo sentido significa alguma coisa, e só nas
-    telas em que as duas pontas estão no ar.
+    Only the edges whose direction means something, and only on the
+    screens where both ends are live.
 
-    Uma aresta simétrica — acoplamento por estado compartilhado, hoje
-    — é representada como um par de arestas opostas, então procurar
-    ciclo nela encontra um em toda dupla, por construção. O ciclo
-    seria a codificação, não o sistema.
+    A symmetric edge — coupling through shared state, today — is
+    represented as a pair of opposite edges, so looking for a cycle in
+    it finds one in every pair, by construction. The cycle would be
+    the encoding, not the system.
 
-    O teste é a propriedade, não o mecanismo: qualquer meio simétrico
-    que venha a existir já entra certo, sem a regra precisar conhecer
-    o nome dele.
+    The test is the property, not the mechanism: any symmetric means
+    that comes to exist is already handled correctly, without the
+    rule needing to know its name.
     """
 
     for item in stage.architecture.communications:
@@ -211,7 +211,7 @@ RELATIONS = (
 
 @dataclass
 class _Found:
-    """Um ciclo, juntado de todas as telas em que aparece."""
+    """A cycle, gathered from all the screens where it appears."""
 
     cycle: list[str]
     screens: set[str] = field(default_factory=set)
@@ -224,17 +224,17 @@ class CyclicDependency(Rule):
     anti_pattern = AntiPattern(
         name="cyclic-dependency",
         description=(
-            "Micro frontends que dependem uns dos outros em ciclo "
-            "dentro de uma mesma tela, por importação de fragmento "
-            "ou por comunicação."
+            "Micro frontends that depend on each other in a cycle "
+            "within the same screen, through fragment import "
+            "or through communication."
         ),
         category="Inter-frontend",
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Cyclic%20Dependency",
     )
 
-    #: Enumerar ciclos elementares custa proporcional à QUANTIDADE
-    #: de ciclos, que cresce exponencialmente num grafo denso. Este
-    #: teto evita que um grafo patológico trave a execução.
+    #: Enumerating elementary cycles costs in proportion to the NUMBER
+    #: of cycles, which grows exponentially in a dense graph. This cap
+    #: keeps a pathological graph from stalling the run.
     MAX_CYCLES = 200
 
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
@@ -254,9 +254,10 @@ class CyclicDependency(Rule):
         relation: Relation,
     ) -> list[AntiPatternDetection]:
 
-        # Um grafo por tela. Montar um só grafo e filtrar os ciclos
-        # depois não serviria: a enumeração é que explode, e ela
-        # percorreria justamente as combinações que nunca coexistem.
+        # One graph per screen. Building a single graph and filtering
+        # the cycles afterwards would not work: the enumeration is what
+        # explodes, and it would walk exactly the combinations that
+        # never coexist.
         graphs: dict[str, nx.DiGraph] = {}
 
         for edge in relation.edges(stage):
@@ -274,9 +275,9 @@ class CyclicDependency(Rule):
                 data["labels"].append(edge.label)
                 data["locations"].extend(edge.locations)
 
-        # O mesmo ciclo costuma aparecer em várias telas — um
-        # fragmento compartilhado leva o ciclo junto. Uma ocorrência
-        # por ciclo, com as telas listadas, e não uma por tela.
+        # The same cycle often appears on several screens — a shared
+        # fragment carries the cycle along. One occurrence per cycle,
+        # with the screens listed, not one per screen.
         found: dict[tuple[str, ...], _Found] = {}
 
         for screen in sorted(graphs):
@@ -303,7 +304,7 @@ class CyclicDependency(Rule):
 
     @staticmethod
     def _canonical(cycle: list[str]) -> tuple[str, ...]:
-        """O ciclo começando pelo menor nó, para casar entre telas."""
+        """The cycle starting from the smallest node, to match across screens."""
 
         start = cycle.index(min(cycle))
 
@@ -373,10 +374,10 @@ class CyclicDependency(Rule):
                     [node, cycle[(position + 1) % len(cycle)]]
                     for position, node in enumerate(cycle)
                 ],
-                # A cadeia é declarada, e não inferida das arestas:
-                # só um ciclo tem ordem, e pares de uma relação sem
-                # direção seriam lidos como caminho se a página
-                # tentasse deduzir.
+                # The chain is declared, not inferred from the edges:
+                # only a cycle has an order, and pairs from an
+                # undirected relation would be read as a path if the
+                # page tried to deduce it.
                 "chain": cycle + [cycle[0]],
                 "length": len(cycle),
                 "through": sorted(item.labels),

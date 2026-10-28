@@ -1,20 +1,22 @@
 """
-Micro frontend pequeno demais para se sustentar como unidade.
+Micro frontend too small to stand on its own as a unit.
 
-O catálogo descreve a fragmentação excessiva: a unidade é tão
-pequena que o custo de tê-la separada supera o ganho.
+The catalog describes excessive fragmentation: the unit is so small
+that the cost of keeping it separate outweighs the gain.
 
-Dois critérios em OU. O PISO é absoluto e não depende de vizinho
-nenhum: abaixo dele a unidade entrega pouco demais para ser micro
-frontend. O OUTLIER é a cerca inferior de Tukey sobre a distribuição
-do próprio sistema, e só vale quando há distribuição para medir.
+Two criteria combined with OR. The FLOOR is absolute and depends on
+no neighbour: below it the unit delivers too little to be a micro
+frontend. The OUTLIER is the lower Tukey fence over the system's own
+distribution, and only applies when there is a distribution to
+measure.
 
-Os dois exigem também CÓDIGO abaixo da mediana do sistema. Telas e
-fragmentos contam por onde a unidade é vista, não quanto ela faz: uma
-aplicação Angular com duas rotas e dezenas de abas e diálogos tem
-poucas telas e é das maiores do sistema. É a mesma exigência dupla do
-`mega-frontend`, do lado oposto — pouca tela com muito código não é
-unidade pequena, é tela densa.
+Both also require CODE below the system median. Screens and
+fragments count where the unit is seen, not how much it does: an
+Angular application with two routes and dozens of tabs and dialogs
+has few screens and is among the largest in the system. It is the
+same double requirement as `mega-frontend`, from the opposite side —
+few screens with a lot of code is not a small unit, it is a dense
+screen.
 """
 
 from __future__ import annotations
@@ -36,8 +38,8 @@ class NanoFrontend(Rule):
     anti_pattern = AntiPattern(
         name="nano-frontend",
         description=(
-            "Micro frontend pequeno demais para se sustentar como "
-            "unidade de implantação."
+            "Micro frontend too small to stand on its own as a "
+            "deployment unit."
         ),
         category="Intra-frontend",
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Nano%20Frontend",
@@ -45,11 +47,11 @@ class NanoFrontend(Rule):
 
     def __init__(self, floor: int = 5):
 
-        #: Piso absoluto de telas somadas a fragmentos.
+        #: Absolute floor of screens plus fragments.
         #:
-        #: Escolha declarada, não medida. Nos dois sistemas de
-        #: referência ele acusa 9 das 10 unidades, e carece de
-        #: calibração contra a base do estudo.
+        #: A declared choice, not a measured one. On the two reference
+        #: systems it flags 9 of the 10 units, and it still needs
+        #: calibration against the study dataset.
         self.floor = floor
 
     def check(
@@ -64,9 +66,10 @@ class NanoFrontend(Rule):
         measured = {
             item.id: len(item.screens) + len(item.fragments)
             for item in candidates
-            # Extração que não resolveu o entrypoint devolve zero em
-            # tudo, e entraria na distribuição puxando-a para baixo
-            # além de ser acusada. Falha de leitura não é anti-padrão.
+            # An extraction that did not resolve the entrypoint returns
+            # zero for everything, and would enter the distribution
+            # pulling it down besides being flagged. A reading failure
+            # is not an anti-pattern.
             if item.metadata.get("entrypoint_resolved") is not False
         }
 
@@ -89,7 +92,7 @@ class NanoFrontend(Rule):
             if size is None:
                 continue
 
-            # Mais código que a metade dos pares não é unidade pequena.
+            # More code than half of the peers is not a small unit.
             if microfrontend.size.code_lines >= median_lines:
                 continue
 
@@ -158,19 +161,19 @@ class NanoFrontend(Rule):
             subjects=[microfrontend.id],
             metadata={
                 "text": text,
-                "criterio": i18n.t(criterion),
-                "limiar": threshold,
-                "telas": screens,
-                "fragmentos": fragments,
-                "linhas": microfrontend.size.code_lines,
-                "piso": self.floor,
-                "mediana_telas": sizes.screens,
-                "mediana_fragmentos": sizes.fragments,
-                "mediana_linhas": median_lines,
+                "criterion": i18n.t(criterion),
+                "threshold": threshold,
+                "screens": screens,
+                "fragments": fragments,
+                "lines": microfrontend.size.code_lines,
+                "floor": self.floor,
+                "median_screens": sizes.screens,
+                "median_fragments": sizes.fragments,
+                "median_lines": median_lines,
                 **(
                     {"q1": limit.q1, "q3": limit.q3, "iqr": limit.iqr}
                     if limit
-                    else {"distribuicao": "sem amostra suficiente"}
+                    else {"distribution": "insufficient sample"}
                 ),
             },
         )

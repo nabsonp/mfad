@@ -1,15 +1,15 @@
 """
-Tela que agrega fragmentos de vários micro frontends.
+Screen that aggregates fragments from several micro frontends.
 
-Uma tela assim vira ponto de convergência: falha, mudança de
-contrato ou indisponibilidade em qualquer um dos provedores
-aparece ali. E quem mantém a tela precisa acompanhar a evolução
-de todos eles.
+Such a screen becomes a convergence point: a failure, a contract
+change or an outage in any of the providers shows up there. And
+whoever maintains the screen has to keep up with the evolution of
+all of them.
 
-O sinal é a quantidade de FRAGMENTOS DISTINTOS que a tela monta, não
-a de provedores (ver `min_fragments`) nem a de instanciações: o mesmo
-fragmento repetido numa lista é uma dependência só, por mais vezes que
-apareça.
+The signal is the number of DISTINCT FRAGMENTS the screen mounts,
+not the number of providers (see `min_fragments`) nor of
+instantiations: the same fragment repeated in a list is a single
+dependency, however many times it appears.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from mfad.domain import AntiPattern, AntiPatternDetection, MicroFrontendArchitec
 
 @dataclass
 class Host:
-    """O que uma tela hospeda de fora."""
+    """What a screen hosts from outside."""
 
     screen: str
     owner: str
@@ -37,8 +37,8 @@ class HubLikeDependency(Rule):
     anti_pattern = AntiPattern(
         name="hub-like-dependency",
         description=(
-            "Tela que instancia muitos fragmentos, concentrando "
-            "dependências num só ponto."
+            "Screen that renders many fragments, concentrating "
+            "dependencies in a single point."
         ),
         category="Inter-frontend",
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Hub-like%20Dependency",
@@ -46,20 +46,20 @@ class HubLikeDependency(Rule):
 
     def __init__(self, min_fragments: int = 5):
 
-        #: A partir de quantos fragmentos a tela é considerada um
+        #: Number of fragments from which the screen is considered a
         #: hub.
         #:
-        #: A contagem é de FRAGMENTOS, não de micro frontends
-        #: provedores. É a quantidade de peças que a tela precisa
-        #: montar que a torna um ponto de convergência — cinco
-        #: fragmentos de um provedor só concentram tanta mudança de
-        #: contrato quanto cinco de cinco.
+        #: The count is of FRAGMENTS, not of provider micro frontends.
+        #: It is the number of pieces the screen has to mount that
+        #: makes it a convergence point — five fragments from a single
+        #: provider concentrate as much contract change as five from
+        #: five.
         #:
-        #: Contar provedores distintos, como se fazia, punia o
-        #: desenho normal: numa arquitetura com biblioteca de
-        #: componentes compartilhada, qualquer tela que use um
-        #: componente dela mais um fragmento qualquer já somava dois
-        #: provedores e virava hub.
+        #: Counting distinct providers, as was done before, penalized
+        #: the normal design: in an architecture with a shared
+        #: component library, any screen using one of its components
+        #: plus any fragment already added up to two providers and
+        #: became a hub.
         self.min_fragments = min_fragments
 
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
@@ -74,13 +74,14 @@ class HubLikeDependency(Rule):
 
     def _hosts(self, architecture: MicroFrontendArchitecture) -> dict[str, Host]:
         """
-        Agrupa os fragmentos instanciados por tela.
+        Groups the instantiated fragments by screen.
 
-        A ligação vem do próprio sítio de renderização, que já sabe em
-        que telas aparece. Antes era pelo ARQUIVO — a tela cujo
-        arquivo instancia o fragmento —, e isso quebrava quando várias
-        telas são declaradas no mesmo roteador: o mapa ficava com uma
-        tela arbitrária por arquivo, e a acusação caía sobre ela.
+        The link comes from the render site itself, which already
+        knows on which screens it appears. It used to be by FILE — the
+        screen whose file instantiates the fragment — and that broke
+        when several screens are declared in the same router: the map
+        kept one arbitrary screen per file, and the detection fell on
+        it.
         """
 
         screens = {

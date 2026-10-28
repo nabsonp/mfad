@@ -1,10 +1,10 @@
 """
-Onde um componente é definido.
+Where a component is defined.
 
-O local de uma tela ou de um fragmento é a definição do componente:
-o arquivo dele e a linha em que é declarado. A rota e o `export` que
-o publicam ficam em outro arquivo, e juntar o arquivo de um com a
-linha do outro dava um local que não existe.
+The location of a screen or a fragment is the component's definition:
+its file and the line where it is declared. The route and the `export`
+that publish it are in another file, and combining the file of one with
+the line of the other produced a location that does not exist.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from mfad.adapters.driven.reconstruction.singlespa.exported_values import Export
 from mfad.domain import MicroFrontend
 
 
-#: Declarações com nome no topo do módulo.
+#: Named declarations at the top of the module.
 NAMED = frozenset({
     "function_declaration", "generator_function_declaration", "class_declaration",
     "abstract_class_declaration",
@@ -26,7 +26,7 @@ NAMED = frozenset({
 
 
 def relocate(context, microfrontend: MicroFrontend) -> None:
-    """Põe em cada tela e fragmento a linha da definição do componente, no arquivo dele."""
+    """Gives each screen and fragment the line of the component's definition, in its own file."""
 
     values = ExportedValues(context.reader)
 
@@ -39,8 +39,8 @@ def relocate(context, microfrontend: MicroFrontend) -> None:
 
         path = context.repository / item.file
 
-        # O arquivo pode ser um barril (`export { X } from "./x"`): o
-        # componente está onde o reexport leva.
+        # The file may be a barrel (`export { X } from "./x"`): the
+        # component is where the re-export leads.
         origin = values.origin(path, name)
 
         if origin is not None and origin.resolve() != path.resolve():
@@ -55,8 +55,9 @@ def relocate(context, microfrontend: MicroFrontend) -> None:
 
 def declaration_line(context, path: Path, name: str) -> int | None:
     """
-    A linha em que `path` declara `name`; sem esse nome, a do
-    `export default`, que é o que o import padrão traz com outro nome.
+    The line where `path` declares `name`; without that name, the line
+    of the `export default`, which is what the default import brings in
+    under another name.
     """
 
     try:

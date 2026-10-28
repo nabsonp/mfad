@@ -14,4 +14,4 @@
 
 Two axes live in `extraction/`. **Integration** — single-spa, Module Federation — says how units become a system. **Routing** — Angular Router, and React Router still inside each reconstructor — says how one unit declares its screens. Any combination exists, so a routing document is used by every integration document.
 
-Start with `architecture.md` to change the tool, with `extraction/` to check what it reads, and with `decisions.md` before reversing anything.
+Start with `extraction/` to check what the tool reads, and with `decisions.md` before reversing anything.

@@ -1,9 +1,9 @@
 """
-Registro de regras.
+Rule registry.
 
-Ponto de extensão do módulo 2. Uma regra nova é uma classe que
-implementa `Rule` e uma linha de registro — nada mais no sistema
-precisa saber que ela existe.
+Extension point of module 2. A new rule is a class that implements
+`Rule` plus one registration line — nothing else in the system needs
+to know it exists.
 """
 
 from __future__ import annotations
@@ -30,10 +30,10 @@ def get(name: str) -> Rule:
 
     if name not in _REGISTRY:
 
-        known = ", ".join(sorted(_REGISTRY)) or "nenhuma"
+        known = ", ".join(sorted(_REGISTRY)) or "none"
 
         raise KeyError(
-            f"Regra desconhecida: {name}. Disponíveis: {known}"
+            f"Unknown rule: {name}. Available: {known}"
         )
 
     return _REGISTRY[name]

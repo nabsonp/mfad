@@ -1,21 +1,21 @@
 """
-Relatório HTML autocontido e explorável.
+Self-contained, explorable HTML report.
 
-Um arquivo só, sem CDN e sem rede. O SVG é gerado aqui, em
-Python: posições, curvas e rótulos já chegam prontos, de modo que
-os mesmos artefatos produzam sempre o mesmo desenho. O JavaScript
-apenas transforma o que já está na página — sem ele o relatório
-continua mostrando a arquitetura, perde só a exploração.
+A single file, with no CDN and no network. The SVG is generated here,
+in Python: positions, curves and labels arrive ready, so the same
+artifacts always produce the same drawing. The JavaScript only
+transforms what is already on the page; without it the report still
+shows the architecture and loses only the exploration.
 
-A página é organizada em quatro níveis de leitura: números,
-mapa, anti-padrões e inventário. A arquitetura vem primeiro
-porque os anti-padrões são uma camada de anotação sobre ela, e
-não o contrário.
+The page is organized in four reading levels: numbers, map,
+anti-patterns and inventory. The architecture comes first because
+the anti-patterns are an annotation layer over it, not the other
+way around.
 
-Todo texto da página vem de `i18n/texts.json`. O HTML sai em
-português, com cada texto marcado pela chave; o botão de idioma
-refaz as frases em inglês a partir das mesmas chaves, sem voltar
-ao Python.
+Every text on the page comes from `i18n/texts.json`. The HTML is
+emitted in English, with each text marked by its key; the language
+button rebuilds the sentences in Portuguese from the same keys, without
+going back to Python.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _asset(name: str) -> str:
 
 
 def _json(value) -> str:
-    """JSON dentro de `<script>`: `</` fecharia a tag antes da hora."""
+    """JSON inside `<script>`: `</` would close the tag too early."""
 
     return json.dumps(value, ensure_ascii=False).replace("</", "<\\/")
 
@@ -78,7 +78,7 @@ class HtmlRenderer(Renderer):
         return TEMPLATE.format(
             css=_asset("report.css"),
             js=_asset("report.js"),
-            # O nome da arquitetura é o mesmo nos dois idiomas.
+            # The architecture name is the same in both languages.
             title=html.escape(f"{project} - MFAD"),
             project=html.escape(project),
             language=self._language(),
@@ -100,14 +100,14 @@ class HtmlRenderer(Renderer):
                 f'<button class="drawer-back hidden" id="side-back"{marker("side.back", "aria-label")} '
                 f'aria-label="{html.escape(i18n.t("side.back"))}">←</button>'
             ),
-            # A cor de cada anti-padrão, para a barra lateral usar a mesma.
+            # The color of each anti-pattern, so the sidebar uses the same one.
             data=_json({**data, "colors": {item["anti_pattern"]: tables.color_of(item["anti_pattern"]) for item in data["detections"]}}),
             texts=_json(i18n.texts()),
         )
 
     @staticmethod
     def _language() -> str:
-        """O seletor de idioma do cabeçalho."""
+        """The language selector in the header."""
 
         return (
             f'<div class="language" role="group"{marker("page.language", "aria-label")} '
@@ -122,10 +122,10 @@ class HtmlRenderer(Renderer):
         )
 
     # ------------------------------------------------------------------
-    # Nível 1 — números
+    # Level 1: numbers
     # ------------------------------------------------------------------
 
-    #: Os números do cabeçalho, na ordem.
+    #: The header numbers, in order.
     METRICS = (
         "microfrontends",
         "screens",
@@ -136,12 +136,12 @@ class HtmlRenderer(Renderer):
         "detections",
     )
 
-    #: A aba que cada número abre. Fragmentos e composições são a
-    #: mesma tabela, então há uma aba só, a de composições: duas
-    #: caixas para a mesma tabela ficavam selecionadas juntas.
+    #: The tab each number opens. Fragments and compositions are the
+    #: same table, so there is a single tab, the compositions one: two
+    #: boxes for the same table would be selected together.
     OPENS = {"compositions": "fragments"}
 
-    #: As páginas além da inicial.
+    #: The pages besides the home one.
     PAGES = (
         "microfrontends",
         "screens",
@@ -159,10 +159,10 @@ class HtmlRenderer(Renderer):
         data: dict,
     ) -> str:
         """
-        Os números, que são também as abas da página.
+        The numbers, which are also the page's tabs.
 
-        A primeira caixa leva ao mapa; cada número leva à tabela que
-        o soma.
+        The first box leads to the map; each number leads to the table
+        that adds it up.
         """
 
         counts = {
@@ -171,8 +171,8 @@ class HtmlRenderer(Renderer):
             "compositions": len(architecture.compositions),
             "navigations": len(architecture.navigations),
             "communications": sum(1 for item in architecture.communications if item.directed),
-            # Endpoint é método e caminho: GET e POST no mesmo caminho
-            # são dois.
+            # An endpoint is method and path: GET and POST on the same path
+            # are two.
             "api_calls": len({(item.method, item.path) for item in architecture.api_calls}),
             "detections": len(detections),
         }
@@ -198,7 +198,7 @@ class HtmlRenderer(Renderer):
         data: dict,
         detections: list[AntiPatternDetection],
     ) -> str:
-        """Uma página por aba do cabeçalho, além da inicial."""
+        """One page per header tab, besides the home one."""
 
         content = {
             "microfrontends": tables.microfrontends(data),
@@ -206,7 +206,7 @@ class HtmlRenderer(Renderer):
             "fragments": tables.fragments(architecture),
             "navigations": tables.navigations(architecture),
             "communications": tables.communications(architecture),
-            # Uma tabela só: cada chamada está no detalhe do endpoint.
+            # A single table: each call is in the endpoint's detail.
             "api_calls": tables.endpoints(data, architecture),
             "detections": self._detections(data, architecture),
         }
@@ -225,14 +225,14 @@ class HtmlRenderer(Renderer):
         )
 
     # ------------------------------------------------------------------
-    # Nível 2 — mapa
+    # Level 2: map
     # ------------------------------------------------------------------
 
     @staticmethod
     def _controls() -> str:
         """
-        Busca e filtros do dashboard: valem para todos os grafos de uma
-        vez. O zoom é de cada grafo e fica no card dele.
+        Dashboard search and filters: they apply to all graphs at
+        once. Zoom belongs to each graph and sits in its card.
         """
 
         return (
@@ -245,10 +245,10 @@ class HtmlRenderer(Renderer):
 
     @staticmethod
     def _zoom() -> str:
-        """Os botões de zoom de um card; o último amplia o card."""
+        """The zoom buttons of a card; the last one enlarges the card."""
 
         def button(action: str, key: str, symbol: str | None = None) -> str:
-            # Com símbolo, o texto vai no `title`; sem, o texto é o rótulo.
+            # With a symbol, the text goes in `title`; without one, the text is the label.
             if symbol:
                 return (
                     f'<button class="ghost" data-zoom="{action}"{marker(key, "title")} '
@@ -268,9 +268,10 @@ class HtmlRenderer(Renderer):
     @staticmethod
     def _views(found: list[views.View]) -> str:
         """
-        Um card por grafo, um embaixo do outro e todos à vista: o
-        dashboard responde às perguntas sem abas para alternar. Só os grafos que
-        têm o que mostrar entram — um card vazio pareceria defeito.
+        One card per graph, one below the other and all in view: the
+        dashboard answers the questions without tabs to switch. Only the
+        graphs that have something to show go in; an empty card would
+        look like a defect.
         """
 
         if not found:
@@ -290,11 +291,11 @@ class HtmlRenderer(Renderer):
     @staticmethod
     def _variants(view: views.View) -> str:
         """
-        O seletor de recorte e os desenhos de cada recorte.
+        The slice selector and the drawings of each slice.
 
-        Os recortes vão em `<template>`: o navegador não os desenha
-        até alguém escolher um, e a página com dezenas deles abre tão
-        rápido quanto sem.
+        The slices go in `<template>`: the browser does not draw them
+        until someone picks one, and a page with dozens of them opens
+        as fast as one without.
         """
 
         if not view.variants:
@@ -320,18 +321,19 @@ class HtmlRenderer(Renderer):
         )
 
     # ------------------------------------------------------------------
-    # Nível 3 — anti-padrões
+    # Level 3: anti-patterns
     # ------------------------------------------------------------------
 
     def _detections(self, data: dict, architecture: MicroFrontendArchitecture) -> str:
         """
-        Uma linha por detecção: o anti-padrão e quem está envolvido. O
-        detalhe traz os dados que a regra declarou, cada um num campo,
-        o porquê e o código, agrupado por micro frontend e arquivo.
+        One row per detection: the anti-pattern and who is involved.
+        The detail brings the data the rule declared, each in its own
+        field, the reason and the code, grouped by micro frontend and
+        file.
 
-        As detecções de rota (`metadata.path`) do mesmo anti-padrão
-        viram uma linha só, com um bloco por rota: são uma por rota
-        compartilhada, e dezenas de linhas iguais escondiam as outras.
+        Route detections (`metadata.path`) of the same anti-pattern
+        become a single row, with one block per route: there is one per
+        shared route, and dozens of identical rows hid the others.
         """
 
         detections = data["detections"]
@@ -348,7 +350,7 @@ class HtmlRenderer(Renderer):
             tables.Column("detection.code", summary=False, wide=True),
         ]
 
-        # Na ordem da primeira de cada grupo; as outras ficam numa só.
+        # In the order of the first of each group; the others go into one row.
         groups: list[list[dict]] = []
         routes: dict[str, list[dict]] = {}
 
@@ -381,12 +383,12 @@ class HtmlRenderer(Renderer):
                 fields = (
                     [(mark(fact["label"]), self._value(fact["value"])) for fact in facts]
                     if facts
-                    # Artefato de antes dos campos: a frase, como está.
+                    # Artifact from before the fields: the sentence, as it is.
                     else [(mark("detection.evidence"), self._text(item, "message", "span"))]
                 )
-                # As fatias são a evidência da detecção de estado global, e
-                # mais legíveis que a lista de acessos: o código vai dentro
-                # de cada uma.
+                # The slices are the evidence of the global-state detection, and
+                # more readable than the list of accesses: the code goes inside
+                # each one.
                 slices = [entry for entry in data["slices"] if entry["id"] in (metadata.get("slices") or {})]
                 evidence = (
                     (mark("fact.slice_list"), tables.state_slices(slices, directories), True)
@@ -394,12 +396,12 @@ class HtmlRenderer(Renderer):
                     else None
                 )
 
-            # Nas rotas, quem chama está em cada uma; a lista de todos,
-            # junta, não diz quem martela qual.
+            # For routes, the callers are in each one; the list of all of them,
+            # together, does not say who hammers which.
             if len(subjects) > 3 and not metadata.get("path"):
                 fields.insert(0, (mark("detection.subjects"), tables.names(subjects), True))
 
-            # A definição do anti-padrão, para quem o avalia sem conhecê-lo.
+            # The definition of the anti-pattern, for whoever evaluates it without knowing it.
             if item.get("reference"):
                 fields.insert(0, (
                     mark("detection.catalog"),
@@ -409,8 +411,8 @@ class HtmlRenderer(Renderer):
                 ))
 
             if evidence:
-                # O porquê antes da lista: com dezenas de rotas ou de
-                # fatias, depois dela ficava longe demais.
+                # The reason before the list: with dozens of routes or
+                # slices, after it the reason ended up too far away.
                 if item.get("explanation"):
                     fields.append((mark("detection.why"), self._text(item, "explanation", "span"), True))
                 fields.append(evidence)
@@ -421,8 +423,8 @@ class HtmlRenderer(Renderer):
                         tables.anti_pattern(item["anti_pattern"]),
                         tables.few(subjects),
                         None if evidence else (self._text(item, "explanation", "span") if item.get("explanation") else "—"),
-                        # Sem localização (nano, mega: a evidência é o
-                        # tamanho), o campo não aparece vazio.
+                        # Without a location (nano, mega: the evidence is the
+                        # size), the field does not appear empty.
                         None
                         if evidence or not item.get("locations")
                         else tables.grouped(
@@ -434,8 +436,8 @@ class HtmlRenderer(Renderer):
                         ),
                     ],
                     fields=fields,
-                    # Os índices das detecções da linha: a barra lateral
-                    # leva a ela por qualquer um.
+                    # The indices of the row's detections: the sidebar
+                    # leads to it through any of them.
                     attrs={"data-key": " ".join([str(entry["index"]) for entry in group] + subjects)},
                     action=mark(
                         "detection.focus",
@@ -451,7 +453,7 @@ class HtmlRenderer(Renderer):
 
     @staticmethod
     def _value(value) -> str:
-        """O valor de um campo: texto traduzível, quando é referência."""
+        """The value of a field: translatable text, when it is a reference."""
 
         if isinstance(value, dict) and "key" in value:
             return mark(value)
@@ -461,8 +463,9 @@ class HtmlRenderer(Renderer):
     @staticmethod
     def _text(item: dict, field: str, tag: str, attrs: str = "") -> str:
         """
-        Um texto da detecção: pela referência, quando a regra a deixou
-        no `metadata`, e traduzível; senão, a frase gravada, como está.
+        A detection text: through the reference, when the rule left it
+        in `metadata`, and translatable; otherwise, the stored sentence,
+        as it is.
         """
 
         reference = ((item.get("metadata") or {}).get("text") or {}).get(field)
@@ -474,7 +477,7 @@ class HtmlRenderer(Renderer):
 
 
 TEMPLATE = """<!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -512,7 +515,7 @@ TEMPLATE = """<!doctype html>
 </div>
 </div>
 
-<!-- Os detalhes do que foi clicado: fechada até o primeiro clique. -->
+<!-- The details of what was clicked: closed until the first click. -->
 <aside class="block side drawer" id="side" aria-hidden="true">
   <div class="drawer-bar">{back}{close}</div>
   <div id="side-body"></div>

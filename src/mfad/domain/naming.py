@@ -1,13 +1,13 @@
 """
-Como cada micro frontend se chama nos artefatos.
+What each micro frontend is called in the artifacts.
 
-O extrator conhece o micro frontend pelo nome que a tecnologia usa
-para carregá-lo: o `name` do `registerApplication` ou do
-`ModuleFederationPlugin`. Quem lê o resultado o procura pelo
-repositório, ou pela pasta dentro do monorepo, e o nome registrado
-muitas vezes não se parece com ela (`mf-tipo-inscripcion` dentro de
-`sga_cliente_administracion_mf`). O identificador passa a ser o
-diretório; o nome registrado fica em `metadata["registered_name"]`.
+The extractor knows the micro frontend by the name the technology
+uses to load it: the `name` of `registerApplication` or of
+`ModuleFederationPlugin`. Whoever reads the result looks it up by
+repository, or by folder within the monorepo, and the registered name
+often does not resemble it (`mf-tipo-inscripcion` inside
+`sga_cliente_administracion_mf`). The identifier becomes the
+directory; the registered name goes to `metadata["registered_name"]`.
 """
 
 from __future__ import annotations
@@ -19,10 +19,11 @@ from mfad.domain.model import MicroFrontend, MicroFrontendArchitecture
 
 def distinct(microfrontends: list[MicroFrontend]) -> None:
     """
-    Unidades registradas com o mesmo nome — sete orquestradores, cada um
-    no seu repositório, todos `@org/root-config` — recebem já o nome do
-    diretório, antes de qualquer relação ser extraída. Depois não há
-    mais como separá-las: tudo o que cada uma faz sairia com o mesmo id.
+    Units registered with the same name — seven orchestrators, each in
+    its own repository, all `@org/root-config` — get the directory
+    name right away, before any relation is extracted. Afterwards
+    there is no way to tell them apart: everything each one does would
+    come out with the same id.
     """
 
     counts: dict[str, int] = {}
@@ -43,7 +44,7 @@ def distinct(microfrontends: list[MicroFrontend]) -> None:
 
 
 def by_directory(architecture: MicroFrontendArchitecture) -> None:
-    """Troca o identificador de cada micro frontend pelo do seu diretório, em todas as referências."""
+    """Replaces each micro frontend's identifier with its directory's, in every reference."""
 
     mapping = _names(architecture)
 
@@ -81,9 +82,9 @@ def by_directory(architecture: MicroFrontendArchitecture) -> None:
 
 def _names(architecture: MicroFrontendArchitecture) -> dict[str, str]:
     """
-    Nome registrado → último segmento do diretório. Se dois diretórios
-    terminam igual (`a/app` e `b/app`), os dois ficam com o caminho
-    inteiro; sem diretório, fica o nome registrado.
+    Registered name → last segment of the directory. If two
+    directories end the same (`a/app` and `b/app`), both get the full
+    path; without a directory, the registered name is kept.
     """
 
     last = {item.id: PurePosixPath(item.directory).name for item in architecture.microfrontends if item.directory}
@@ -100,8 +101,8 @@ def _names(architecture: MicroFrontendArchitecture) -> dict[str, str]:
 
     taken = set(chosen.values())
 
-    # Um nome registrado sem diretório que coincida com o de outro
-    # diretório ficaria ambíguo: quem não muda de nome não pode colidir.
+    # A registered name without a directory that matches another
+    # directory's would be ambiguous: whoever does not get renamed cannot collide.
     unchanged = {item.id for item in architecture.microfrontends if item.id not in chosen}
 
     return {

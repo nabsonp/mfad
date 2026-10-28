@@ -1,15 +1,15 @@
 """
-Reconstrutor de Module Federation.
+Module Federation reconstructor.
 
-Só a descoberta muda. Navegação, chamada externa, estado global e
-comunicação já são genéricas — elas partem das aplicações extraídas e
-de primitivas da plataforma, não de nada que o single-spa tenha —, e
-por isso são reaproveitadas como estão.
+Only discovery changes. Navigation, external calls, global state and
+communication are already generic — they start from the extracted
+applications and from platform primitives, not from anything specific
+to single-spa — and so they are reused as they are.
 
-Essa fronteira é o teste da arquitetura: se escrever o suporte a uma
-tecnologia nova exigisse reescrever os cinco extratores, a separação
-entre o que é da tecnologia e o que é do domínio estaria no lugar
-errado.
+This boundary is the test of the architecture: if writing support for
+a new technology required rewriting the five extractors, the split
+between what belongs to the technology and what belongs to the domain
+would be in the wrong place.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class ModuleFederationReconstructor(Reconstructor):
     name = "module-federation"
 
     description = (
-        "Unidades federadas declaradas em webpack, Vite, Rspack ou Nx."
+        "Federated units declared in webpack, Vite, Rspack or Nx."
     )
 
     def __init__(self, organization_prefix: str | None = None):
@@ -62,17 +62,17 @@ class ModuleFederationReconstructor(Reconstructor):
         self._federations: dict[Path, list] = {}
 
     # ------------------------------------------------------------------
-    # Porta
+    # Port
     # ------------------------------------------------------------------
 
     def detect(self, repository: Path) -> bool:
         """
-        Reconhece pela declaração em si, não pela dependência.
+        Recognize by the declaration itself, not by the dependency.
 
-        A dependência muda de nome conforme o empacotador — o plugin
-        do webpack, `@originjs/vite-plugin-federation`, o do Nx — e
-        uma lista delas envelhece. A chamada que constrói a federação
-        é a mesma nos quatro.
+        The dependency name changes with the bundler — the webpack
+        plugin, `@originjs/vite-plugin-federation`, the Nx one — and a
+        list of them goes stale. The call that builds the federation is
+        the same in all four.
         """
 
         tree = SourceTree(repository)
@@ -163,7 +163,7 @@ class ModuleFederationReconstructor(Reconstructor):
         ).extract()
 
     # ------------------------------------------------------------------
-    # Varredura
+    # Scan
     # ------------------------------------------------------------------
 
     def _context(self, repository: Path) -> ScanContext:

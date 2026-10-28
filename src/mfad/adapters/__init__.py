@@ -1,1 +1,1 @@
-"""Adaptadores."""
+"""Adapters."""

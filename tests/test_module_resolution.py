@@ -1,10 +1,10 @@
 """
-Imports pelo `baseUrl` e pelos `paths` do `tsconfig.json`.
+Imports through the `baseUrl` and the `paths` of `tsconfig.json`.
 
-Regras do compilador:
+Compiler rules:
 https://www.typescriptlang.org/docs/handbook/modules/reference.html#paths
-e https://www.typescriptlang.org/tsconfig/#baseUrl. O `jsconfig.json`
-segue o mesmo formato.
+and https://www.typescriptlang.org/tsconfig/#baseUrl. `jsconfig.json`
+follows the same format.
 """
 
 from conftest import mfe, root_config, write
@@ -17,7 +17,7 @@ def test_paths_with_comments_and_extends(tmp_path):
     write(
         tmp_path,
         {
-            # Comentário e vírgula no fim são aceitos pelo `tsc`.
+            # Comments and trailing commas are accepted by `tsc`.
             "app/tsconfig.base.json": """
                 {
                   // compartilhado
@@ -39,9 +39,9 @@ def test_paths_with_comments_and_extends(tmp_path):
 
     assert ModuleResolver.resolve("@/utils/api", importer) == (tmp_path / "app/src/utils/api.ts").resolve()
     assert ModuleResolver.resolve("@env", importer) == (tmp_path / "app/src/environments/environment.ts").resolve()
-    # Sem padrão que case, vale o `baseUrl`.
+    # With no matching pattern, `baseUrl` applies.
     assert ModuleResolver.resolve("src/services/orders", importer) == (tmp_path / "app/src/services/orders.ts").resolve()
-    # Pacote continua pacote.
+    # A package is still a package.
     assert ModuleResolver.resolve("react", importer) is None
 
 
@@ -65,7 +65,7 @@ TSCONFIG = '{ "compilerOptions": { "baseUrl": ".", "paths": { "@/*": ["src/*"], 
 
 
 def test_aliased_imports_are_followed_inside_the_unit(system):
-    """A tela importa o serviço por apelido; a chamada é dela."""
+    """The screen imports the service through an alias; the call is the screen's."""
 
     architecture = system(
         {
@@ -88,8 +88,8 @@ def test_aliased_imports_are_followed_inside_the_unit(system):
                 export default function Orders() { listOrders(); track(); return null; }
             """,
             "catalog/src/services/orders.ts": 'export const listOrders = () => fetch("/orders");',
-            # Outro micro frontend alcançado pelos `paths`: é fronteira,
-            # como um import de pacote, e não entra no alcance da tela.
+            # Another micro frontend reached through `paths`: it is a boundary,
+            # like a package import, and does not enter the screen's reach.
             **mfe("checkout", "@org/checkout", "export default () => null;"),
             "checkout/src/track.ts": 'export const track = () => fetch("/telemetry");',
         },

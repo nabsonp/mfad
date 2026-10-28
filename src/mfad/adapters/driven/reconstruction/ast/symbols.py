@@ -1,22 +1,22 @@
 """
-Funções, classes e exports de um arquivo, e a quem uma chamada se refere.
+Functions, classes and exports of a file, and what a call refers to.
 
-O suficiente da semântica de módulos do JavaScript para seguir uma
-chamada até a função que ela executa, dentro do projeto:
+Just enough of JavaScript's module semantics to follow a call to the
+function it runs, within the project:
 
-- `f()` é a função `f` deste arquivo ou a importada com esse nome;
-- `api.f()` é o membro `f` do que `api` importa — o namespace
-  (`import * as api`) ou o objeto do `export default { f }`;
-- `this.f()` é o método `f` da classe em volta;
-- `this.x.f()` é o método `f` da classe de `x`, quando o tipo de `x`
-  está escrito: parâmetro de construtor com modificador
-  (`constructor(private x: Servico)`), campo anotado (`x: Servico`) ou
-  `x = inject(Servico)`. É como o Angular injeta dependência, e o tipo
-  é o que o próprio compilador usa para saber o que `x` é.
+- `f()` is the function `f` of this file or the one imported under that name;
+- `api.f()` is the member `f` of what `api` imports — the namespace
+  (`import * as api`) or the object of `export default { f }`;
+- `this.f()` is the method `f` of the enclosing class;
+- `this.x.f()` is the method `f` of the class of `x`, when the type of `x`
+  is written: a constructor parameter with a modifier
+  (`constructor(private x: Servico)`), an annotated field (`x: Servico`) or
+  `x = inject(Servico)`. This is how Angular injects dependencies, and the
+  type is what the compiler itself uses to know what `x` is.
 
-Não é inferência de tipo. O que depende de valor em tempo de execução
-— função guardada em variável, objeto montado dinamicamente — fica
-sem alvo, e isso é resposta legítima.
+This is not type inference. What depends on runtime values
+— a function stored in a variable, an object built dynamically — is left
+without a target, and that is a legitimate answer.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ FUNCTION_TYPES = frozenset(
     }
 )
 
-#: Nós que só envolvem um valor, sem mudar o que ele é.
+#: Nodes that only wrap a value, without changing what it is.
 WRAPPERS = frozenset(
     {
         "as_expression",
@@ -58,7 +58,7 @@ WRAPPERS = frozenset(
 
 
 def unwrap(node: Node | None) -> Node | None:
-    """`x as T`, `x!`, `(x)` valem `x`."""
+    """`x as T`, `x!`, `(x)` count as `x`."""
 
     while node is not None and node.type in WRAPPERS:
 
@@ -74,11 +74,11 @@ def unwrap(node: Node | None) -> Node | None:
 
 def declared_value(identifier: Node, source: bytes) -> Node | None:
     """
-    O valor com que a variável foi declarada, no escopo do uso.
+    The value the variable was declared with, in the scope of the use.
 
-    Sobe pelos blocos que envolvem o uso e, em cada um, pega a
-    declaração de mesmo nome mais próxima ANTES do uso. Para no
-    primeiro bloco que tem uma: é a que a regra de escopo enxerga.
+    Walks up the blocks enclosing the use and, in each one, takes the
+    closest same-name declaration BEFORE the use. Stops at the
+    first block that has one: that is the one the scoping rule sees.
     """
 
     name = AstReader.text(identifier, source)
@@ -108,7 +108,7 @@ def declared_value(identifier: Node, source: bytes) -> Node | None:
 
 
 def parameters(function: Node, source: bytes) -> list[str]:
-    """Os nomes dos parâmetros, na ordem; vazio onde não há nome simples."""
+    """The parameter names, in order; empty where there is no simple name."""
 
     single = function.child_by_field_name("parameter")
 
@@ -137,12 +137,12 @@ def _parameter_name(node: Node, source: bytes) -> str:
     if node.type == "identifier":
         return AstReader.text(node, source)
 
-    # `x = padrão` no JavaScript
+    # `x = default` in JavaScript
     if node.type == "assignment_pattern":
         left = node.child_by_field_name("left")
         return _parameter_name(left, source) if left is not None else ""
 
-    # `x: T`, `x?: T`, `x = padrão` no TypeScript
+    # `x: T`, `x?: T`, `x = default` in TypeScript
     if node.type in ("required_parameter", "optional_parameter"):
         pattern = node.child_by_field_name("pattern")
         return _parameter_name(pattern, source) if pattern is not None else ""
@@ -152,10 +152,10 @@ def _parameter_name(node: Node, source: bytes) -> str:
 
 def returned_expression(function: Node) -> Node | None:
     """
-    A expressão que a função devolve, quando ela é só isso.
+    The expression the function returns, when that is all it does.
 
-    `(id) => \\`/users/${id}\\`` ou um corpo com um único `return`.
-    Corpo com mais de um caminho não tem UMA expressão a devolver.
+    `(id) => \\`/users/${id}\\`` or a body with a single `return`.
+    A body with more than one path has no SINGLE expression to return.
     """
 
     body = function.child_by_field_name("body")
@@ -179,7 +179,7 @@ def returned_expression(function: Node) -> Node | None:
 
 
 def _type_name(annotation: Node | None, source: bytes) -> str | None:
-    """`Servico` de `: Servico` ou de `: Servico<T>`."""
+    """`Servico` from `: Servico` or from `: Servico<T>`."""
 
     if annotation is None:
         return None
@@ -220,7 +220,7 @@ def _injected(value: Node | None, source: bytes) -> str | None:
 
 @dataclass
 class Function:
-    """Uma função com nome alcançável por chamada."""
+    """A named function reachable by a call."""
 
     key: str
     node: Node
@@ -229,32 +229,32 @@ class Function:
 
 @dataclass
 class ModuleSymbols:
-    """O que um arquivo declara e importa."""
+    """What a file declares and imports."""
 
     path: Path
     root: Node
     source: bytes
 
-    #: nome local → (especificador, nome importado); `default` e `*`
-    #: para import padrão e de namespace
+    #: local name → (specifier, imported name); `default` and `*`
+    #: for default and namespace imports
     imports: dict[str, tuple[str, str]] = field(default_factory=dict)
 
-    #: chave → função. A chave é o nome (`f`), `Classe.metodo` ou
-    #: `default.membro` para método escrito dentro do `export default`.
+    #: key → function. The key is the name (`f`), `Classe.metodo` or
+    #: `default.membro` for a method written inside the `export default`.
     functions: dict[str, Function] = field(default_factory=dict)
 
-    #: nome exportado → chave local. `default` e `default.membro`
-    #: para o export padrão e os membros do objeto exportado.
+    #: exported name → local key. `default` and `default.membro`
+    #: for the default export and the members of the exported object.
     exports: dict[str, str] = field(default_factory=dict)
 
-    #: classe → campo → nome do tipo
+    #: class → field → type name
     fields: dict[str, dict[str, str]] = field(default_factory=dict)
 
-    #: `export { a as b } from "./x"` e `export * from "./x"`: o
-    #: especificador e nome exportado → nome lá (`None` para `*`)
+    #: `export { a as b } from "./x"` and `export * from "./x"`: the
+    #: specifier and exported name → name there (`None` for `*`)
     reexports: list[tuple[str, dict[str, str] | None]] = field(default_factory=list)
 
-    #: id do nó de função → chave
+    #: function node id → key
     keys: dict[int, str] = field(default_factory=dict)
 
     def text(self, node: Node) -> str:
@@ -262,13 +262,13 @@ class ModuleSymbols:
 
 
 class SymbolIndex:
-    """Os símbolos de cada arquivo, lidos uma vez, e a resolução de chamadas."""
+    """The symbols of each file, read once, and call resolution."""
 
     def __init__(self, reader: AstReader, packages: Callable[[str], Path | None] | None = None):
 
         self.reader = reader
 
-        #: o arquivo de entrada de um pacote do próprio corpus
+        #: the entry file of a package from the corpus itself
         self.packages = packages
 
         self._modules: dict[Path, ModuleSymbols | None] = {}
@@ -276,8 +276,8 @@ class SymbolIndex:
 
     def of(self, path: Path) -> ModuleSymbols | None:
 
-        # Pela forma resolvida: o mesmo arquivo chega pela varredura e
-        # pela resolução de import, e as chaves têm de coincidir.
+        # By the resolved form: the same file arrives through the scan and
+        # through import resolution, and the keys must match.
         path = canonical(path)
 
         if path in self._modules:
@@ -298,7 +298,7 @@ class SymbolIndex:
         return symbols
 
     # ------------------------------------------------------------------
-    # Leitura
+    # Reading
     # ------------------------------------------------------------------
 
     def _read(self, symbols: ModuleSymbols) -> None:
@@ -338,7 +338,7 @@ class SymbolIndex:
             if owner:
                 return f"{owner}.{symbols.text(name)}"
 
-            # Método escrito no objeto do `export default { get() {…} }`.
+            # Method written in the object of `export default { get() {…} }`.
             if self._default_object(node.parent):
                 return f"default.{symbols.text(name)}"
 
@@ -433,8 +433,8 @@ class SymbolIndex:
 
                 for parameter in container.named_children if container is not None else []:
 
-                    # Só o parâmetro com modificador vira campo: é a
-                    # "parameter property" do TypeScript.
+                    # Only a parameter with a modifier becomes a field: it is
+                    # TypeScript's "parameter property".
                     if parameter.type not in ("required_parameter", "optional_parameter"):
                         continue
 
@@ -555,7 +555,7 @@ class SymbolIndex:
                 symbols.exports[symbols.text(alias if alias is not None else local)] = symbols.text(local)
 
     # ------------------------------------------------------------------
-    # Resolução
+    # Resolution
     # ------------------------------------------------------------------
 
     def enclosing_class(self, node: Node, symbols: ModuleSymbols) -> str | None:
@@ -574,10 +574,10 @@ class SymbolIndex:
 
     def exported(self, path: Path, name: str, depth: int = 0) -> tuple[Path, str] | None:
         """
-        A função que `path` exporta como `name`, como (arquivo, chave).
+        The function that `path` exports as `name`, as (file, key).
 
-        O nome que o arquivo só repassa — `export * from "./x"`, o
-        `index` de toda biblioteca — é procurado no arquivo de onde vem.
+        A name the file only passes along — `export * from "./x"`, the
+        `index` of every library — is looked up in the file it comes from.
         """
 
         symbols = self.of(path)
@@ -618,7 +618,7 @@ class SymbolIndex:
         return symbols is not None and (key in symbols.functions or key in symbols.exports)
 
     def imported(self, symbols: ModuleSymbols, local: str) -> tuple[Path, str] | None:
-        """O arquivo do projeto e o nome importado por trás de um nome local."""
+        """The project file and the imported name behind a local name."""
 
         cache = (symbols.path, local)
 
@@ -635,8 +635,8 @@ class SymbolIndex:
 
             target = ModuleResolver.resolve(module, symbols.path)
 
-            # `import { usePerson } from "@org/common"`, com o pacote no
-            # corpus: a função chamada é a dele.
+            # `import { usePerson } from "@org/common"`, with the package in
+            # the corpus: the called function is that package's.
             if target is None and self.packages is not None:
                 target = self.packages(module)
 
@@ -647,7 +647,7 @@ class SymbolIndex:
         return result
 
     def callee(self, call: Node, symbols: ModuleSymbols) -> tuple[Path, str] | None:
-        """A função que a chamada executa, como (arquivo, chave)."""
+        """The function the call runs, as (file, key)."""
 
         function = unwrap(call.child_by_field_name("function"))
 
@@ -698,7 +698,7 @@ class SymbolIndex:
 
             return self.of_class(symbols, kind, method) if kind else None
 
-        # `api.metodo()`, com `api` importado
+        # `api.metodo()`, with `api` imported
         if receiver.type == "identifier":
 
             found = self.imported(symbols, symbols.text(receiver))
@@ -714,13 +714,13 @@ class SymbolIndex:
             if imported == "default":
                 return self.exported(path, f"default.{method}")
 
-            # `import { Servico }` e `Servico.metodo()` estático
+            # `import { Servico }` and static `Servico.metodo()`
             return path, f"{imported}.{method}"
 
         return None
 
     def of_class(self, symbols: ModuleSymbols, kind: str, method: str) -> tuple[Path, str] | None:
-        """O método de uma classe declarada aqui ou importada."""
+        """The method of a class declared here or imported."""
 
         key = f"{kind}.{method}"
 

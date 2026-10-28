@@ -1,13 +1,13 @@
 """
-Medição de tamanho do código.
+Measurement of code size.
 
-A contagem é feita durante a varredura que já acontece, sobre os
-bytes que já foram lidos e a árvore que já foi construída — não
-há segunda leitura do disco.
+Counting is done during the scan that already happens, over the bytes
+already read and the tree already built — there is no second read
+from disk.
 
-Linha de comentário é identificada pela árvore sintática, e não
-por prefixo de texto: `//` dentro de uma string não conta como
-comentário, e bloco `/* */` é reconhecido inteiro.
+A comment line is identified by the syntax tree, not by a text
+prefix: `//` inside a string does not count as a comment, and a
+`/* */` block is recognized as a whole.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from mfad.domain import CodeSize
 
 
 def measure(root: Node, source: bytes) -> tuple[int, int]:
-    """Devolve `(linhas físicas, linhas de código)` de um arquivo."""
+    """Returns `(physical lines, lines of code)` of a file."""
 
     text = source.decode("utf-8", errors="replace")
 
@@ -41,11 +41,10 @@ def measure(root: Node, source: bytes) -> tuple[int, int]:
 
 def _comment_only_rows(root: Node, lines: list[str]) -> set[int]:
     """
-    Linhas cujo conteúdo é apenas comentário.
+    Lines whose content is only a comment.
 
-    Uma linha com código e comentário ao final continua sendo
-    linha de código — só entra aqui quando nada sobra fora do
-    comentário.
+    A line with code and a trailing comment is still a line of code —
+    it only counts here when nothing is left outside the comment.
     """
 
     rows: set[int] = set()

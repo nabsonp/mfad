@@ -1,8 +1,8 @@
 """
-Casos de uso, agrupados pelos três módulos do CLI.
+Use cases, grouped by the three CLI modules.
 
-Cada subpasta corresponde a um módulo e espelha o adaptador
-conduzido de mesmo nome em `adapters/driven`.
+Each subfolder corresponds to a module and mirrors the driven adapter
+of the same name in `adapters/driven`.
 """
 
 from mfad.application.use_cases.antipatterns import DetectUseCase

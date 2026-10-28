@@ -1,4 +1,4 @@
-"""Módulo 2: detectar anti-padrões sobre os artefatos."""
+"""Module 2: detect anti-patterns over the artifacts."""
 
 from __future__ import annotations
 
@@ -25,17 +25,17 @@ class DetectUseCase(UseCase[DetectionResult]):
         self.rules = rules
         self.repository = repository
 
-        # Quando encadeado, os artefatos já estão em memória
-        # e não precisam ser relidos do disco.
+        # When chained, the artifacts are already in memory
+        # and do not need to be read again from disk.
         self.architecture = architecture
 
     def execute(self) -> DetectionResult:
 
         architecture = self.architecture or self.repository.load(self.source)
 
-        # Artefato lido do disco e vazio é falta de artefato; vindo
-        # encadeado da reconstrução, é reconstrução que não achou nada,
-        # e a mensagem tem de dizer isso.
+        # An artifact read from disk and empty means a missing artifact;
+        # coming chained from the reconstruction, it is a reconstruction
+        # that found nothing, and the message has to say so.
         if not architecture.microfrontends:
             raise (
                 NoMicroFrontends(self.source)
@@ -47,12 +47,12 @@ class DetectUseCase(UseCase[DetectionResult]):
 
         for rule in self.rules:
             for detection in rule.check(architecture):
-                # A ocorrência leva a referência do catálogo: quem a lê
-                # sem conhecer o anti-padrão tem onde consultar a definição.
+                # The occurrence carries the catalog reference: whoever reads it
+                # without knowing the anti-pattern has somewhere to look up the definition.
                 detection.reference = detection.reference or rule.anti_pattern.reference
                 detections.append(detection)
 
-        # Sem severidade, a ordem é a estável: regra e mensagem.
+        # Without severity, the order is the stable one: rule and message.
         detections.sort(key=lambda item: (item.anti_pattern, item.message))
 
         written = (

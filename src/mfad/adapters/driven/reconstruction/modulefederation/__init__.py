@@ -1,4 +1,4 @@
-"""Reconstrutor de Module Federation."""
+"""Module Federation reconstructor."""
 
 from mfad.adapters.driven.reconstruction.modulefederation.reconstructor import (
     ModuleFederationReconstructor,

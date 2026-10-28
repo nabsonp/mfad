@@ -1,34 +1,34 @@
 """
-Rotas do React Router e do @reach/router.
+React Router and @reach/router routes.
 
-Escrito a partir da documentação das bibliotecas — não de repositório
-algum:
+Written from the libraries' documentation, not from any particular
+repository:
 
-- React Router v6/v7, rotas em JSX: https://reactrouter.com/6.30.0/components/route
-- React Router v6.4+, rotas em objeto: https://reactrouter.com/6.30.0/route/route
+- React Router v6/v7, JSX routes: https://reactrouter.com/6.30.0/components/route
+- React Router v6.4+, object routes: https://reactrouter.com/6.30.0/route/route
   (`createBrowserRouter`, `useRoutes`, `RouteObject`)
 - React Router v5: https://v5.reactrouter.com/web/api/Route
 - @reach/router: https://reach.tech/router/api/Router
 
-As quatro formas dizem a mesma coisa — este caminho mostra este
-componente — de jeitos diferentes:
+The four forms say the same thing (this path shows this component)
+in different ways:
 
     <Route path="/a" element={<A />} />            v6, JSX
-    { path: "/a", element: <A /> }                 v6.4+, objeto
-    { path: "/a", Component: A }                   v6.4+, objeto
-    { path: "/a", lazy: () => import("./a") }      v6.4+, carregada sob demanda
+    { path: "/a", element: <A /> }                 v6.4+, object
+    { path: "/a", Component: A }                   v6.4+, object
+    { path: "/a", lazy: () => import("./a") }      v6.4+, lazy-loaded
     <Route path="/a" component={A} />              v5
     <Route path="/a" render={() => <A />} />       v5
     <Route path="/a"><A /></Route>                 v5
     <Router><A path="/a" /></Router>               @reach/router
 
-Ler só a primeira deixava sem tela todo projeto em v5, todo que usa
-o roteador de dados e todo em @reach/router — e "sem tela" parece
-resultado válido.
+Reading only the first one left every v5 project, every project using
+the data router and every @reach/router project with no screens, and
+"no screens" looks like a valid result.
 
-No v6 e no @reach/router a rota aninhada é RELATIVA à do pai; no v5,
-cada `<Route>` traz o caminho inteiro. O caminho que começa com `/`
-é absoluto nas três.
+In v6 and in @reach/router a nested route is RELATIVE to its parent; in
+v5, each `<Route>` carries the full path. A path starting with `/` is
+absolute in all three.
 """
 
 from __future__ import annotations
@@ -41,40 +41,40 @@ from mfad.adapters.driven.reconstruction.ast import AstReader, ImportTable
 from mfad.adapters.driven.reconstruction.singlespa import jsx
 
 
-#: Os atributos de `<Route>` que dizem o que ela mostra, por versão.
-_ELEMENT = "element"  # v6: um elemento
-_COMPONENT = ("component", "Component")  # v5 e v6.4: o componente
-_RENDER = "render"  # v5: função que devolve o elemento
+#: The `<Route>` attributes that say what it shows, per version.
+_ELEMENT = "element"  # v6: an element
+_COMPONENT = ("component", "Component")  # v5 and v6.4: the component
+_RENDER = "render"  # v5: function that returns the element
 
-#: As chaves que fazem de um literal de objeto uma rota do React
-#: Router. `component` sozinho também é a forma do Angular e do Vue,
-#: que outro leitor cuida; aqui só o que é do React.
+#: The keys that make an object literal a React Router route.
+#: `component` alone is also the Angular and Vue form, which another
+#: reader handles; here only what belongs to React.
 _OBJECT_TARGETS = ("element", "Component", "lazy")
 
 
-#: Elementos que, renderizados por uma rota, mandam para outra: o
-#: `<Redirect>` do v5 (https://v5.reactrouter.com/web/api/Redirect) e o
-#: `<Navigate>` do v6 (https://reactrouter.com/6.30.0/components/navigate).
-#: A rota que só redireciona não mostra tela nenhuma.
+#: Elements that, when rendered by a route, send to another one: the
+#: v5 `<Redirect>` (https://v5.reactrouter.com/web/api/Redirect) and the
+#: v6 `<Navigate>` (https://reactrouter.com/6.30.0/components/navigate).
+#: A route that only redirects shows no screen.
 _REDIRECTS = frozenset({"Redirect", "Navigate"})
 
 
 @dataclass
 class RouteEntry:
-    """Um par caminho → componente, ainda sem dono nem arquivo."""
+    """A path → component pair, still without an owner or a file."""
 
     component: str
     expression: str
     route: str | None
     line: int
 
-    #: `lazy: () => import("./x")` — o módulo, quando é por ele que
-    #: a rota aponta para o componente.
+    #: `lazy: () => import("./x")`: the module, when it is through it
+    #: that the route points to the component.
     specifier: str | None = None
 
 
 class ReactRouteReader:
-    """As rotas que um arquivo declara via React Router ou @reach/router."""
+    """The routes a file declares via React Router or @reach/router."""
 
     name = "react-router"
 
@@ -132,8 +132,8 @@ class ReactRouteReader:
 
         expression = attributes.get("path", "")
 
-        # Sem `path` nem `index` a rota não tem caminho próprio: no v6
-        # é rota de layout, no v5 é a que casa com tudo. Fica sem rota.
+        # Without `path` or `index` the route has no path of its own: in v6
+        # it is a layout route, in v5 it is the one that matches everything. Left without a route.
         if not expression and "index" not in attributes:
             route = None
         else:
@@ -147,7 +147,7 @@ class ReactRouteReader:
         )
 
     def _child_component(self, element: Node, source: bytes) -> str | None:
-        """v5: `<Route path="/a"><A /></Route>` — o filho é a tela."""
+        """v5: `<Route path="/a"><A /></Route>`: the child is the screen."""
 
         if element.type != "jsx_element":
             return None
@@ -165,7 +165,7 @@ class ReactRouteReader:
 
             name = jsx.tag_name(opening, source) if opening else None
 
-            # Uma `<Route>` filha é aninhamento do v6, não tela.
+            # A child `<Route>` is v6 nesting, not a screen.
             if name and name != "Route" and name[0].isupper() and name not in jsx.WRAPPERS:
                 return name
 
@@ -173,7 +173,7 @@ class ReactRouteReader:
 
     @staticmethod
     def _reach_router_names(root: Node, source: bytes) -> set[str]:
-        """Os nomes locais de `Router` importados de @reach/router."""
+        """The local names of `Router` imported from @reach/router."""
 
         return {
             record.local_name
@@ -182,7 +182,7 @@ class ReactRouteReader:
         }
 
     def _inside_reach_router(self, element: Node, source: bytes, names: set[str]) -> bool:
-        """No @reach/router a tela é filha DIRETA de `<Router>`, ou de outra tela."""
+        """In @reach/router a screen is a DIRECT child of `<Router>`, or of another screen."""
 
         parent = self._parent_element(element)
 
@@ -199,9 +199,9 @@ class ReactRouteReader:
             if name in names:
                 return True
 
-            # Aninhamento de rota: só continua subindo por outra tela
-            # (elemento com `path`). Qualquer outra coisa no meio
-            # significa que o elemento não é filho do roteador.
+            # Route nesting: only keep climbing through another screen
+            # (an element with `path`). Anything else in between
+            # means the element is not a child of the router.
             if not opening or "path" not in jsx.attributes(opening, source):
                 return False
 
@@ -236,10 +236,10 @@ class ReactRouteReader:
 
     def _joined(self, element: Node, source: bytes, expression: str, tag: str | None) -> str | None:
         """
-        O caminho inteiro, somando os pais quando o caminho é relativo.
+        The full path, adding the parents when the path is relative.
 
-        `tag` é a marca que identifica um pai que é rota: `Route` no
-        React Router; no @reach/router, qualquer elemento com `path`.
+        `tag` is the marker that identifies a parent that is a route: `Route`
+        in React Router; in @reach/router, any element with `path`.
         """
 
         own = self._resolve(expression)
@@ -287,7 +287,7 @@ class ReactRouteReader:
         return current
 
     # ------------------------------------------------------------------
-    # Objetos
+    # Objects
     # ------------------------------------------------------------------
 
     def _object_routes(self, array: Node, source: bytes, prefix: str) -> list[RouteEntry]:
@@ -357,7 +357,7 @@ class ReactRouteReader:
 
     @staticmethod
     def _inside_array(array: Node) -> bool:
-        """Array aninhado (`children`) é percorrido a partir do pai."""
+        """A nested array (`children`) is walked from its parent."""
 
         current = array.parent
 
@@ -406,7 +406,7 @@ def _fields(node: Node, source: bytes) -> dict[str, Node]:
             if key and value:
                 found[AstReader.strip_quotes(AstReader.text(key, source))] = value
 
-        # `{ index: true }` e `{ path, element }` abreviados
+        # `{ index: true }` and shorthand `{ path, element }`
         elif pair.type == "shorthand_property_identifier":
             found[AstReader.text(pair, source)] = pair
 
@@ -414,7 +414,7 @@ def _fields(node: Node, source: bytes) -> dict[str, Node]:
 
 
 def _imported_module(node: Node, source: bytes) -> str | None:
-    """O módulo de um `import("./x")` dentro da expressão."""
+    """The module of an `import("./x")` inside the expression."""
 
     for call in AstReader.find_all(node, "call_expression"):
 

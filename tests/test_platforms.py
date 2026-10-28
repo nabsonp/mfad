@@ -1,8 +1,8 @@
 """
-Plataformas com integração própria ficam fora da análise.
+Platforms with their own integration stay out of the analysis.
 
-Elas usam single-spa ou Module Federation por baixo, e um extrator as
-reconheceria e reconstruiria errado.
+They use single-spa or Module Federation underneath, and an extractor
+would recognize them and reconstruct them wrongly.
 """
 
 import pytest
@@ -22,8 +22,8 @@ def test_repository_made_only_of_the_platform_is_refused(tmp_path, dependency):
     write(
         tmp_path,
         {
-            # O framework vendorizado chama `registerApplication` por
-            # baixo e não depende de si mesmo: sai pelo nome do pacote.
+            # The vendored framework calls `registerApplication` underneath
+            # and does not depend on itself: it is left out by package name.
             "libs/routes/package.json": {"name": "@openmrs/esm-routes"},
             "libs/routes/src/pages.js": 'import { registerApplication } from "single-spa";',
             "apps/home/package.json": package("@org/home", **{dependency: "^5"}),
@@ -36,7 +36,7 @@ def test_repository_made_only_of_the_platform_is_refused(tmp_path, dependency):
 
 
 def test_platform_packages_are_left_out_and_the_rest_is_reconstructed(tmp_path):
-    """Um módulo OpenMRS ao lado de unidades comuns não derruba o sistema."""
+    """An OpenMRS module next to regular units does not bring the system down."""
 
     write(
         tmp_path,

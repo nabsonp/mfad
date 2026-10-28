@@ -1,14 +1,14 @@
 """
-Micro frontend grande demais perto dos seus pares.
+Micro frontend far too large compared to its peers.
 
-O catálogo descreve "múltiplas responsabilidades que deveriam estar
-separadas". Sem mapa de domínios não há como afirmar QUAIS são,
-então o que se mede é a consequência observável: a unidade cresceu
-muito além da distribuição do sistema.
+The catalog describes "multiple responsibilities that should be
+separate". Without a domain map there is no way to state WHICH ones
+they are, so what is measured is the observable consequence: the
+unit grew well beyond the system's distribution.
 
-O corte é a cerca superior de Tukey, em telas E em linhas de código.
-As duas juntas, não qualquer uma: muitas telas com pouco código é um
-menu, muito código com uma tela é uma biblioteca.
+The cut is the upper Tukey fence, on screens AND on lines of code.
+Both together, not either one: many screens with little code is a
+menu, a lot of code with one screen is a library.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ class MegaFrontend(Rule):
     anti_pattern = AntiPattern(
         name="mega-frontend",
         description=(
-            "Micro frontend muito maior que seus pares, concentrando "
-            "responsabilidades que deveriam estar separadas."
+            "Micro frontend much larger than its peers, concentrating "
+            "responsibilities that should be separate."
         ),
         category="Intra-frontend",
         reference="https://mfe-anti-patterns.online/micro-frontends-anti-patterns/#/details/Mega%20Frontend",
@@ -51,7 +51,7 @@ class MegaFrontend(Rule):
         by_screens = fences([len(item.screens) for item in candidates])
         by_lines = fences([item.size.code_lines for item in candidates])
 
-        # Amostra pequena demais para falar de distribuição.
+        # Sample too small to talk about a distribution.
         if not by_screens or not by_lines:
             return []
 
@@ -94,14 +94,14 @@ class MegaFrontend(Rule):
                     subjects=[microfrontend.id],
                     metadata={
                         "text": text,
-                        "criterio": "outlier superior",
-                        "telas": screens,
-                        "fragmentos": len(microfrontend.fragments),
-                        "linhas": code_lines,
-                        "cerca_telas": by_screens.high,
-                        "cerca_linhas": by_lines.high,
-                        "mediana_telas": sizes.screens,
-                        "mediana_linhas": sizes.code_lines,
+                        "criterion": "upper outlier",
+                        "screens": screens,
+                        "fragments": len(microfrontend.fragments),
+                        "lines": code_lines,
+                        "fence_screens": by_screens.high,
+                        "fence_lines": by_lines.high,
+                        "median_screens": sizes.screens,
+                        "median_lines": sizes.code_lines,
                     },
                 )
             )

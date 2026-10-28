@@ -1,4 +1,4 @@
-"""Leitura de elementos JSX, compartilhada por telas e fragmentos."""
+"""Reading of JSX elements, shared by screens and fragments."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from mfad.adapters.driven.reconstruction.ast import AstReader
 
 def elements(root: Node) -> Iterator[tuple[Node, Node]]:
     """
-    Percorre os elementos JSX da árvore.
+    Walks the JSX elements of the tree.
 
-    Devolve pares `(elemento, tag de abertura)` — em um
-    elemento auto-fechado os dois são o mesmo nó.
+    Returns `(element, opening tag)` pairs — in a self-closing element
+    both are the same node.
     """
 
     for node in AstReader.walk(root):
@@ -42,10 +42,10 @@ def tag_name(opening: Node, source: bytes) -> str | None:
 
 def attributes(opening: Node, source: bytes) -> dict[str, str]:
     """
-    Atributos do elemento como texto.
+    The element's attributes as text.
 
-    O valor de `x={expr}` vem como `expr`, sem as chaves —
-    é o que permite resolver `path={routes.CART}` depois.
+    The value of `x={expr}` comes as `expr`, without the braces — which
+    is what allows resolving `path={routes.CART}` later.
     """
 
     found: dict[str, str] = {}
@@ -106,17 +106,17 @@ def prop_names(opening: Node, source: bytes) -> list[str]:
     return names
 
 
-#: Componentes que embrulham uma tela sem serem a tela.
+#: Components that wrap a screen without being the screen.
 #:
-#: `<Suspense fallback={…}><Pacientes /></Suspense>` declara a tela
-#: Pacientes; Suspense é a fronteira preguiçosa que o carregamento
-#: remoto exige, e aparece em todas as rotas de um host de Module
-#: Federation. Ficar com o nome de fora daria o mesmo componente como
-#: tela de todas as rotas do sistema.
+#: `<Suspense fallback={…}><Pacientes /></Suspense>` declares the
+#: Pacientes screen; Suspense is the lazy boundary that remote loading
+#: requires, and it appears in every route of a Module Federation host.
+#: Keeping that name would make the same component the screen of every
+#: route in the system.
 #:
-#: A lista é curta e de propósito: só embrulho que o próprio
-#: framework define. Embrulho do projeto não cabe aqui — seria
-#: convenção de repositório, e aí a regra da folha resolve.
+#: The list is short on purpose: only wrappers that the framework itself
+#: defines. Project wrappers do not belong here — that would be a
+#: repository convention, and then the leaf rule handles it.
 WRAPPERS = {
     "Suspense",
     "ErrorBoundary",
@@ -129,11 +129,11 @@ WRAPPERS = {
 
 def component_name(element_expression: str) -> str | None:
     """
-    O componente que a rota renderiza.
+    The component the route renders.
 
-    `<Cart addProduct={...} />` devolve `Cart`. Quando há embrulho,
-    devolve o que está dentro: o que interessa é o que a rota mostra,
-    não a máquina que o coloca lá.
+    `<Cart addProduct={...} />` returns `Cart`. When there is a wrapper,
+    returns what is inside: what matters is what the route shows, not
+    the machinery that puts it there.
     """
 
     names = _component_names(element_expression)
@@ -150,10 +150,10 @@ def component_name(element_expression: str) -> str | None:
 
 def _component_names(expression: str) -> list[str]:
     """
-    Os componentes citados, do mais externo para o mais interno.
+    The cited components, from the outermost to the innermost.
 
-    Só considera tag com inicial maiúscula: elemento de HTML é
-    minúsculo, e `<div>` dentro de um `fallback` não é tela.
+    Only tags with an uppercase initial are considered: HTML elements
+    are lowercase, and a `<div>` inside a `fallback` is not a screen.
     """
 
     found = []

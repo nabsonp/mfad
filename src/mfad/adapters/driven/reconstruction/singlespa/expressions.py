@@ -1,21 +1,20 @@
 """
-Avaliação parcial de expressões.
+Partial evaluation of expressions.
 
-Resolve estaticamente o quanto der de uma expressão que produz uma
-URL. Cada forma reconhecida tem uma regra; o que não casa com
-nenhuma fica sem resolver, e isso é resposta legítima — a
-alternativa seria adivinhar.
+Statically resolves as much as possible of an expression that produces
+a URL. Each recognized form has a rule; what matches none stays
+unresolved, and that is a legitimate answer — the alternative would be
+guessing.
 
-`exact` significa que a URL inteira foi determinada. `prefix`
-significa que só o começo dela é estático, porque o resto depende
-de valor de runtime.
+`exact` means the whole URL was determined. `prefix` means only its
+beginning is static, because the rest depends on a runtime value.
 
-`based` diz que a URL começa depois de uma base desconhecida:
-`${API_URL}/users` vale `/users`. Chamada a serviço quase sempre é
-escrita assim — a base vem de variável de ambiente —, e descartar a
-expressão inteira deixava o sistema sem chamada externa nenhuma.
-Quem usa decide se a base importa: o caminho de um serviço não
-depende dela, a navegação depende.
+`based` says the URL starts after an unknown base: `${API_URL}/users`
+evaluates to `/users`. Service calls are almost always written like
+this — the base comes from an environment variable —, and discarding
+the whole expression left the system with no external calls at all.
+The caller decides whether the base matters: a service's path does not
+depend on it, navigation does.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ from mfad.adapters.driven.reconstruction.ast import (
 EXACT = "exact"
 PREFIX = "prefix"
 
-#: Trecho de runtime dentro de uma URL.
+#: Runtime segment inside a URL.
 PARAM = "{param}"
 
 
@@ -42,11 +41,11 @@ class Value:
     url: str
     match: str
 
-    #: a URL vem depois de uma base que não se resolve
+    #: the URL comes after a base that does not resolve
     based: bool = False
 
-    #: a URL inteira, com `{param}` em cada trecho de runtime, quando
-    #: ela tem mais texto depois do prefixo: `/movie/{param}`
+    #: the whole URL, with `{param}` in each runtime segment, when it
+    #: has more text after the prefix: `/movie/{param}`
     pattern: str | None = None
 
 
@@ -88,11 +87,11 @@ class ExpressionEvaluator:
 
     def _template(self, node: Node, source: bytes) -> Value | None:
         """
-        `/products/${id}` vale o prefixo `/products/`.
+        `/products/${id}` evaluates to the prefix `/products/`.
 
-        Serve porque o `activeWhen` também é prefixo: o que vem
-        antes da primeira substituição já basta para saber de quem
-        é a rota.
+        This works because `activeWhen` is also a prefix: what comes
+        before the first substitution is already enough to know whose
+        route it is.
         """
 
         text = AstReader.text(node, source)
@@ -107,9 +106,9 @@ class ExpressionEvaluator:
         if not marker:
             return None
 
-        # `${base}/users/${id}`: a base é desconhecida, o caminho
-        # depois dela não. Só vale quando o que segue é caminho — o
-        # texto logo após a substituição começa com "/".
+        # `${base}/users/${id}`: the base is unknown, the path after it
+        # is not. Only valid when what follows is a path — the text
+        # right after the substitution starts with "/".
         _, closed, after = rest.partition("}")
 
         if not closed or not after.startswith("/"):
@@ -121,7 +120,7 @@ class ExpressionEvaluator:
 
     @staticmethod
     def _pattern(node: Node, source: bytes) -> str:
-        """O texto do template com `{param}` no lugar de cada substituição."""
+        """The template text with `{param}` in place of each substitution."""
 
         parts: list[str] = []
 
@@ -158,7 +157,7 @@ class ExpressionEvaluator:
         if value:
             return Value(value.url, PREFIX, value.based)
 
-        # `API_URL + "/users"`: base desconhecida, caminho literal.
+        # `API_URL + "/users"`: unknown base, literal path.
         right = node.child_by_field_name("right")
 
         if left.type in ("identifier", "member_expression") and right is not None:
@@ -172,8 +171,8 @@ class ExpressionEvaluator:
 
     def _replace(self, node: Node, source: bytes) -> Value | None:
         """
-        `routes.COMPRA.replace(":id", id)` vale o trecho anterior ao
-        parâmetro: `/checkout/purchases/`.
+        `routes.COMPRA.replace(":id", id)` evaluates to the segment
+        before the parameter: `/checkout/purchases/`.
         """
 
         function = node.child_by_field_name("function")

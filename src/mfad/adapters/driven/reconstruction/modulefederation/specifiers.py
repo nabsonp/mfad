@@ -1,13 +1,13 @@
 """
-Especificadores remotos: como um arquivo nomeia o módulo de outra unidade.
+Remote specifiers: how a file names the module of another unit.
 
-`hs-pharmacy/Pharmacy` quer dizer o módulo `./Pharmacy` publicado pela
-unidade `hs-pharmacy`. O mesmo especificador aparece em import estático
-e em `import()` dinâmico, e os dois precisam ser lidos — o dinâmico é
-como um host carrega página remota.
+`hs-pharmacy/Pharmacy` means the module `./Pharmacy` published by the
+unit `hs-pharmacy`. The same specifier appears in static imports and in
+dynamic `import()`, and both must be read — the dynamic one is how a
+host loads a remote page.
 
-Vive à parte porque duas etapas dependem dele: a extração de consumo de
-fragmento e a atribuição de tela ao provedor.
+It lives on its own because two stages depend on it: the extraction of
+fragment consumption and the assignment of screens to their provider.
 """
 
 from __future__ import annotations
@@ -24,10 +24,10 @@ def dynamic_imports(
     """
     `const Pharmacy = lazy(() => import("hs-pharmacy/Pharmacy"))`.
 
-    Devolve (módulo, nome local, linha, código). O nome local vem da
-    declaração que envolve a chamada, que é por onde o componente é
-    referenciado depois; sem declaração, cai no último segmento do
-    especificador.
+    Return (module, local name, line, code). The local name comes from
+    the declaration that wraps the call, which is how the component is
+    referenced later; without a declaration, it falls back to the last
+    segment of the specifier.
     """
 
     found = []
@@ -70,7 +70,7 @@ def dynamic_imports(
 
 
 def binding(node: Node, source: bytes) -> str | None:
-    """O nome declarado que envolve a chamada, se houver."""
+    """The declared name that wraps the call, if any."""
 
     current = node.parent
 
@@ -92,10 +92,10 @@ def binding(node: Node, source: bytes) -> str | None:
 
 def split(module: str, catalog: dict[str, set[str]]) -> tuple[str | None, str]:
     """
-    `app1/Botao` → (`app1`, `Botao`), quando as duas pontas batem.
+    `app1/Botao` → (`app1`, `Botao`), when both ends match.
 
-    Casa o prefixo mais longo primeiro, porque o nome da unidade pode
-    conter barra — `@org/app1/Botao` é a unidade `@org/app1` publicando
+    Matches the longest prefix first, because the unit name may contain
+    a slash — `@org/app1/Botao` is the unit `@org/app1` publishing
     `./Botao`.
     """
 

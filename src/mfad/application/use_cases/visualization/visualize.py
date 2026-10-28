@@ -1,4 +1,4 @@
-"""Módulo 3: gerar a visualização da arquitetura e dos anti-padrões."""
+"""Module 3: generate the visualization of the architecture and the anti-patterns."""
 
 from __future__ import annotations
 

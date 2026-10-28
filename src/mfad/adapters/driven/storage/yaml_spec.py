@@ -1,10 +1,10 @@
 """
-A declaração de comunicação, em YAML.
+The communication declaration, in YAML.
 
-Arquivo escrito no setup e lido a cada análise. É a entrada que
-torna a extração de comunicação determinística: o mesmo arquivo
-produz sempre o mesmo resultado, e ele é legível e revisável —
-diferente de uma query gerada em tempo de execução.
+A file written at setup and read on every analysis. It is the input
+that makes communication extraction deterministic: the same file
+always produces the same result, and it is readable and reviewable,
+unlike a query generated at run time.
 """
 
 from __future__ import annotations
@@ -21,31 +21,31 @@ from mfad.domain import (
 )
 
 
-#: Pasta de setup, na raiz do repositório analisado. Fica junto do
-#: código porque a declaração é ENTRADA da análise: versionada com
-#: o projeto e imune a qualquer limpeza da pasta de saída.
+#: Setup folder, at the root of the analyzed repository. It sits next to
+#: the code because the declaration is an INPUT of the analysis: versioned
+#: with the project and immune to any cleanup of the output folder.
 SETUP_DIRECTORY = ".mfad"
 
 COMMUNICATION = "communication.yml"
 
 TEMPLATE = """\
-# Como as aplicações deste sistema conversam entre si.
+# How the applications of this system talk to each other.
 #
-# Cada mecanismo tem dois lados: quem produz e quem consome. O
-# pareamento entre eles é feito pelo NOME DO CANAL, que é o
-# argumento indicado por `channel_argument` (base 0).
+# Each mechanism has two sides: who produces and who consumes. They
+# are paired by the CHANNEL NAME, which is the argument given by
+# `channel_argument` (0-based).
 #
-# Preencha com as funções reais do seu projeto e remova o exemplo.
+# Fill in with your project's real functions and remove the example.
 
 mechanisms:
-  - name: eventos
+  - name: events
     kind: pubsub
     produce:
-      module: "@sua-org/utils"
+      module: "@your-org/utils"
       export: publishEvent
       channel_argument: 0
     consume:
-      module: "@sua-org/utils"
+      module: "@your-org/utils"
       export: subscribeToTopic
       channel_argument: 0
 """
@@ -107,11 +107,11 @@ class YamlSpecRepository(SpecRepository):
     @staticmethod
     def _path(location: Path, filename: str = COMMUNICATION) -> Path:
         """
-        Aceita o arquivo direto ou a pasta que o contém.
+        Accepts the file itself or the folder that contains it.
 
-        Uma pasta já chamada `.mfad` recebe o arquivo dentro dela;
-        qualquer outra é tratada como raiz de repositório, e a
-        pasta de setup é criada ali.
+        A folder already named `.mfad` gets the file inside it; any
+        other is treated as a repository root, and the setup folder
+        is created there.
         """
 
         if location.suffix in {".yml", ".yaml"}:

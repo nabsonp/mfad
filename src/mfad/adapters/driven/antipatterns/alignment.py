@@ -1,19 +1,19 @@
 """
-A medida de tamanho do sistema, compartilhada pelas regras de
-granularidade.
+The system size measure, shared by the granularity rules.
 
-`nano-frontend` e `mega-frontend` perguntam a mesma coisa de lados
-opostos: esta unidade é pequena ou grande demais perto das outras?
-A comparação é relativa de propósito — "poucas telas" depende do
-tamanho dos vizinhos, e um limiar absoluto seria um número
-escolhido sem justificativa.
+`nano-frontend` and `mega-frontend` ask the same question from
+opposite sides: is this unit too small or too large compared to the
+others? The comparison is relative on purpose — "few screens"
+depends on the size of the neighbours, and an absolute threshold
+would be a number chosen without justification.
 
-O corte é a CERCA DE TUKEY, `Q1 - 1.5 x IQR` e `Q3 + 1.5 x IQR`, que
-é a definição corrente de outlier em estatística descritiva. Antes
-eram múltiplos da mediana escolhidos por simetria — 0.4 e 2.0 —, sem
-origem nenhuma. A cerca tem nome, referência e uma propriedade que
-múltiplo de mediana não tem: num conjunto homogêneo ela não acusa
-ninguém, em vez de acusar uma fração fixa.
+The cut is the TUKEY FENCE, `Q1 - 1.5 x IQR` and `Q3 + 1.5 x IQR`,
+which is the standard definition of an outlier in descriptive
+statistics. It used to be multiples of the median chosen for
+symmetry — 0.4 and 2.0 — with no origin at all. The fence has a
+name, a reference and a property that a median multiple lacks: on a
+homogeneous set it flags no one, instead of flagging a fixed
+fraction.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from mfad.domain import MicroFrontendArchitecture, MicroFrontend
 
 @dataclass
 class Sizes:
-    """As medianas do sistema, em telas, fragmentos e linhas."""
+    """The system medians, in screens, fragments and lines."""
 
     screens: float
     fragments: float
@@ -35,17 +35,17 @@ class Sizes:
     @property
     def measurable(self) -> bool:
         """
-        Se há medida para comparar contra.
+        Whether there is a measure to compare against.
 
-        Mediana zero não significa "todo mundo é pequeno": significa
-        que não se mediu nada. Comparar contra ela torna qualquer
-        fração verdadeira — `0 < 0.4 × 0` — e a regra acusa todos os
-        micro frontends de uma vez, que é exatamente o resultado que
-        uma extração vazia produz.
+        A zero median does not mean "everyone is small": it means
+        nothing was measured. Comparing against it makes any fraction
+        true — `0 < 0.4 × 0` — and the rule flags every micro
+        frontend at once, which is exactly the result an empty
+        extraction produces.
 
-        Quando a reconstrução não encontra telas nem fragmentos, o
-        certo é a regra se abster e o relatório dizer que faltou
-        dado, não inventar uma anomalia para cada unidade.
+        When the reconstruction finds neither screens nor fragments,
+        the right thing is for the rule to abstain and the report to
+        say data was missing, not to invent an anomaly for each unit.
         """
 
         return self.screens > 0 or self.fragments > 0
@@ -71,11 +71,10 @@ class Sizes:
 
 def peers(architecture: MicroFrontendArchitecture) -> list[MicroFrontend]:
     """
-    Os micro frontends que entram na comparação.
+    The micro frontends that take part in the comparison.
 
-    O orquestrador fica de fora: ele existe para hospedar os
-    outros, e comparar o tamanho dele com o dos demais mede a coisa
-    errada.
+    The orchestrator is left out: it exists to host the others, and
+    comparing its size with theirs measures the wrong thing.
     """
 
     return [
@@ -85,21 +84,21 @@ def peers(architecture: MicroFrontendArchitecture) -> list[MicroFrontend]:
     ]
 
 
-#: Mínimo de unidades para que quartil signifique alguma coisa.
+#: Minimum number of units for a quartile to mean anything.
 #:
-#: Com quatro pontos a interpolação inventa valores fracionários
-#: sobre uma amostra de inteiros, e o quartil vira ficção. Abaixo
-#: disto a regra se abstém: sistema pequeno demais para falar de
-#: outlier é resposta melhor que um número inventado.
+#: With four points the interpolation invents fractional values over
+#: a sample of integers, and the quartile becomes fiction. Below this
+#: the rule abstains: "system too small to talk about outliers" is a
+#: better answer than an invented number.
 MIN_SAMPLE = 8
 
-#: O multiplicador clássico de Tukey.
+#: Tukey's classic multiplier.
 WHISKER = 1.5
 
 
 @dataclass(frozen=True)
 class Fences:
-    """As cercas inferior e superior de uma distribuição."""
+    """The lower and upper fences of a distribution."""
 
     low: float
     high: float
@@ -113,19 +112,20 @@ def fences(
     min_sample: int = MIN_SAMPLE,
 ) -> Fences | None:
     """
-    As cercas de Tukey, ou `None` quando não há o que medir.
+    The Tukey fences, or `None` when there is nothing to measure.
 
-    Uma só abstenção: amostra menor que `min_sample`, onde o quartil
-    não descreve distribuição nenhuma.
+    A single abstention: a sample smaller than `min_sample`, where the
+    quartile describes no distribution at all.
 
-    IQR zero NÃO abstém. A distribuição é constante, as duas cercas
-    colapsam no mesmo ponto, e aí qualquer desvio é outlier — o que
-    é coerente, porque com dispersão zero qualquer diferença está a
-    uma distância infinita em IQRs. Quem usa a cerca compara com
-    desigualdade ESTRITA, e então o caso degenerado se resolve: as
-    unidades no próprio ponto não são acusadas, e só as que destoam
-    são. Abster aqui escondia o outlier mais óbvio que existe — nove
-    unidades iguais e uma sete vezes maior.
+    A zero IQR does NOT abstain. The distribution is constant, both
+    fences collapse onto the same point, and then any deviation is an
+    outlier — which is consistent, because with zero spread any
+    difference lies at an infinite distance in IQRs. Callers compare
+    against the fence with a STRICT inequality, so the degenerate case
+    resolves itself: units sitting on the point are not flagged, and
+    only the ones that stand out are. Abstaining here hid the most
+    obvious outlier there is — nine equal units and one seven times
+    larger.
     """
 
     if len(values) < min_sample:

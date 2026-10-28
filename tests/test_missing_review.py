@@ -1,10 +1,10 @@
 """
-Correções do que faltou (agent-judge, parte 2, outubro de 2026).
+Fixes for what was missing (agent-judge, part 2, October 2026).
 
-O agente apontou o que a reconstrução deixou de extrair em MFEs
-sorteados; cada omissão foi conferida no código. Um teste por defeito
-corrigido, com um repositório mínimo escrito a partir da documentação
-da tecnologia. A lista está em `estudo/avaliacao/correcoes-reconstrucao.md`.
+The agent pointed out what the reconstruction failed to extract in
+sampled MFEs; each omission was checked in the code. One test per
+fixed defect, with a minimal repository written from the technology's
+documentation. The list is in `estudo/avaliacao/correcoes-reconstrucao.md`.
 """
 
 from conftest import mfe, root_config
@@ -21,14 +21,14 @@ def accesses(architecture):
 
 
 # ----------------------------------------------------------------------
-# 14. Chave de storage com trecho de runtime
+# 14. Storage key with a runtime part
 # ----------------------------------------------------------------------
 
 
 def test_storage_key_with_a_runtime_part_becomes_a_pattern(system):
     """
-    `` `${user.handle}_${PROVIDER}` `` é a mesma chave para todo usuário:
-    o trecho variável vira `{param}`, e o resto continua sendo o contrato.
+    `` `${user.handle}_${PROVIDER}` `` is the same key for every user:
+    the variable part becomes `{param}`, and the rest is still the contract.
     """
 
     architecture = system(
@@ -59,9 +59,9 @@ def test_storage_key_with_a_runtime_part_becomes_a_pattern(system):
 
 def test_storage_clear_writes_every_key(system):
     """
-    `clear()` esvazia o armazenamento
-    (https://developer.mozilla.org/docs/Web/API/Storage/clear): é escrita
-    em todas as chaves, registrada como `*`.
+    `clear()` empties the storage
+    (https://developer.mozilla.org/docs/Web/API/Storage/clear): it is a
+    write to every key, recorded as `*`.
     """
 
     architecture = system(
@@ -80,16 +80,16 @@ def test_storage_clear_writes_every_key(system):
 
 
 # ----------------------------------------------------------------------
-# 24. `useSelector` com outro nome
+# 24. `useSelector` under another name
 # ----------------------------------------------------------------------
 
 
 def test_typed_selector_hook_is_a_selector(system):
     """
-    O Redux Toolkit manda declarar `useAppSelector` uma vez e usá-lo no
-    lugar de `useSelector`
+    Redux Toolkit says to declare `useAppSelector` once and use it in
+    place of `useSelector`
     (https://redux.js.org/usage/usage-with-typescript#define-typed-hooks),
-    nas duas formas: atribuição e `useSelector.withTypes()`.
+    in both forms: assignment and `useSelector.withTypes()`.
     """
 
     architecture = system(
@@ -127,15 +127,15 @@ def calls(architecture):
 
 
 # ----------------------------------------------------------------------
-# 16. URL montada com `new URL(...)`
+# 16. URL built with `new URL(...)`
 # ----------------------------------------------------------------------
 
 
 def test_url_built_with_the_url_constructor(system):
     """
-    `new URL(caminho, base)` (https://developer.mozilla.org/docs/Web/API/URL/URL):
-    caminho absoluto fica só com a origem da base, e `toString()` e `href`
-    devolvem a URL inteira.
+    `new URL(path, base)` (https://developer.mozilla.org/docs/Web/API/URL/URL):
+    an absolute path keeps only the base's origin, and `toString()` and
+    `href` return the whole URL.
     """
 
     architecture = system(
@@ -161,16 +161,16 @@ def test_url_built_with_the_url_constructor(system):
 
 
 # ----------------------------------------------------------------------
-# 17 e 27. A função que embrulha o cliente monta mais que `${base}${url}`
+# 17 and 27. The function that wraps the client builds more than `${base}${url}`
 # ----------------------------------------------------------------------
 
 
 def test_wrapper_whose_url_continues_after_the_endpoint(system):
     """
-    `${base}${endpoint}/${id}`: o parâmetro é a URL, e o que segue continua
-    o caminho dela. Com ternário entre a forma com e sem id, vale o que as
-    duas têm em comum. Com a base também recebida (`${base}${endpoint}`),
-    a URL é o último parâmetro, como antes.
+    `${base}${endpoint}/${id}`: the parameter is the URL, and what follows
+    is still its path. With a ternary between the form with and without
+    id, what both have in common applies. With the base also received
+    (`${base}${endpoint}`), the URL is the last parameter, as before.
     """
 
     architecture = system(
@@ -211,15 +211,16 @@ def test_wrapper_whose_url_continues_after_the_endpoint(system):
 
 
 # ----------------------------------------------------------------------
-# 18. Destino em template string
+# 18. Destination in a template string
 # ----------------------------------------------------------------------
 
 
 def test_template_destination_reaches_a_dynamic_route(system):
     """
-    `/movie/${id}` vai para a rota `/movie/:id`
-    (https://single-spa.js.org/docs/api#activewhen); o prefixo `/movie/`,
-    sem o segmento, não a alcança. Só substituições, sem texto, não é destino.
+    `/movie/${id}` goes to the route `/movie/:id`
+    (https://single-spa.js.org/docs/api#activewhen); the prefix `/movie/`,
+    without the segment, does not reach it. Only substitutions, with no
+    text, is not a destination.
     """
 
     architecture = system(
@@ -242,15 +243,15 @@ def test_template_destination_reaches_a_dynamic_route(system):
 
 
 # ----------------------------------------------------------------------
-# 15. Dono do destino pelas rotas internas
+# 15. Owner of the destination through the internal routes
 # ----------------------------------------------------------------------
 
 
 def test_destination_owned_through_the_screens_of_another_unit(system):
     """
-    Sem `activeWhen` que case, a URL é da aplicação que tem tela nela
-    (`<Route path>` do React Router, https://reactrouter.com/en/main/route/route),
-    se só uma tem.
+    With no matching `activeWhen`, the URL belongs to the application that
+    has a screen on it (React Router's `<Route path>`,
+    https://reactrouter.com/en/main/route/route), if only one does.
     """
 
     architecture = system(
@@ -286,15 +287,15 @@ def test_destination_owned_through_the_screens_of_another_unit(system):
 
 
 # ----------------------------------------------------------------------
-# 26. Unidades registradas com o mesmo nome
+# 26. Units registered with the same name
 # ----------------------------------------------------------------------
 
 
 def test_orchestrators_with_the_same_package_name_stay_apart(system):
     """
-    Dois orquestradores, cada um no seu diretório, ambos `@org/root-config`
-    (o nome que o `create-single-spa` gera): cada um fica com o nome do
-    diretório, e o que cada um faz continua sendo dele.
+    Two orchestrators, each in its own directory, both `@org/root-config`
+    (the name `create-single-spa` generates): each one gets its
+    directory's name, and what each one does still belongs to it.
     """
 
     shop = root_config({"@org/catalog": "/catalog"}, directory="shop-root")
@@ -327,16 +328,16 @@ def test_orchestrators_with_the_same_package_name_stay_apart(system):
 
 
 # ----------------------------------------------------------------------
-# 12. Código de pacote compartilhado
+# 12. Shared package code
 # ----------------------------------------------------------------------
 
 
 def test_shared_package_code_counts_for_each_unit_that_imports_it(system):
     """
-    O pacote comum do monorepo (https://docs.npmjs.com/cli/using-npm/workspaces)
-    não roda sozinho: a chamada e o acesso que moram nele acontecem em cada
-    micro frontend que o importa, e a função que repassa a URL é cliente
-    para quem a chama.
+    The monorepo's common package (https://docs.npmjs.com/cli/using-npm/workspaces)
+    does not run on its own: the call and the access that live in it happen
+    in each micro frontend that imports it, and the function that forwards
+    the URL is a client for whoever calls it.
     """
 
     architecture = system(

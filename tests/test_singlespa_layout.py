@@ -1,8 +1,8 @@
 """
-single-spa-layout e as outras fontes de rota.
+single-spa-layout and the other route sources.
 
-Os layouts seguem https://single-spa.js.org/docs/layout-definition e o
-que o `create-single-spa` gera para um root-config com layout.
+The layouts follow https://single-spa.js.org/docs/layout-definition and
+what `create-single-spa` generates for a root-config with a layout.
 """
 
 from conftest import by_id, mfe, package
@@ -10,9 +10,9 @@ from conftest import by_id, mfe, package
 
 LAYOUT_ROOT = {
     "root-config/package.json": package("@org/root-config", **{"single-spa": "^6", "single-spa-layout": "^2"}),
-    # O que o gerador oficial escreve: o layout num arquivo próprio,
-    # importado e passado a `constructRoutes`, e o registro sem nome
-    # literal nenhum.
+    # What the official generator writes: the layout in its own file,
+    # imported and passed to `constructRoutes`, and the registration with
+    # no literal name at all.
     "root-config/src/org-root-config.js": """
         import { registerApplication, start } from "single-spa";
         import { constructApplications, constructRoutes, constructLayoutEngine } from "single-spa-layout";
@@ -64,11 +64,11 @@ def test_layout_file_from_the_generator_gives_routes(system):
     )
 
     assert by_id(architecture, "catalog").routes == ["/catalog"]
-    # Rotas aninhadas concatenam.
+    # Nested routes concatenate.
     assert by_id(architecture, "orders").routes == ["/account/orders"]
-    # Fora de qualquer rota: sempre montada, dona de URL nenhuma.
+    # Outside any route: always mounted, owner of no URL.
     assert by_id(architecture, "navbar").routes == []
-    # A rota padrão não é dona de prefixo nenhum.
+    # The default route owns no prefix.
     assert by_id(architecture, "not-found").routes == []
 
 
@@ -117,7 +117,7 @@ def test_layout_inside_the_page_template(system):
 
 
 def test_layout_name_matches_the_package_without_its_scope(system):
-    """O layout diz `@org/catalog`; o `package.json`, `catalog`."""
+    """The layout says `@org/catalog`; the `package.json`, `catalog`."""
 
     unscoped = mfe("catalog", "@org/catalog", "export default () => null;")
     unscoped["catalog/package.json"] = {"name": "catalog", "dependencies": {"single-spa": "^6"}}
@@ -150,7 +150,7 @@ ANGULAR_ENTRY = """
 
 
 def test_angular_base_href_is_the_route_when_nothing_else_declares_one(system):
-    """single-spa-angular: `APP_BASE_HREF` é o prefixo da montagem."""
+    """single-spa-angular: `APP_BASE_HREF` is the mount prefix."""
 
     architecture = system(
         {

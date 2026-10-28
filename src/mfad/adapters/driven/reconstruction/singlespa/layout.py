@@ -1,9 +1,9 @@
 """
-Rotas declaradas por `single-spa-layout`.
+Routes declared through `single-spa-layout`.
 
-Há duas maneiras de dizer qual aplicação responde por qual URL. A
-usual é o `activeWhen` do `registerApplication`. A outra é o
-single-spa-layout, que move essa decisão para um template:
+There are two ways to say which application answers for which URL. The
+usual one is the `activeWhen` of `registerApplication`. The other is
+single-spa-layout, which moves that decision into a template:
 
     <template id="single-spa-layout">
       <single-spa-router>
@@ -13,32 +13,33 @@ single-spa-layout, que move essa decisão para um template:
       </single-spa-router>
     </template>
 
-Sob um layout as aplicações NÃO precisam de `activeWhen` nenhum — o
-motor de layout converte o `path` em função de atividade. Ler só o
-registro, nesse caso, devolve o nome da aplicação e rota nenhuma, e o
-resultado parece válido: um sistema inteiro sem donos de rota, sem
-navegação e sem telas, sem nada indicando que faltou informação.
+Under a layout the applications do NOT need any `activeWhen` — the
+layout engine turns the `path` into an activity function. Reading only
+the registration, in that case, returns the application's name and no
+route, and the result looks valid: a whole system with no route owners,
+no navigation and no screens, with nothing indicating that information
+was missing.
 
-Aqui se lê o template e se recuperam os pares aplicação/rota. Rotas
-aninhadas concatenam, como no single-spa-layout.
+Here the template is read and the application/route pairs are
+recovered. Nested routes concatenate, as in single-spa-layout.
 
-O layout é lido nas duas formas que a documentação descreve: dentro de
-`<template id="single-spa-layout">`, no HTML da página, e como arquivo
-próprio cuja raiz é `<single-spa-router>` — o `microfrontend-layout.html`
-que o `create-single-spa` gera e o código passa a
-`constructRoutes(microfrontendLayout)`. Ler só a primeira deixava sem
-rota todo sistema criado pelo gerador oficial.
+The layout is read in the two forms the documentation describes: inside
+`<template id="single-spa-layout">`, in the page's HTML, and as its own
+file whose root is `<single-spa-router>` — the `microfrontend-layout.html`
+that `create-single-spa` generates and the code passes to
+`constructRoutes(microfrontendLayout)`. Reading only the first left
+every system created by the official generator without routes.
 
-`<route default>` responde quando nenhuma outra rota casa. Não é dono
-de prefixo nenhum, então a aplicação entra no layout sem rota. O mesmo
-vale para a aplicação fora de qualquer `<route>` — barra de navegação,
-rodapé: fica sempre montada, e não é dona de URL nenhuma. Dar a ela a
-rota `/` fazia todo `"/"` do código virar navegação para ela.
+`<route default>` answers when no other route matches. It owns no
+prefix, so the application enters the layout without a route. The same
+holds for an application outside any `<route>` — navigation bar,
+footer: it stays mounted all the time, and owns no URL. Giving it the
+route `/` turned every `"/"` in the code into navigation to it.
 
-A forma JavaScript — `constructRoutes({ routes: [...] })` — é lida
-quando o argumento é literal de objeto, que é como ela é escrita.
-Argumento montado em variável ou vindo de outro módulo não é
-resolvido: aí seria preciso avaliar o código.
+The JavaScript form — `constructRoutes({ routes: [...] })` — is read
+when the argument is an object literal, which is how it is written. An
+argument built in a variable or coming from another module is not
+resolved: that would require evaluating the code.
 """
 
 from __future__ import annotations
@@ -48,16 +49,16 @@ from pathlib import Path
 
 
 class _LayoutReader(HTMLParser):
-    """Percorre o layout acumulando o caminho das rotas aninhadas."""
+    """Walks the layout accumulating the path of the nested routes."""
 
-    #: Os elementos que abrem um layout: o template na página, ou a
-    #: raiz do arquivo de layout.
+    #: The elements that open a layout: the template in the page, or
+    #: the root of the layout file.
     ROOTS = ("template", "single-spa-router")
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
 
-        #: a tag que abriu o layout, enquanto dentro dele
+        #: the tag that opened the layout, while inside it
         self.opened_by: str | None = None
         self.depth: list[str | None] = []
         self.found: dict[str, list[str]] = {}
@@ -77,7 +78,7 @@ class _LayoutReader(HTMLParser):
             return
 
         if tag == "route":
-            # `None` marca a rota padrão: abaixo dela não há prefixo.
+            # `None` marks the default route: below it there is no prefix.
             self.depth.append(
                 None if "default" in values else (values.get("path", "") or "")
             )
@@ -106,7 +107,7 @@ class _LayoutReader(HTMLParser):
             self.depth.pop()
 
     def _route(self) -> str | None:
-        """Concatena os `path` das rotas que envolvem a aplicação."""
+        """Concatenates the `path` of the routes enclosing the application."""
 
         if None in self.depth or not self.depth:
             return None
@@ -118,13 +119,14 @@ class _LayoutReader(HTMLParser):
 
 def layouts(tree) -> dict[Path, dict[str, list[str]]]:
     """
-    Arquivo → (aplicação → rotas), dos layouts do repositório.
+    File → (application → routes), from the repository's layouts.
 
-    Por arquivo, e não somado, porque o layout também diz QUEM monta:
-    o pacote que o contém é o orquestrador daquelas aplicações. Um
-    repositório pode ter mais de um sistema, cada um com o seu.
+    Per file, and not merged, because the layout also says WHO mounts:
+    the package containing it is the orchestrator of those
+    applications. A repository may have more than one system, each with
+    its own.
 
-    Devolve vazio quando não há layout, que é o caso comum.
+    Returns empty when there is no layout, which is the common case.
     """
 
     found: dict[Path, dict[str, list[str]]] = {}
@@ -156,9 +158,9 @@ def layouts(tree) -> dict[Path, dict[str, list[str]]]:
 
 def routes_from_construct(root, source, reader) -> dict[str, list[str]]:
     """
-    Aplicação → rotas, lidas de `constructRoutes({ routes: [...] })`.
+    Application → routes, read from `constructRoutes({ routes: [...] })`.
 
-    A forma JavaScript do mesmo layout, equivalente ao template:
+    The JavaScript form of the same layout, equivalent to the template:
 
         constructRoutes({
           routes: [
@@ -168,9 +170,9 @@ def routes_from_construct(root, source, reader) -> dict[str, list[str]]:
           ]
         })
 
-    Só literal de objeto é lido. `constructRoutes(minhaConfig)` fica
-    de fora — resolver aquilo exigiria avaliar o módulo, e o que
-    parece uma rota ali pode ser montado em tempo de execução.
+    Only object literals are read. `constructRoutes(minhaConfig)` is
+    left out — resolving that would require evaluating the module, and
+    what looks like a route there may be built at runtime.
     """
 
     found: dict[str, list[str]] = {}
@@ -197,7 +199,7 @@ def routes_from_construct(root, source, reader) -> dict[str, list[str]]:
 
 
 def _walk_object(node, source, reader, depth, found) -> None:
-    """Um nó da configuração: rota empilha caminho, aplicação registra."""
+    """A configuration node: a route stacks a path, an application registers."""
 
     fields = {}
 

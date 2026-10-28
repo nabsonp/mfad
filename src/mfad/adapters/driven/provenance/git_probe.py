@@ -1,15 +1,15 @@
 """
-Procedência lida do git.
+Provenance read from git.
 
-A análise roda tanto sobre um repositório único quanto sobre uma
-pasta com vários clones — é como o `mfad setup` é usado. Por isso
-a sonda procura repositórios até dois níveis abaixo da raiz, e para
-de descer assim que encontra um: submódulo e `.git` aninhado não
-são unidade de análise.
+The analysis runs both on a single repository and on a folder with
+several clones, which is how `mfad setup` is used. That is why the
+probe looks for repositories up to two levels below the root, and
+stops descending as soon as it finds one: a submodule or a nested
+`.git` is not a unit of analysis.
 
-Nada aqui pode falhar a análise. Sem git instalado, sem repositório
-ou com o comando retornando erro, o resultado é simplesmente uma
-procedência mais pobre.
+Nothing here may fail the analysis. Without git installed, without a
+repository, or with the command returning an error, the result is
+simply a poorer provenance.
 """
 
 from __future__ import annotations
@@ -22,17 +22,17 @@ from mfad.application.ports import SourceProbe
 from mfad.domain import SourceRepository
 
 
-#: Profundidade máxima da busca, contada a partir da raiz.
+#: Maximum search depth, counted from the root.
 MAX_DEPTH = 2
 
 IGNORED = {"node_modules", "dist", "build", ".next", "coverage"}
 
-#: Credencial embutida na URL de origem, no formato
-#: `scheme://usuario:senha@host/...`.
+#: Credential embedded in the origin URL, in the form
+#: `scheme://user:password@host/...`.
 #:
-#: Clonar com token na URL é comum, e o remote fica gravado no
-#: `.git/config`. Copiá-lo para o artefato publicaria a credencial:
-#: a saída é versionada junto com a dissertação.
+#: Cloning with a token in the URL is common, and the remote is stored in
+#: `.git/config`. Copying it into the artifact would publish the credential:
+#: the output is versioned together with the dissertation.
 CREDENTIAL = re.compile(r"(?<=://)[^/@]+@")
 
 TIMEOUT = 10

@@ -1,13 +1,13 @@
 """
-Portas condutoras — o lado esquerdo do hexágono.
+Driving ports — the left side of the hexagon.
 
-Definem como o mundo externo aciona a aplicação. Quem implementa
-o outro lado é um adaptador condutor (`adapters/driving`): hoje o
-CLI, amanhã uma API, sem que os casos de uso mudem.
+They define how the outside world drives the application. The other
+side is implemented by a driving adapter (`adapters/driving`): the
+CLI today, an API tomorrow, without the use cases changing.
 
-O caso de uso devolve um RESULTADO, não texto nem código de saída.
-Formatar e decidir o status do processo são responsabilidades do
-adaptador — é o que mantém a aplicação livre de apresentação.
+The use case returns a RESULT, not text or an exit code. Formatting
+and deciding the process status are the adapter's responsibilities —
+that is what keeps the application free of presentation.
 """
 
 from __future__ import annotations
@@ -21,12 +21,12 @@ T = TypeVar("T")
 
 class UseCase(ABC, Generic[T]):
     """
-    Uma operação da aplicação, no padrão Command.
+    An application operation, following the Command pattern.
 
-    O objeto carrega tudo de que precisa e sabe se executar.
-    Falhas viram exceção de `mfad.application.errors`.
+    The object carries everything it needs and knows how to execute
+    itself. Failures become exceptions from `mfad.application.errors`.
     """
 
     @abstractmethod
     def execute(self) -> T:
-        """Executa e devolve o resultado."""
+        """Executes and returns the result."""

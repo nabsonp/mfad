@@ -2,7 +2,7 @@
 
 What the Module Federation reconstructor reads from source, and under which conditions. Each rule as *given / when / then*.
 
-Written from the implementation in `src/mfad/adapters/driven/reconstruction/modulefederation/`, and checked against a real system: [diego-coronado/microfrontend-healthcare-system](https://github.com/diego-coronado/diego-coronado-microfrontend-healthcare-system), seven Vite units.
+Written from the implementation in `src/mfad/adapters/driven/reconstruction/modulefederation/`, and checked against a real system: a public seven-unit Vite system.
 
 No rule executes the analysed code, reaches the network, or consults a language model.
 
@@ -12,11 +12,11 @@ No rule executes the analysed code, reaches the network, or consults a language 
 
 | input | what it is | example |
 |---|---|---|
-| **repository** | the directory handed to `mfad reconstruct`, minus generated trees | `healthcare-system/` |
-| **federation config** | a source file whose name starts with `webpack.config`, `vite.config`, `rspack.config`, `module-federation.config`, `federation.config` or `next.config` | `pharmacy/vite.config.ts` |
-| **federation declaration** | the object given to the federation builder, read into `name`, `exposes`, `remotes` and `shared` | `{ name: "hs-pharmacy", exposes: { "./Pharmacy": "./src/pages/Pharmacy.tsx" } }` |
-| **unit directory** | the directory whose `package.json` contains the config | `pharmacy/` |
-| **fragment catalogue** | every unit's `exposes` keys, gathered before consumption is looked for | `{ "hs-pharmacy": ["Pharmacy"] }` |
+| **repository** | the directory handed to `mfad reconstruct`, minus generated trees | `my-system/` |
+| **federation config** | a source file whose name starts with `webpack.config`, `vite.config`, `rspack.config`, `module-federation.config`, `federation.config` or `next.config` | `orders/vite.config.ts` |
+| **federation declaration** | the object given to the federation builder, read into `name`, `exposes`, `remotes` and `shared` | `{ name: "mf-orders", exposes: { "./Orders": "./src/pages/Orders.tsx" } }` |
+| **unit directory** | the directory whose `package.json` contains the config | `orders/` |
+| **fragment catalogue** | every unit's `exposes` keys, gathered before consumption is looked for | `{ "mf-orders": ["Orders"] }` |
 
 ---
 
@@ -32,7 +32,7 @@ Module Federation has no orchestrator: no file registers the system's units. Eac
 
 Two things follow from how this is matched.
 
-**The detection is the call in the config, never the dependency in `package.json`.** Package names age and differ for the same thing: the healthcare system uses `@originjs/vite-plugin-federation`, pagopa uses `@module-federation/vite`, and webpack ships the plugin built in with no package at all. Both Vite packages are nonetheless called as `federation({…})`, so the call matches where a dependency list would not.
+**The detection is the call in the config, never the dependency in `package.json`.** Package names age and differ for the same thing: the seven-unit Vite system uses `@originjs/vite-plugin-federation`, pagopa uses `@module-federation/vite`, and webpack ships the plugin built in with no package at all. Both Vite packages are nonetheless called as `federation({…})`, so the call matches where a dependency list would not.
 
 **Five call names are accepted, because the configuration object is handed to a different function in each toolchain.** The object — `name`, `exposes`, `remotes`, `shared` — is identical across them; only the receiver changes: `new ModuleFederationPlugin({…})` in webpack, `federation({…})` in Vite, `withModuleFederation(config)` in Nx. Matching only `ModuleFederationPlugin` is how an entire Nx or Vite project reads as having no federation at all.
 
@@ -44,7 +44,7 @@ The two forms are also different nodes in the tree: `new ModuleFederationPlugin(
 > **when** the `package.json` there declares a `name` different from the federation `name`
 > **then** it is recorded in `metadata.package`.
 
-A unit's federation name is its identity on the network and need not match the published package. `hs-pharmacy` living in a package called `pharmacy` is normal, and both names are worth keeping: one is how remotes address it, the other how the repository names it.
+A unit's federation name is its identity on the network and need not match the published package. `mf-orders` living in a package called `orders` is normal, and both names are worth keeping: one is how remotes address it, the other how the repository names it.
 
 ### 2.3 · Host without a host
 
@@ -90,7 +90,7 @@ The longest prefix wins, because a unit's name can contain a slash: `@org/app1/B
 > **when** it calls `import("remote/Exposed")`, typically inside `lazy(() => …)`
 > **then** the same applies, and the local name comes from the variable declaration enclosing the call.
 
-This is how a host loads a remote page, and it is not an optional style. Fetching code at the moment of use is the point of the technology, and the framework requires a lazy boundary for it. Reading only static imports finds the shared libraries and misses exactly the pages — the consumption that defines the system. On the healthcare system it was the difference between 7 and 12 imports, with every remote page among the missing five.
+This is how a host loads a remote page, and it is not an optional style. Fetching code at the moment of use is the point of the technology, and the framework requires a lazy boundary for it. Reading only static imports finds the shared libraries and misses exactly the pages — the consumption that defines the system. On the seven-unit system it was the difference between 7 and 12 imports, with every remote page among the missing five.
 
 > **Given** a unit that exposes modules (a remote) and an import it makes
 > **when** the importing file is reachable only from the remote's own entry, and from none of its exposed modules or screens
@@ -108,7 +108,7 @@ This is how a host loads a remote page, and it is not an optional style. Fetchin
 
 Exact match first, because falling back to reachability in a routing file would return every screen declared there — routers usually declare all of them in one place.
 
-The provider is looked up before the consumer because of §4.1: when the fragment is a route's component, the route is declared in the host's router but the screen belongs to whoever publishes the module, and that is where it is registered. Searching only the consumer returns nothing for exactly the case this rule exists to answer — on the healthcare system, five of the seven render sites came back with no screen at all.
+The provider is looked up before the consumer because of §4.1: when the fragment is a route's component, the route is declared in the host's router but the screen belongs to whoever publishes the module, and that is where it is registered. Searching only the consumer returns nothing for exactly the case this rule exists to answer — on the seven-unit system, five of the seven render sites came back with no screen at all.
 
 A fragment mounted **above** the router — a theme provider or a navigation bar wrapping the whole application in `main.tsx` — matches no screen and is reached by none, so its render site carries an empty list. That is the honest answer rather than a wrong one: it is on every screen, not on a particular one, and the artefact has no way to say "all of them".
 
@@ -123,7 +123,7 @@ A fragment mounted **above** the router — a theme provider or a navigation bar
 > **then** each occurrence is a screen of that unit.
 
 > **Given** a route's `element`
-> **when** it wraps the component — `element={<Suspense fallback={…}><Pharmacy /></Suspense>}`
+> **when** it wraps the component — `element={<Suspense fallback={…}><Orders /></Suspense>}`
 > **then** the screen's component is the innermost capitalised one, not the wrapper.
 
 `Suspense` is the lazy boundary remote loading requires, and it appears on every route of a federated host. Keeping the outer name would give the same component as the screen of every route in the system.
@@ -134,19 +134,19 @@ A fragment mounted **above** the router — a theme provider or a navigation bar
 
 Pointing at the router makes every screen reach everything the router imports, and fragment-to-screen attribution turns to noise: each screen inherits the dependencies of all the others.
 
-> **Given** a route whose component is the local name of a module imported from a remote — `const Pharmacy = lazy(() => import("hs-pharmacy/Pharmacy"))`
+> **Given** a route whose component is the local name of a module imported from a remote — `const Orders = lazy(() => import("mf-orders/Orders"))`
 > **then** the screen belongs to the **provider**, not to the unit whose router declares the route, and its file is the module the provider exposes.
 
-The route lives in the host's router and the screen belongs to whoever publishes it. Keeping both with the host produced a shell owning every business route while the remotes owned none — the opposite of what the system does. On the healthcare system it was the difference between `home` holding all eight screens and the five remote pages going back to `hs-pharmacy`, `hs-billing`, `hs-laboratory`, `hs-appointments` and `hs-patient-records`, each with its own route.
+The route lives in the host's router and the screen belongs to whoever publishes it. Keeping both with the host produced a shell owning every business route while the remotes owned none — the opposite of what the system does. On the seven-unit system it was the difference between `home` holding all eight screens and the five remote pages going back to the five remotes that publish them, each with its own route.
 
-This is also what makes navigation resolvable: with no owner for `/pharmacy`, a link to it resolves to nobody. The same run went from 0 to 10 navigations between units.
+This is also what makes navigation resolvable: with no owner for `/orders`, a link to it resolves to nobody. The same run went from 0 to 10 navigations between units.
 
 ### 4.2 · Routes of a unit
 
 > **Given** a unit's screens
 > **then** its routes are the routes of those screens.
 
-Module Federation resolves remote code loading and says nothing about URLs, so there is no route to read from the declaration. A unit with no router, and whose modules no router routes to, has no routes — and that is correct: it answers no URL. In the healthcare system `hs-comp-library` is the only one left without routes, which is the right answer for a component library.
+Module Federation resolves remote code loading and says nothing about URLs, so there is no route to read from the declaration. A unit with no router, and whose modules no router routes to, has no routes — and that is correct: it answers no URL. In the seven-unit system the component-library unit is the only one left without routes, which is the right answer for a component library.
 
 ---
 

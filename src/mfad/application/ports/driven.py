@@ -1,10 +1,10 @@
 """
-Portas conduzidas — o lado direito do hexágono.
+Driven ports — the right side of the hexagon.
 
-Definem o que a aplicação precisa do mundo externo. Quem as
-implementa são os adaptadores conduzidos (`adapters/driven`):
-o extrator de single-spa, o armazenamento em JSON, e assim por
-diante. A aplicação depende destas abstrações, nunca deles.
+They define what the application needs from the outside world. They
+are implemented by the driven adapters (`adapters/driven`): the
+single-spa extractor, the JSON storage, and so on. The application
+depends on these abstractions, never on them.
 """
 
 from __future__ import annotations
@@ -27,29 +27,29 @@ from mfad.domain import (
 
 class Reconstructor(ABC):
     """
-    Extrai artefatos arquiteturais de um repositório.
+    Extracts architectural artifacts from a repository.
 
-    Uma implementação por tecnologia de micro frontend.
+    One implementation per micro frontend technology.
 
-    A porta é segmentada por TIPO de artefato, não numa única
-    operação: quem só quer o inventário de aplicações não paga
-    pela extração dos imports. Cada método é um passo que um
-    caso de uso pode acionar isoladamente.
+    The port is segmented by artifact TYPE, not into a single
+    operation: whoever only wants the application inventory does not
+    pay for extracting the imports. Each method is a step that a use
+    case can trigger on its own.
     """
 
-    #: identificador usado no CLI, ex.: "single-spa"
+    #: identifier used in the CLI, e.g.: "single-spa"
     name: str = ""
 
-    #: descrição curta
+    #: short description
     description: str = ""
 
     @abstractmethod
     def detect(self, repository: Path) -> bool:
-        """Diz se este reconstrutor reconhece o repositório."""
+        """Tells whether this reconstructor recognizes the repository."""
 
     @abstractmethod
     def microfrontends(self, repository: Path) -> list[MicroFrontend]:
-        """As unidades de implantação e o que cada uma contém."""
+        """The deployment units and what each one contains."""
 
     @abstractmethod
     def compositions(
@@ -58,10 +58,10 @@ class Reconstructor(ABC):
         microfrontends: list[MicroFrontend],
     ) -> list[Composition]:
         """
-        O consumo de fragmentos através das fronteiras.
+        The consumption of fragments across boundaries.
 
-        Recebe as aplicações já extraídas porque é o catálogo
-        delas que distingue um fragmento de um export qualquer.
+        Receives the already extracted applications because it is
+        their catalog that tells a fragment apart from any export.
         """
 
     @abstractmethod
@@ -71,10 +71,10 @@ class Reconstructor(ABC):
         microfrontends: list[MicroFrontend],
     ) -> list[Navigation]:
         """
-        As navegações que cruzam a fronteira entre aplicações.
+        The navigations that cross the boundary between applications.
 
-        Recebe as aplicações já extraídas porque são as rotas
-        declaradas por elas que dizem de quem é cada destino.
+        Receives the already extracted applications because it is the
+        routes they declare that say who owns each destination.
         """
 
     @abstractmethod
@@ -85,44 +85,44 @@ class Reconstructor(ABC):
         spec: CommunicationSpec,
     ) -> list[Communication]:
         """
-        A troca de mensagens entre aplicações.
+        The message exchange between applications.
 
-        Depende da `spec`: sem mecanismo declarado não há o que
-        procurar, e o resultado é vazio. É a única extração que
-        precisa de configuração, porque é a única sem contrato
-        padrão no ecossistema.
+        Depends on the `spec`: with no declared mechanism there is
+        nothing to look for, and the result is empty. It is the only
+        extraction that needs configuration, because it is the only
+        one without a standard contract in the ecosystem.
         """
 
 
 class SourceProbe(ABC):
     """
-    Identifica a revisão de cada repositório analisado.
+    Identifies the revision of each analyzed repository.
 
-    Existe para que a procedência seja responsabilidade de um
-    adaptador: ler o estado do git é I/O, e o caso de uso só
-    precisa do resultado. Uma implementação que não encontre git
-    nenhum devolve lista vazia — a análise não depende disto.
+    It exists so that provenance is the responsibility of an
+    adapter: reading the git state is I/O, and the use case only
+    needs the result. An implementation that finds no git at all
+    returns an empty list — the analysis does not depend on this.
     """
 
     @abstractmethod
     def describe(self, root: Path) -> list[SourceRepository]:
-        """Os repositórios sob `root`, em ordem estável."""
+        """The repositories under `root`, in stable order."""
 
 
 class Rule(ABC):
     """
-    Como procurar um anti-padrão nos artefatos.
+    How to look for an anti-pattern in the artifacts.
 
-    A regra é o COMO; o `AntiPattern` que ela declara é o QUÊ. São
-    separados porque uma mesma entrada do catálogo admite mais de
-    uma operacionalização, e trocar de operacionalização não muda o
-    que o anti-padrão é.
+    The rule is the HOW; the `AntiPattern` it declares is the WHAT.
+    They are separate because the same catalog entry admits more than
+    one operationalization, and switching operationalization does not
+    change what the anti-pattern is.
 
-    Opera somente sobre o modelo de domínio — por isso a detecção é
-    agnóstica à tecnologia de origem.
+    Operates only on the domain model — which is why detection is
+    agnostic to the source technology.
     """
 
-    #: a entrada do catálogo que esta regra procura
+    #: the catalog entry this rule looks for
     anti_pattern: AntiPattern
 
     @property
@@ -135,16 +135,16 @@ class Rule(ABC):
 
     @abstractmethod
     def check(self, architecture: MicroFrontendArchitecture) -> list[AntiPatternDetection]:
-        """Avalia os artefatos e devolve as ocorrências."""
+        """Evaluates the artifacts and returns the occurrences."""
 
 
 class Renderer(ABC):
-    """Serializa artefatos e anti-padrões em algum formato visual."""
+    """Serializes artifacts and anti-patterns into some visual format."""
 
-    #: identificador usado no CLI, ex.: "mermaid"
+    #: identifier used in the CLI, e.g.: "mermaid"
     name: str = ""
 
-    #: extensão sugerida para o arquivo de saída
+    #: suggested extension for the output file
     extension: str = "txt"
 
     @abstractmethod
@@ -153,16 +153,16 @@ class Renderer(ABC):
         architecture: MicroFrontendArchitecture,
         detections: list[AntiPatternDetection] | None = None,
     ) -> str:
-        """Devolve a representação como texto."""
+        """Returns the representation as text."""
 
 
 class SpecRepository(ABC):
     """
-    Leitura e escrita da declaração de comunicação.
+    Reading and writing of the communication declaration.
 
-    Separada do `ArtifactRepository` porque a spec é ENTRADA da
-    análise, escrita uma vez no setup, enquanto os artefatos são
-    saída, reescritos a cada execução.
+    Separate from `ArtifactRepository` because the spec is an INPUT
+    of the analysis, written once at setup, while the artifacts are
+    output, rewritten on every run.
     """
 
     @abstractmethod
@@ -180,10 +180,10 @@ class SpecRepository(ABC):
 
 class ArtifactRepository(ABC):
     """
-    Persistência de artefatos e anti-padrões.
+    Persistence of artifacts and anti-patterns.
 
-    Abstraída para que os casos de uso não conheçam o formato
-    nem o meio de armazenamento.
+    Abstracted so that the use cases know neither the format nor the
+    storage medium.
     """
 
     @abstractmethod

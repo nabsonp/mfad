@@ -1,30 +1,31 @@
 # MFAD
 
-Análise estática de arquiteturas micro frontend. Extrai do código-fonte
-os artefatos que descrevem a arquitetura, detecta anti-padrões sobre eles
-e gera visualizações.
+Static analysis of micro frontend architectures. It extracts from the
+source code the artefacts that describe the architecture, detects
+anti-patterns over them and generates visualizations.
 
-Hoje reconhece **single-spa** e **Module Federation**. Outras tecnologias
-entram como extensão, sem alterar os demais módulos. Plataformas com
-integração própria sobre essas duas — OpenMRS 3 (`@openmrs/esm-framework`)
-e Open edX (`@edx/frontend-platform`) — ficam fora da análise: os pacotes
-construídos sobre elas são pulados, com aviso, e o repositório que é só
-isso é recusado, em vez de reconstruído errado.
+It currently recognises **single-spa** and **Module Federation**. Other
+technologies are added as extensions, without changing the other
+modules. Platforms with their own integration built on top of these two
+— OpenMRS 3 (`@openmrs/esm-framework`) and Open edX
+(`@edx/frontend-platform`) — are outside the analysis: the packages
+built on them are skipped, with a warning, and a repository that is
+only that is refused instead of being reconstructed wrongly.
 
-Nenhuma etapa da análise usa modelo de linguagem, rede ou execução do
-código analisado. Ver [docs/architecture.md](docs/architecture.md).
+No step of the analysis uses a language model, the network or execution
+of the analysed code.
 
-## Instalação
+## Installation
 
 ```bash
 cd mfad
 pipx install -e .
 ```
 
-O `-e` deixa a instalação editável: mudanças no código valem na hora. O
-comando `mfad` fica disponível globalmente.
+The `-e` makes the installation editable: changes to the code take
+effect immediately. The `mfad` command becomes available globally.
 
-### Testes
+### Tests
 
 ```bash
 cd mfad
@@ -32,175 +33,184 @@ python -m venv .venv && .venv/bin/pip install -e ".[test]"
 .venv/bin/python -m pytest
 ```
 
-Cada teste monta um repositório mínimo numa pasta temporária e roda a
-reconstrução inteira sobre ele. Os exemplos são escritos a partir da
-documentação de cada tecnologia, não copiados dos sistemas do estudo:
-o teste prova a regra, não a forma de um projeto.
+Each test builds a minimal repository in a temporary folder and runs the
+whole reconstruction over it. The examples are written from each
+technology's documentation, not copied from the study's systems: the
+test proves the rule, not the shape of one project.
 
-## Uso em cinco minutos
+## Five-minute usage
 
 ```bash
-mfad analyze /caminho/do/repo --prefix @sua-org/
+mfad analyze /path/to/repo --prefix @your-org/
 ```
 
-Reconstrói, detecta e visualiza numa passada, gravando em `artifacts/`.
-Os três passos também existem em separado, para quem precisa deles:
+Reconstructs, detects and visualizes in one pass, writing to
+`artifacts/`. The three steps also exist separately, for those who need
+them:
 
 ```bash
-mfad reconstruct /caminho/do/repo --prefix @sua-org/ --out artifacts
+mfad reconstruct /path/to/repo --prefix @your-org/ --out artifacts
 mfad detect artifacts --out artifacts
 mfad visualize artifacts --detections artifacts
 ```
 
-Para depurar um extrator, `--only` recorta uma coleção:
+To debug an extractor, `--only` restricts the run to one collection:
 
 ```bash
-mfad reconstruct /caminho/do/repo --prefix @sua-org/ --only navigations
+mfad reconstruct /path/to/repo --prefix @your-org/ --only navigations
 ```
 
-Saída típica:
+Typical output (abridged):
 
 ```
-4 micro frontends, 4 fragmentos, 12 telas, 4 imports e 18 navegações
-  e 0 comunicações entre micro frontends · 16 chamadas externas
-  · 8 acessos ao estado global
+4 micro frontends, 4 fragments, 12 screens, 4 imports and 18 navigations
+  and 0 communications between micro frontends · 16 external calls
+  · 8 global state accesses
 
-nano-frontend  [tamanho]
-  monolito tem 1 telas e 0 fragmentos, somando 1, no máximo 5 (piso absoluto).
+nano-frontend  [size]
+  monolito has 1 screens and 0 fragments, 1 in total, at most 5 (absolute floor), …
 ```
 
-## Os três módulos
+## The three modules
 
-| módulo | comando | o que faz |
+| module | command | what it does |
 |---|---|---|
-| reconstrução | `reconstruct` e os parciais | lê o código, produz artefatos |
-| detecção | `detect` | aplica regras sobre os artefatos |
-| visualização | `visualize` | desenha artefatos e detecções |
+| reconstruction | `reconstruct` (and `reconstruct --only`) | reads the code, produces artefacts |
+| detection | `detect` | applies rules over the artefacts |
+| visualization | `visualize` | draws artefacts and detections |
 
-A detecção e a visualização nunca leem código-fonte. Trabalham só sobre o
-modelo de artefatos, e por isso independem da tecnologia de origem.
+`analyze` chains the three. Detection and visualization never read
+source code. They work only on the artefact model, and are therefore
+independent of the source technology.
 
 ---
 
-## Comandos
+## Commands
 
-### `reconstruct` — extrai todos os artefatos
+```bash
+mfad {reconstruct,analyze,setup-communication,detect,visualize} ...
+mfad --version
+```
+
+### `reconstruct` — extracts every artefact
 
 ```bash
 mfad reconstruct <repo> [--prefix PREFIX] [--framework FRAMEWORK] [--out DIR]
+                        [--only COLLECTION] [--spec PATH]
 ```
 
-| opção | padrão | descrição |
+| option | default | description |
 |---|---|---|
-| `--prefix` | nenhum | filtra os micro frontends pelo prefixo da organização, ex.: `@nabstore/` |
-| `--framework` | detectado | força um extrator. Hoje só `single-spa` |
-| `--out` | `artifacts` | diretório de saída |
+| `--prefix` | none | filters the micro frontends by the organization prefix, e.g. `@nabstore/` |
+| `--framework` | detected | forces a reconstructor: `single-spa` or `module-federation` |
+| `--out` | `artifacts` | output directory |
+| `--only` | all | extracts a single collection — `microfrontends`, `compositions`, `navigations`, `api-calls`, `global-state` or `communications` — and prints it to the terminal without writing. A cut of the same process, useful to debug an extractor |
+| `--spec` | `<repo>/.mfad/` | path of the communication declaration |
 
-### Extrações parciais
-
-Cada etapa roda sozinha e imprime no terminal, sem gravar:
-
-```bash
-mfad microfrontends <repo>     # inventário: rotas, telas, fragmentos, tamanho
-mfad compositions <repo>        # quem usa componente de quem
-mfad navigations <repo>        # quem leva o usuário para onde
-mfad api-calls <repo>          # quem chama qual serviço externo
-mfad global-state <repo>       # quem lê qual fatia do estado global
-mfad communications <repo>     # quem manda mensagem para quem
-```
-
-Todas aceitam `--prefix` e `--framework`.
-
-### `detect` — aplica as regras
+### `analyze` — reconstructs, detects and visualizes in one pass
 
 ```bash
-mfad detect [artifacts] [--rule NOME] [--out DIR]
+mfad analyze <repo> [--prefix PREFIX] [--framework FRAMEWORK] [--out DIR]
+                    [--spec PATH] [--rule NAME] [--format FORMAT]
 ```
 
-| opção | padrão | descrição |
+Same options as `reconstruct` (except `--only`), plus `--rule` and
+`--format` from `detect` and `visualize`. Everything is written to
+`--out` (`artifacts` by default); the `html` report goes to
+`<out>/architecture.html`.
+
+### `detect` — applies the rules
+
+```bash
+mfad detect [artifacts] [--rule NAME] [--out DIR]
+```
+
+| option | default | description |
 |---|---|---|
-| `artifacts` | `artifacts` | diretório com os artefatos |
-| `--rule` | todas | aplica só esta regra. Pode repetir |
-| `--out` | nenhum | grava `detections.json` |
+| `artifacts` | `artifacts` | directory with the artefacts |
+| `--rule` | all | applies only this rule. Can be repeated |
+| `--out` | none | writes `detections.json` |
 
-### `visualize` — desenha
+### `visualize` — draws
 
 ```bash
-mfad visualize [artifacts] [--format FORMATO] [--detections ARQUIVO] [--out ARQUIVO]
+mfad visualize [artifacts] [--format FORMAT] [--detections DIR] [--out FILE]
 ```
 
-| formato | saída |
+| format | output |
 |---|---|
-| `html` | relatório único, autocontido, sem CDN |
-| `features` | sumarização em Markdown do sistema |
+| `html` (default) | a single, self-contained report, no CDN; written to `<artifacts>/architecture.html` unless `--out` is given |
+| `features` | Markdown summary of the system, on standard output |
 
-Os números do cabeçalho do `html` são também as abas da página. A
-primeira caixa, **Dashboard**, abre os grafos; cada número abre a tabela
-completa do que ele conta — micro frontends, telas, navegações,
-composições (com os fragmentos, numa tabela só), comunicações,
-endpoints de API e anti-padrões —, com filtro de texto e ordenação por coluna.
-As fatias do estado global compartilhado não têm aba: ficam no
-detalhe da detecção `global-state-communication`, com quem lê, quem
-grava e onde.
-A linha mostra só o que identifica o item; clicar nela abre o resto —
-arquivos e linhas, telas, mecanismo — e um atalho para o item no grafo.
+The numbers in the `html` header are also the tabs of the page. The
+first box, **Dashboard**, opens the graphs; each number opens the full
+table of what it counts — micro frontends, screens, navigations,
+compositions (with the fragments, in a single table), communications,
+API endpoints and anti-patterns —, with a text filter and sorting by
+column. The slices of shared global state have no tab: they are in the
+detail of the `global-state-communication` detection, with who reads,
+who writes and where.
+A row shows only what identifies the item; clicking it opens the rest —
+files and lines, screens, mechanism — and a shortcut to the item in the
+graph.
 
-O dashboard tem um grafo por pergunta, cada um no seu card, um embaixo
-do outro, e só os que têm o que mostrar:
+The dashboard has one graph per question, each in its own card, one
+below the other, and only those that have something to show:
 
-| grafo | o que desenha |
+| graph | what it draws |
 |---|---|
-| Visão geral | micro frontends e as relações entre pares: montagem, composição, navegação, comunicação |
-| Composição, Navegação, Comunicação | uma relação de cada vez, só com quem participa dela |
-| Estado global | cada fatia compartilhada como nó, ligada a quem a lê ou grava |
-| Backend | cada endpoint chamado por mais de um micro frontend, ligado a quem o chama |
-| Telas | em que tela cada composição, comunicação e navegação acontece, com recorte por micro frontend |
+| Overview | micro frontends and the relations between pairs: mounting, composition, navigation, communication |
+| Composition, Navigation, Communication | one relation at a time, only with those taking part in it |
+| Global state | each shared slice as a node, linked to whoever reads or writes it |
+| Backend | each endpoint called by more than one micro frontend, linked to whoever calls it |
+| Screens | on which screen each composition, communication and navigation happens, with a cut per micro frontend |
 
-A busca e os filtros do topo valem para todos os grafos. Passar o
-mouse num nó destaca as relações dele em todos os grafos; clicar fixa
-o destaque e abre os detalhes numa barra lateral à direita, que fecha
-no ×, no Esc ou num novo clique no mesmo nó. Na barra, o nome de outro micro
-frontend abre ele ali mesmo (o ← volta), e o ↗ ao lado de cada item
-leva à aba que o detalha, com a linha dele aberta. Cada card tem o próprio zoom (Ctrl/⌘ +
-roda ou os botões), e **ampliar** o deixa mais alto; arrastar o
-fundo move. `#view=screens&mfe=<id>&lang=en` no fim do endereço leva
-direto a um grafo, num recorte e num idioma; `#page=navigations` abre
-direto numa tabela.
+The search and the filters at the top apply to every graph. Hovering a
+node highlights its relations in every graph; clicking pins the
+highlight and opens the details in a sidebar on the right, which closes
+with ×, Esc or another click on the same node. In the sidebar, the name
+of another micro frontend opens it right there (← goes back), and the ↗
+next to each item leads to the tab that details it, with its row open.
+Each card has its own zoom (Ctrl/⌘ + wheel or the buttons), and
+**enlarge** makes it taller; dragging the background pans.
+`#view=screens&mfe=<id>&lang=pt` at the end of the address leads
+straight to a graph, in a cut and a language; `#page=navigations` opens
+straight on a table.
 
-A página tem um seletor PT/EN no cabeçalho. Todo texto dela — e as
-mensagens das detecções — vem de
-`src/mfad/adapters/driven/i18n/texts.json`, com cada chave nos dois
-idiomas lado a lado. O título é `<nome da arquitetura> - MFAD`.
+The page is in English by default, with a PT/EN switch in the header.
+All of its text — and the detection messages — comes from
+`src/mfad/adapters/driven/i18n/texts.json`, with each key in both
+languages side by side. The title is `<architecture name> - MFAD`.
 
 ### `setup-communication`
 
 ```bash
-mfad setup-communication <repo>   # gera .mfad/communication.yml
+mfad setup-communication <repo> [--out DIR]   # generates .mfad/communication.yml
 ```
 
 ---
 
-## Artefatos produzidos
+## Artefacts produced
 
-| arquivo | conteúdo |
+| file | content |
 |---|---|
-| `manifest.json` | o envelope: versão do esquema, procedência e índice |
-| `microfrontends.json` | os nós: rotas, papel, telas, fragmentos, tamanho |
-| `compositions.json` | consumo de componente entre micro frontends |
-| `navigations.json` | navegação do usuário entre micro frontends |
-| `communications.json` | troca de mensagens |
-| `api_calls.json` | chamadas a serviços externos, com as telas que as alcançam |
-| `state_accesses.json` | leituras do estado global |
-| `detections.json` | gravado pelo `detect` |
+| `manifest.json` | the envelope: schema version, provenance and index |
+| `microfrontends.json` | the nodes: routes, role, screens, fragments, size |
+| `compositions.json` | component consumption between micro frontends |
+| `navigations.json` | user navigation between micro frontends |
+| `communications.json` | message exchange |
+| `api_calls.json` | calls to external services, with the screens that reach them |
+| `state_accesses.json` | global state reads and writes |
+| `detections.json` | written by `detect` |
 
-Todas as coleções são gravadas a cada execução, inclusive as vazias —
-senão o arquivo da execução anterior permaneceria e a etapa seguinte
-leria dado que não corresponde mais ao código.
+Every collection is written on each run, including the empty ones —
+otherwise the file from the previous run would remain and the next step
+would read data that no longer matches the code.
 
-### O envelope
+### The envelope
 
-O `manifest.json` é o que torna o conjunto autodescritivo e o
-resultado reproduzível:
+`manifest.json` is what makes the set self-describing and the result
+reproducible:
 
 ```json
 {
@@ -223,281 +233,315 @@ resultado reproduzível:
 }
 ```
 
-`mfad` é a versão do **esquema** dos artefatos e sobe quando a forma
-dos arquivos quebra quem os lê; `tool_version` é a da **ferramenta**.
-São separadas porque corrigir um bug num extrator muda a segunda e não
-a primeira — e uma coleta longa precisa poder afirmar que todos os
-resultados seguem o mesmo esquema.
+`mfad` is the version of the artefacts' **schema** and goes up when the
+shape of the files breaks whoever reads them; `tool_version` is the
+**tool**'s version. They are separate because fixing a bug in an
+extractor changes the second and not the first — and a long data
+collection must be able to state that all results follow the same
+schema.
 
-`sources[]` lista os repositórios lidos, procurados até dois níveis
-abaixo da raiz — é como o `mfad setup` é usado, numa pasta com vários
-clones. O `commit` é o que permite repetir a análise sobre exatamente o
-mesmo código; `dirty` avisa que havia alteração não commitada e que,
-portanto, o `commit` *não* identifica o que foi lido. Credencial
-embutida na URL de origem é removida antes de gravar.
+`sources[]` lists the repositories read, searched up to two levels
+below the root — which is how the tool is used, on a folder with several
+clones. The `commit` is what allows repeating the analysis on exactly
+the same code; `dirty` warns that there were uncommitted changes and
+that, therefore, the `commit` does *not* identify what was read.
+Credentials embedded in the origin URL are removed before writing.
 
-Sem git instalado ou fora de um repositório, `sources` vem vazio e a
-análise segue normalmente.
+Without git installed, or outside a repository, `sources` is empty and
+the analysis proceeds normally.
 
-A saída é JSON e a entrada é YAML, de propósito: `.mfad/*.yml` é
-escrito à mão e ganha comentários; `artifacts/*.json` é gerado e
-consumido por máquina. O porquê está em
-[docs/decisions.md](docs/decisions.md), seção 9.
+The output is JSON and the input is YAML, on purpose: `.mfad/*.yml` is
+written by hand and benefits from comments; `artifacts/*.json` is
+generated and consumed by machines. The reason is in
+[docs/decisions.md](docs/decisions.md), section 9.
 
-### Como os artefatos são descobertos
+### How the artefacts are discovered
 
-**Micro frontends** vêm do `registerApplication` do orquestrador — o
-contrato do single-spa. Isso encontra também aplicações sem pacote
-próprio. Quem não é registrado com nome literal é achado pelos ciclos de
-vida que exporta (`bootstrap`, `mount`, `unmount`).
+The full rules, one *given / when / then* each, are in
+`docs/extraction/` (index in [docs/README.md](docs/README.md)): what
+every technology shares in [common.md](docs/extraction/common.md), and
+discovery and composition in
+[single-spa.md](docs/extraction/single-spa.md) and
+[module-federation.md](docs/extraction/module-federation.md). In short —
+micro frontends, routes and fragments as single-spa declares them, the
+rest common to every technology:
 
-**Rotas** vêm do `activeWhen`; do **single-spa-layout**, tanto no
-`<template id="single-spa-layout">` da página quanto no arquivo
-`microfrontend-layout.html` que o `create-single-spa` gera; e, no
-Angular, do `APP_BASE_HREF` que o single-spa-angular manda declarar. O
-nome no layout é ligado ao pacote quando os dois são iguais ou iguais
-sem o escopo (`@org/catalog` ↔ `catalog`). O pacote que declara o layout
-é o orquestrador.
+**Micro frontends** come from the orchestrator's `registerApplication`
+— the single-spa contract. This also finds applications without a
+package of their own. Those not registered with a literal name are
+found by the lifecycles they export (`bootstrap`, `mount`, `unmount`).
 
-**Fragmentos** são os exports do entrypoint que não fazem parte do
-contrato de lifecycle.
+**Routes** come from `activeWhen`; from **single-spa-layout**, both in
+the page's `<template id="single-spa-layout">` and in the
+`microfrontend-layout.html` file that `create-single-spa` generates;
+and, in Angular, from the `APP_BASE_HREF` that single-spa-angular asks
+to declare. The name in the layout is linked to the package when the
+two are equal or equal without the scope (`@org/catalog` ↔ `catalog`).
+The package that declares the layout is the orchestrator.
 
-**Telas** vêm do roteador de cada unidade: React Router v6/v7 em JSX
-(`element`), em objeto (`createBrowserRouter`, `useRoutes`, `lazy`) e v5
-(`component`, `render`, filho); @reach/router; e Angular Router. Rotas
-aninhadas somam o caminho do pai. Sem roteador, a tela é o componente
-raiz.
+**Fragments** are the entrypoint's exports that are not part of the
+lifecycle contract.
 
-**Tamanho** é medido durante a mesma varredura, com as linhas de
-comentário descontadas pela árvore sintática — não por prefixo de texto.
+**Screens** come from each unit's router: React Router v6/v7 in JSX
+(`element`), in objects (`createBrowserRouter`, `useRoutes`, `lazy`)
+and v5 (`component`, `render`, child); @reach/router; and the Angular
+Router. Nested routes add the parent's path. Without a router, the
+screen is the root component.
 
-**Navegações** usam uma inversão: em vez de procurar chamadas de
-navegação, que variam por roteador, o extrator procura expressões que
-resolvem para uma rota de OUTRO micro frontend. O dono da rota vem do
-`activeWhen`, que é padronizado. O destino de um link do React Router
-(`<Link to>`, `<NavLink to>`, `<Navigate to>`, `navigate()`,
-`history.push()`) parte do `basename` do roteador da unidade, como o
-React Router resolve: debaixo de `basename="/loja"`, `to="/"` é `/loja`.
+**Size** is measured during the same scan, with comment lines
+discounted through the syntax tree — not by text prefix.
 
-**Chamadas externas** são reconhecidas em camadas: `fetch` e
-`XMLHttpRequest`, que são API da plataforma web; clientes conhecidos
-— axios, ky, got, superagent — identificados pelo especificador do
-import, incluindo instâncias de `axios.create()`, mesmo criadas noutro
-módulo do projeto; o `HttpClient` do Angular, identificado pelo tipo
-com que é injetado (`constructor(private http: HttpClient)` ou
-`inject(HttpClient)`); e as **funções do projeto que repassam um
-parâmetro como URL** a um desses clientes — `fetchApi(url)`,
-`this.request.get(endpoint)` —, seguidas em camadas, com o verbo vindo
-das opções que quem chama passa. URL que começa por uma base
-desconhecida — `` `${API_URL}/users` ``, `API_URL + "/users"` — vale o
-caminho depois dela; trecho de runtime no meio vira `{param}`
-(`/account/{param}/statement`), e a consulta (`?page=2`) não faz parte
-do caminho. A URL guardada numa variável ou devolvida por uma função
-do projeto (`const url = statementUrl(id)`) é seguida. Cada chamada
-registra as telas que a alcançam seguindo os imports internos — e, no
-Angular, os componentes que o template usa pelo seletor, que a tela
-renderiza sem importar.
+**Navigations** use an inversion: instead of looking for navigation
+calls, which vary by router, the extractor looks for expressions that
+resolve to a route of ANOTHER micro frontend. The route's owner comes
+from `activeWhen`, which is standardized. The target of a React Router
+link (`<Link to>`, `<NavLink to>`, `<Navigate to>`, `navigate()`,
+`history.push()`) starts from the `basename` of the unit's router, as
+React Router resolves it: under `basename="/shop"`, `to="/"` is
+`/shop`.
 
-**Imports** seguem a resolução do bundler — extensão implícita e
-`/index` — e, para especificador sem ponto, o `baseUrl` e os `paths`
-do `tsconfig.json` ou `jsconfig.json` mais próximo, com `extends`.
-Apelido que aponta para outro pacote é fronteira, como import de pacote.
+**External calls** are recognised in layers: `fetch` and
+`XMLHttpRequest`, which are web platform API; known clients — axios,
+ky, got, superagent — identified by the import specifier, including
+`axios.create()` instances, even when created in another module of the
+project; Angular's `HttpClient`, identified by the type it is injected
+with (`constructor(private http: HttpClient)` or `inject(HttpClient)`);
+and the **project's functions that forward one of their parameters as
+the URL** to one of those clients — `fetchApi(url)`,
+`this.request.get(endpoint)` —, followed in layers, with the verb coming
+from the options the caller passes. The parameter may be at any
+position of the function's signature, and more path may follow it in
+the URL (`` `${base}${endpoint}/${id}` ``); a ternary between two URL
+forms counts for what the two have in common. A URL that starts with an
+unknown base — `` `${API_URL}/users` ``, `API_URL + "/users"` — counts
+as the path after it; a runtime segment in the middle becomes `{param}`
+(`/account/{param}/statement`), and the query (`?page=2`) is not part of
+the path. A URL held in a variable or returned by a function of the
+project (`const url = statementUrl(id)`) is followed. Each call records
+the screens that reach it by following internal imports — and, in
+Angular, the components the template uses by selector, which the screen
+renders without importing.
 
-**Estado global** vem de bibliotecas conhecidas pelo import — react-redux,
-zustand, jotai, recoil, mobx, pinia — e do armazenamento do navegador,
-`localStorage` e `sessionStorage`. Nas bibliotecas, só **leitura**: o
-seletor percorre o caminho explicitamente, enquanto a escrita revela
-apenas o nome da ação. No armazenamento, leitura e escrita, porque as duas
-dizem a chave. Store Redux criado dentro da própria unidade é estado
-local dela e não entra. Função do projeto que repassa um parâmetro seu
-como chave — `setLocalStorageItem(key, value)`, um `LocalStorageService`
-injetado no Angular — vira acesso ao armazenamento, com a chave lida em
-quem chama, e o acesso é de quem chama: o utilitário pode morar num
-pacote comum. Acesso em função sem uso não conta.
+**Imports** follow the bundler's resolution — implicit extension and
+`/index` — and, for a specifier without a leading dot, the `baseUrl`
+and `paths` of the nearest `tsconfig.json` or `jsconfig.json`, with
+`extends`. An alias pointing to another package is a boundary, like a
+package import.
 
-**Arquivos de teste não são lidos**: `*.spec.*`, `*.test.*` e as pastas
-`__tests__`, `__mocks__`, `cypress` e `e2e`.
+**Global state** comes from libraries known by their import —
+react-redux, zustand, jotai, recoil, mobx, pinia — and from browser
+storage, `localStorage` and `sessionStorage`. In the libraries, only
+**reads**: the selector walks the path explicitly, while a write reveals
+only the action's name. In storage, reads and writes, because both
+name the key. A key with runtime segments is recorded with `{param}` in
+their place (`` `${user.handle}_provider` `` is `{param}_provider`):
+the contract is the key's format, like the path of a URL. A Redux store
+created inside the unit itself is that unit's local state and is not
+included. A project function that forwards one of its parameters as
+the key — `setLocalStorageItem(key, value)`, a `LocalStorageService`
+injected in Angular — becomes a storage access, with the key read at
+the caller, and the access belongs to the caller: the utility may live
+in a common package. An access in an unused function does not count.
 
-**Comunicação** tem três camadas: primitivas da plataforma
-(`CustomEvent` com `dispatchEvent`/`addEventListener` — também o evento
-criado numa variável antes de disparado —, `fromEvent(window, …)` do
-rxjs, `BroadcastChannel`), barramentos conhecidos por import, e o
-mecanismo declarado pelo usuário. Ponta dentro de função sem uso não
-conta: função não exportada que nada no arquivo referencia, ou função
-exportada de um arquivo que o projeto importa sem trazer esse nome.
+**Test files are not read**: `*.spec.*`, `*.test.*` and the folders
+`__tests__`, `__mocks__`, `cypress` and `e2e`.
 
-**Dono do código** é a unidade cujo diretório contém o arquivo, o mais
-longo que casar. Código fora de qualquer unidade — pacote compartilhado,
-ferramenta — não é de ninguém e não gera aresta.
+**Communication** has three layers: platform primitives (`CustomEvent`
+with `dispatchEvent`/`addEventListener` — also when the event is created
+in a variable before being dispatched —, rxjs `fromEvent(window, …)`,
+`BroadcastChannel`), buses known by their import, and the mechanism
+declared by the user. An end inside an unused function does not count:
+a non-exported function that nothing in the file references, or an
+exported function from a file the project imports without bringing that
+name.
+
+**Code owner** is the unit whose directory contains the file, the
+longest that matches. Code of a shared package that is not a unit — the
+monorepo's common library, an organization's `common` repository — runs
+inside each micro frontend that imports it, so the external calls and
+storage accesses in it count for each of those micro frontends (the
+recorded location stays the package's file). Code that no unit imports
+belongs to no one and produces no edge.
 
 ---
 
-## Declarações por projeto
+## Per-project declarations
 
-Ficam em `.mfad/`, na raiz do repositório analisado — versionadas com
-ele, e imunes à limpeza da pasta de saída.
+They live in `.mfad/`, at the root of the analysed repository —
+versioned with it, and immune to cleaning of the output folder.
 
 ### `.mfad/communication.yml`
 
-Rotas e fragmentos são extraídos sem configuração porque a tecnologia
-padroniza esses contratos. Comunicação por mecanismo próprio não tem
-padrão, e é declarada:
+Routes and fragments are extracted without configuration because the
+technology standardizes those contracts. Communication through a
+mechanism of the project's own has no standard, and is declared:
 
 ```yaml
 mechanisms:
-  - name: eventos
+  - name: events
     kind: pubsub
     produce:
-      module: "@sua-org/utils"    # especificador do import, literal
-      export: publishEvent        # nome EXPORTADO, não o nome local
-      channel_argument: 0         # posição do canal, base 0
+      module: "@your-org/utils"   # import specifier, literal
+      export: publishEvent        # EXPORTED name, not the local name
+      channel_argument: 0         # channel position, 0-based
     consume:
-      module: "@sua-org/utils"
+      module: "@your-org/utils"
       export: subscribeToTopic
       channel_argument: 0
 ```
 
-Produtor e consumidor são pareados pelo **valor do canal**.
+Producer and consumer are paired by the **channel value**.
 
-> Zero comunicações com declaração preenchida quase sempre significa
-> `module` que não bate com o especificador real do import.
+> Zero communications with a filled-in declaration almost always means
+> a `module` that does not match the real import specifier.
 
 ---
 
-## Regras de anti-padrão
+## Anti-pattern rules
 
-Sete, de 27 do catálogo. A triagem completa está em
+Seven, out of the catalogue's 27. The full triage is in
 [docs/catalogue.md](docs/catalogue.md).
 
 ### `cyclic-dependency`
 
-Micro frontends que dependem uns dos outros em ciclo **dentro de uma
-mesma tela**. Estar na tela é ser alcançado por ela: o código que o
-componente da tela importa e os fragmentos que ela renderiza, em
-qualquer profundidade. Num grafo do sistema inteiro, arestas de telas
-diferentes se encadeavam e, em sistema grande, os ciclos explodiam sem
-que nenhum fosse montado de fato.
+Micro frontends that depend on one another in a cycle **within the same
+screen**. Being on the screen means being reached by it: the code the
+screen's component imports and the fragments it renders, at any depth.
+In a graph of the whole system, edges from different screens chained
+together and, in a large system, cycles exploded without any of them
+actually being mounted.
 
-Avalia composição e comunicação **separadamente**, porque um ciclo
-significa coisas diferentes em cada uma. Navegação não entra: ela liga
-uma tela a outra, e ida e volta entre telas é fluxo do produto. Uma
-ocorrência por ciclo, com as telas em que ele aparece.
+It evaluates composition and communication **separately**, because a
+cycle means different things in each. Navigation is not included: it
+links one screen to another, and going back and forth between screens
+is product flow. One occurrence per cycle, with the screens in which it
+appears.
 
 ### `hub-like-dependency`
 
-Tela que instancia muitos fragmentos. O sinal é a quantidade de
-**fragmentos distintos**, não de provedores nem de instanciações: cinco
-fragmentos de um provedor só concentram tanta mudança de contrato quanto
-cinco de cinco, e o mesmo fragmento repetido numa lista é um só. Padrão 5.
+A screen that instantiates many fragments. The signal is the number of
+**distinct fragments**, not of providers nor of instantiations: five
+fragments from a single provider concentrate as much contract change as
+five from five, and the same fragment repeated in a list is just one.
+Default 5.
 
 ### `one-for-all`
 
-Micro frontend ligado a quase todos os demais. Conta vizinhos sem
-direção, mas registra separadamente de quem depende e por quem é
-dependido — gargalo compartilhado e excesso de conhecimento são
-problemas distintos. Exclui o orquestrador, se abstém em sistemas
-pequenos e ignora as arestas simétricas do estado global, que ligariam
-todos a todos — esse acoplamento é do `global-state-communication`.
+A micro frontend linked to almost all the others. It counts undirected
+neighbours, but records separately whom it depends on and who depends
+on it — a shared bottleneck and excessive knowledge are distinct
+problems. It excludes the orchestrator, abstains in small systems and
+ignores the symmetric global state edges, which would link everyone to
+everyone — that coupling belongs to `global-state-communication`.
 
 ### `hammering-apis`
 
-Rota de serviço consumida por mais de um micro frontend. Agrupa por
-**caminho**, não por caminho mais método: quem lê e quem escreve no
-mesmo recurso compartilham o mesmo contrato.
+A service route consumed by more than one micro frontend. It groups by
+**path**, not by path plus method: whoever reads and whoever writes the
+same resource share the same contract.
 
 ### `global-state-communication`
 
-Estado global acessado por mais de um micro frontend — fatia de store ou
-chave de `localStorage`/`sessionStorage`. Ocorrência **única e binária**:
-o sistema usa estado como canal ou não usa.
+Global state accessed by more than one micro frontend — a store slice or
+a `localStorage`/`sessionStorage` key. A **single, binary** occurrence:
+the system either uses state as a channel or it does not.
 
 ### `mega-frontend`
 
-Micro frontend cujas telas **e** linhas de código ficam acima de `2×` a
-mediana do sistema. Indica concentração de responsabilidades, mas não
-prova: uma unidade grande e coesa não é um Mega Frontend.
+A micro frontend whose screens **and** lines of code are both above the
+upper Tukey fence of the system, `Q3 + 1.5·IQR`. Both together, not
+either one: many screens with little code is a menu, a lot of code with
+one screen is a library. The rule abstains in systems with fewer than
+eight micro frontends, where there is no distribution to speak of. It
+indicates a concentration of responsibilities, but does not prove it: a
+large, cohesive unit is not a Mega Frontend.
 
 ### `nano-frontend`
 
-Micro frontend com poucas telas somadas a fragmentos — até 5, ou abaixo
-da cerca inferior de Tukey do sistema — **e** menos código que a
-mediana do sistema. A segunda condição é a mesma exigência dupla do
-`mega-frontend`: poucas telas com muito código é tela densa, não unidade
-pequena. Indica fragmentação excessiva, mas não prova: uma unidade
-pequena é legítima quando constitui sozinha uma capacidade inteira.
+A micro frontend with few screens plus fragments — at most 5, or below
+the system's lower Tukey fence — **and** less code than the system
+median. The second condition is the same double requirement as
+`mega-frontend`: few screens with a lot of code is a dense screen, not
+a small unit. It indicates excessive fragmentation, but does not prove
+it: a small unit is legitimate when it makes up a whole capability on
+its own.
 
-### Sem escala de severidade
+### No severity scale
 
-Atribuir "alta" ou "baixa" exigiria um critério definido e justificado.
-No lugar, cada ocorrência informa a **dimensão** — qual relação
-arquitetural a produziu.
+Assigning "high" or "low" would require a defined and justified
+criterion. Instead, each occurrence reports the **dimension** — which
+architectural relation produced it.
 
 ---
 
-## Limitações conhecidas
+## Known limitations
 
-**Propagação de constantes** é indexada pelo nome do identificador,
-globalmente. Dois arquivos com uma `const routes` diferente colidem. Na
-constante simples (`const KEY = "x"`), um nome com dois valores no
-repositório não resolve.
+**Constant propagation** is indexed by the identifier's name, globally.
+Two files with a different `const routes` collide. For a simple
+constant (`const KEY = "x"`), a name with two values in the repository
+does not resolve.
 
-**Nome no layout diferente do pacote** só é ligado quando difere pelo
-escopo. `@org/argo-gestao` e um pacote `gestao` ficam sem ligação.
+**A layout name different from the package** is only linked when it
+differs by the scope. `@org/argo-gestao` and a package `gestao` remain
+unlinked.
 
-**Vue Router e arquivos `.vue`** não são lidos.
+**Vue Router and `.vue` files** are not read.
 
-**Apelido de import do bundler** (`resolve.alias` e `resolve.modules`
-do webpack, `alias` do Vite) não é lido; só o do `tsconfig`/`jsconfig`.
+**Bundler import aliases** (webpack's `resolve.alias` and
+`resolve.modules`, Vite's `alias`) are not read; only the
+`tsconfig`/`jsconfig` one.
 
-**Código morto** é descartado nas pontas de comunicação, nos acessos
-ao estado global e nas chamadas a API, só no nível de função. Arquivo
-que ninguém importa conta como vivo — pode ser entrada da aplicação ou
-módulo exposto —, e método de classe também.
+**Dead code** is discarded for communication ends, global state
+accesses and API calls, only at the function level. A file no one
+imports counts as live — it may be the application's entry point or an
+exposed module —, and so does a class method.
 
-**Chave de storage por embrulhadora** só é seguida quando é o
-parâmetro, com no máximo texto fixo antes e depois. Chave dentro de
-objeto (`storage.get({ key })`), método escolhido em runtime
-(`storage[op](key)`) e utilitário importado pelo nome do pacote do
-workspace (`@org/utils`, sem `paths` no `tsconfig`) ficam de fora.
+**A storage key through a wrapper** is only followed when it is the
+parameter, with at most fixed text before and after it. A key inside an
+object (`storage.get({ key })`), a method chosen at runtime
+(`storage[op](key)`) and a utility imported by the workspace package
+name (`@org/utils`, without `paths` in `tsconfig`) are left out.
 
-**`basename` do roteador** vale para todos os links da unidade quando
-ela declara um só valor. Com dois roteadores de bases diferentes, o
-destino fica como está escrito.
+**The router's `basename`** applies to all of the unit's links when it
+declares a single value. With two routers of different bases, the
+target stays as written.
 
-**`activeWhen` como função** não é resolvível estaticamente.
+**`activeWhen` as a function** cannot be resolved statically.
 
-**Destino de navegação dinâmico** (`navigate(variavel)`) não resolve.
-Literais, constantes, templates e `.replace(":id", …)` resolvem.
+**A dynamic navigation target** (`navigate(variable)`) does not
+resolve. Literals, constants, templates and `.replace(":id", …)`
+resolve.
 
-**Navegação dentro de fragmento** é atribuída ao micro frontend que
-define o fragmento, não ao que o renderiza.
+**Navigation inside a fragment** is attributed to the micro frontend
+that defines the fragment, not to the one that renders it.
 
-**Unidades montadas lado a lado** pelo orquestrador, sem que uma
-renderize a outra, não estão na mesma tela para o `cyclic-dependency` —
-nem o `customProps`, que é emitido no registro. Fica de fora por
-definição.
+**Units mounted side by side** by the orchestrator, without one
+rendering the other, are not on the same screen for
+`cyclic-dependency` — nor is `customProps`, which is emitted at
+registration. It is left out by definition.
 
-**Escrita no estado global** não é extraída: a chamada revela o nome da
-ação, não a fatia alterada.
+**Writes to library-managed global state** (Redux `dispatch` and the
+like) are not extracted: the call reveals the action's name, not the
+slice that changes. Writes to `localStorage`/`sessionStorage` are.
 
-**`baseURL` não resolve**, porque vem de variável de ambiente. Os
-caminhos ficam relativos, e dois micro frontends falando com serviços
-diferentes no mesmo caminho parecem iguais.
+**`baseURL` does not resolve**, because it comes from an environment
+variable. The paths stay relative, and two micro frontends talking to
+different services on the same path look the same.
 
-**Função que embrulha um cliente** só é seguida quando a URL TERMINA no
-parâmetro, com no máximo base e texto antes (`${base}${url}`). Se o
-texto antes já é caminho (`"/api/" + endpoint`), a chamada fica onde
-está, como `/api/{param}`. Função guardada em variável, objeto de
-serviço montado em runtime e injeção sem tipo escrito não têm alvo.
+**A function wrapping a client** is not followed when the text before
+the parameter is already a path (`"/api/" + endpoint`): the call stays
+where it is, as `/api/{param}`, because what the parameter completes is
+unknown. A function held in a variable, a service object assembled at
+runtime and injection without a written type have no target.
 
-**GraphQL não cabe no modelo** de chamada externa: tudo vai para um
-endpoint só, e a unidade real é a operação.
+**GraphQL does not fit the model** of an external call: everything goes
+to a single endpoint, and the real unit is the operation.
 
-**Mudar uma declaração exige refazer o `reconstruct`.** Editar
-`communication.yml` e rodar só o `detect` usa a resolução anterior, sem
-aviso.
+**Changing a declaration requires re-running `reconstruct`.** Editing
+`communication.yml` and running only `detect` uses the previous
+resolution, without warning.
 
-**Versões do tree-sitter estão fixadas numa faixa fechada.** O núcleo e
-os bindings de linguagem compartilham uma ABI, e misturar famílias
-corrompe memória silenciosamente — o processo morre por falha de
-segmentação em lugares aleatórios, sem exceção.
+**tree-sitter versions are pinned to a closed range.** The core and the
+language bindings share an ABI, and mixing families silently corrupts
+memory — the process dies with a segmentation fault at random places,
+without an exception.

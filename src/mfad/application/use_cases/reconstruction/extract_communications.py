@@ -1,4 +1,4 @@
-"""Extrair a comunicação declarada entre aplicações."""
+"""Extract the declared communication between applications."""
 
 from __future__ import annotations
 
@@ -34,10 +34,10 @@ class ExtractCommunicationsUseCase(UseCase[CommunicationsResult]):
 
         spec = self.specs.load_communication(self.spec_path)
 
-        # A extração acontece com ou sem declaração: as primitivas
-        # da plataforma e os barramentos conhecidos não dependem
-        # dela. O `configured` só informa se há declaração, para
-        # que a apresentação possa dizer o que ficou de fora.
+        # Extraction happens with or without a declaration: the
+        # platform primitives and the known buses do not depend on
+        # it. `configured` only tells whether there is a declaration,
+        # so that the presentation can say what was left out.
         microfrontends = self.microfrontends
 
         if microfrontends is None:
@@ -60,13 +60,13 @@ class ExtractCommunicationsUseCase(UseCase[CommunicationsResult]):
     @staticmethod
     def _unmatched(spec, communications) -> list[str]:
         """
-        Mecanismos declarados que não renderam aresta nenhuma.
+        Declared mechanisms that yielded no edge at all.
 
-        Uma declaração cujo `module` não bate com o especificador
-        real do import produz zero em silêncio, e zero é um
-        resultado plausível — o sistema pode mesmo não usar aquele
-        canal. Sem este aviso, erro de digitação e ausência
-        verdadeira são indistinguíveis.
+        A declaration whose `module` does not match the actual import
+        specifier silently produces zero, and zero is a plausible
+        result — the system may really not use that channel. Without
+        this warning, a typo and a genuine absence are
+        indistinguishable.
         """
 
         found = {item.mechanism for item in communications}

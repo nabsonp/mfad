@@ -1,6 +1,6 @@
-"""Reconstrução de arquiteturas single-spa.
+"""Reconstruction of single-spa architectures.
 
-Deliberadamente vazio: importar o reconstrutor aqui criaria um
-ciclo com os módulos internos que usam `jsx` do próprio pacote.
-O registro importa direto de `reconstructor`.
+Deliberately empty: importing the reconstructor here would create a
+cycle with the internal modules that use the package's own `jsx`.
+The registry imports directly from `reconstructor`.
 """

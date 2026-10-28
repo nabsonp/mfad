@@ -1,4 +1,4 @@
-"""Registro de renderizadores — ponto de extensão do módulo 3."""
+"""Renderer registry: the extension point of module 3."""
 
 from __future__ import annotations
 
@@ -24,10 +24,10 @@ def get(name: str) -> Renderer:
 
     if name not in _REGISTRY:
 
-        known = ", ".join(sorted(_REGISTRY)) or "nenhum"
+        known = ", ".join(sorted(_REGISTRY)) or "none"
 
         raise KeyError(
-            f"Formato desconhecido: {name}. Disponíveis: {known}"
+            f"Unknown format: {name}. Available: {known}"
         )
 
     return _REGISTRY[name]

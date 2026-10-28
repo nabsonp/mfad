@@ -1,4 +1,4 @@
-"""Camada fina sobre o Tree-sitter, independente de framework."""
+"""Thin layer over Tree-sitter, framework-independent."""
 
 from __future__ import annotations
 
@@ -16,19 +16,19 @@ TSX_LANGUAGE = Language(ts_typescript.language_tsx())
 
 
 class AstReader:
-    """Escolhe o parser pela extensão e navega na árvore."""
+    """Picks the parser by extension and navigates the tree."""
 
     SUPPORTED_EXTENSIONS = {".js", ".jsx", ".ts", ".tsx"}
 
     def __init__(self):
 
-        # As árvores precisam ser mantidas vivas: um `Node` do
-        # tree-sitter aponta para memória que pertence à `Tree`, e
-        # se ela é coletada o nó vira ponteiro solto — o processo
-        # morre por falha de segmentação, sem exceção.
+        # Trees must be kept alive: a tree-sitter `Node` points to
+        # memory owned by the `Tree`, and if the tree is garbage
+        # collected the node becomes a dangling pointer — the process
+        # dies with a segmentation fault, with no exception.
         #
-        # Guardá-las por caminho também evita reanalisar o mesmo
-        # arquivo a cada etapa da reconstrução.
+        # Keeping them by path also avoids re-parsing the same
+        # file at every reconstruction step.
         self._trees: dict[Path, object] = {}
 
         self._parsers = {
@@ -49,7 +49,7 @@ class AstReader:
 
         if not parser:
             raise ValueError(
-                f"Extensão não suportada: {file_path.suffix}"
+                f"Unsupported extension: {file_path.suffix}"
             )
 
         source = file_path.read_bytes()
@@ -71,13 +71,13 @@ class AstReader:
     @classmethod
     def walk(cls, node: Node) -> Iterator[Node]:
         """
-        Percorre a árvore em profundidade, da esquerda para a
-        direita.
+        Walks the tree depth-first, from left to
+        right.
 
-        Iterativo, e não recursivo: `yield from` empilharia um
-        frame por nível da AST, e uma árvore de JSX aninhado
-        esgota a pilha — o processo morre por falha de segmentação,
-        sem exceção que se possa capturar.
+        Iterative, not recursive: `yield from` would stack one
+        frame per AST level, and a tree of nested JSX
+        exhausts the stack — the process dies with a segmentation
+        fault, with no exception that can be caught.
         """
 
         stack = [node]

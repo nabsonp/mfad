@@ -1,13 +1,13 @@
 """
-Comunicação entre aplicações e a declaração do mecanismo.
+Communication between applications and the declaration of the mechanism.
 
-Ao contrário de rota e de fragmento, comunicação não tem contrato
-único no ecossistema: cada projeto escolhe barramento de eventos,
-store compartilhado, `window`, `postMessage`. Por isso o mecanismo
-é DECLARADO uma vez, num momento de setup, e a extração passa a
-ser determinística como as demais.
+Unlike routes and fragments, communication has no single contract in
+the ecosystem: each project picks an event bus, a shared store,
+`window`, `postMessage`. That is why the mechanism is DECLARED once,
+at a setup moment, and extraction then becomes as deterministic as
+the others.
 
-`Communication` é o resultado; `CommunicationSpec` é a declaração.
+`Communication` is the result; `CommunicationSpec` is the declaration.
 """
 
 from __future__ import annotations
@@ -20,10 +20,10 @@ from mfad.domain.model import Placement, SourceLocation, StateAccess
 @dataclass
 class ChannelOperation:
     """
-    Um lado do mecanismo: quem publica ou quem assina.
+    One side of the mechanism: who publishes or who subscribes.
 
-    `module` e `export` identificam a função; `channel_argument`
-    diz em qual posição dos argumentos está o nome do canal.
+    `module` and `export` identify the function; `channel_argument`
+    tells at which argument position the channel name is.
     """
 
     module: str
@@ -33,7 +33,7 @@ class ChannelOperation:
 
 @dataclass
 class Mechanism:
-    """Um meio de comunicação declarado pelo usuário."""
+    """A communication medium declared by the user."""
 
     name: str
     kind: str
@@ -43,7 +43,7 @@ class Mechanism:
 
 @dataclass
 class CommunicationSpec:
-    """O que o setup gravou. Vazio significa setup não feito."""
+    """What the setup wrote. Empty means setup not done."""
 
     mechanisms: list[Mechanism] = field(default_factory=list)
 
@@ -54,10 +54,10 @@ class CommunicationSpec:
 @dataclass
 class Communication:
     """
-    Aresta: uma aplicação publica num canal que outra assina.
+    Edge: one application publishes on a channel that another subscribes to.
 
-    Produtores e consumidores são pareados pelo NOME DO CANAL, não
-    por chamada — é o canal que é o contrato entre as duas pontas.
+    Producers and consumers are paired by CHANNEL NAME, not by call —
+    the channel is the contract between the two ends.
     """
 
     source: str
@@ -67,48 +67,50 @@ class Communication:
     produced_at: list[SourceLocation] = field(default_factory=list)
     consumed_at: list[SourceLocation] = field(default_factory=list)
 
-    #: Telas e fragmentos que alcançam cada ponta.
+    #: Screens and fragments that reach each end.
     #:
-    #: Os dois lados de um canal só conversam de fato quando estão
-    #: montados ao mesmo tempo. Sem saber onde cada ponta está, um
-    #: produtor numa tela e um consumidor noutra viravam aresta, e o
-    #: grafo ligava partes que nunca coexistem.
+    #: The two sides of a channel only actually talk when they are
+    #: mounted at the same time. Without knowing where each end is, a
+    #: producer on one screen and a consumer on another became an edge,
+    #: and the graph linked parts that never coexist.
     produced_on: Placement = field(default_factory=Placement)
     consumed_on: Placement = field(default_factory=Placement)
 
-    #: Se o sentido da aresta significa alguma coisa.
+    #: Whether the direction of the edge means anything.
     #:
-    #: Mensagem tem lado: quem publica não é quem assina. Acoplamento
-    #: por estado compartilhado não tem — os dois leem, nenhum é a
-    #: origem —, e a simetria é representada por um par de arestas
-    #: opostas, por falta de um tipo não direcionado na coleção.
+    #: A message has sides: whoever publishes is not whoever subscribes.
+    #: Coupling through shared state does not — both read, neither is
+    #: the origin —, and the symmetry is represented by a pair of
+    #: opposite edges, for lack of an undirected type in the collection.
     #:
-    #: Quem percorre o grafo precisa saber a diferença. Buscar ciclo
-    #: entre arestas simétricas encontra um em toda dupla, e o ciclo
-    #: é a codificação, não o sistema.
+    #: Whoever traverses the graph needs to know the difference.
+    #: Searching for a cycle among symmetric edges finds one in every
+    #: pair, and the cycle is the encoding, not the system.
     directed: bool = True
 
 
 def edges_from_state(accesses: list[StateAccess]) -> list[Communication]:
     """
-    Acoplamento por estado global, como arestas do mesmo grafo.
+    Global-state coupling, as edges of the same graph.
 
-    Quando dois micro frontends leem a mesma fatia, o formato
-    daquele dado virou interface pública de fato entre eles: mudá-lo
-    quebra os dois de uma vez. Isso é comunicação, ainda que não
-    passe mensagem nenhuma, e deixá-la fora do grafo fazia as regras
-    que o percorrem — ciclo, hub — subcontarem o acoplamento real.
+    When two micro frontends read the same slice, the shape of that
+    data has become a de facto public interface between them:
+    changing it breaks both at once. That is communication, even
+    though no message is passed, and leaving it out of the graph made
+    the rules that traverse it — cycle, hub — undercount the real
+    coupling.
 
-    A aresta é NÃO DIRECIONADA, e é aí que ela difere de todas as
-    outras desta coleção. Mensagem tem lado: alguém publica, alguém
-    assina. Leitura compartilhada não tem — três leitores da mesma
-    fatia dependem uns dos outros mutuamente, sem que nenhum seja a
-    origem. Como `Communication` tem `source` e `target`, cada par
-    vira DUAS arestas, uma em cada sentido, e o par é ordenado por
-    nome para que o resultado não dependa da ordem de extração.
+    The edge is UNDIRECTED, and that is where it differs from all the
+    others in this collection. A message has sides: someone
+    publishes, someone subscribes. A shared read does not — three
+    readers of the same slice depend on each other mutually, with
+    none being the origin. Since `Communication` has `source` and
+    `target`, each pair becomes TWO edges, one in each direction, and
+    the pair is ordered by name so that the result does not depend on
+    the extraction order.
 
-    Só a leitura entra, porque só ela é extraída — ver `StateAccess`
-    sobre por que a escrita fica de fora.
+    Only reads go in, because only they are extracted — see
+    `StateAccess` on why writes are left out.
     """
 
     by_path: dict[tuple[str, str], set[str]] = {}

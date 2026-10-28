@@ -1,4 +1,4 @@
-"""As formas de declarar rota no React Router e no @reach/router."""
+"""The ways of declaring a route in React Router and in @reach/router."""
 
 import textwrap
 
@@ -12,7 +12,7 @@ from mfad.adapters.driven.reconstruction.routers import ReactRouteReader
 
 @pytest.fixture
 def routes(tmp_path):
-    """Lê as rotas de um trecho de código: `[(componente, rota)]`."""
+    """Reads the routes from a code snippet: `[(component, route)]`."""
 
     def read(code: str):
 
@@ -115,7 +115,7 @@ def test_reach_router_children_of_router(routes):
 
 
 def test_path_attribute_outside_a_router_is_not_a_route(routes):
-    """`<svg><Path path="…"/></svg>` não é rota; sem @reach/router, nada."""
+    """`<svg><Path path="…"/></svg>` is not a route; without @reach/router, nothing."""
 
     assert routes("""
         <Icon><Shape path="/m0 0" /></Icon>

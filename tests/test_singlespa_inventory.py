@@ -1,4 +1,4 @@
-"""Inventário single-spa: quem é micro frontend, com quais rotas e telas."""
+"""single-spa inventory: what is a micro frontend, with which routes and screens."""
 
 from conftest import by_id, mfe, root_config
 
@@ -22,7 +22,7 @@ def test_registered_applications_get_their_routes(system):
 
 
 def test_root_component_named_with_dotted_suffix_is_the_screen(system):
-    """`./root.component` é `root.component.js` — a extensão é acrescentada."""
+    """`./root.component` is `root.component.js` — the extension is appended."""
 
     architecture = system(
         {
@@ -57,7 +57,7 @@ def test_test_files_are_not_read(system):
 
 
 def test_units_nested_in_a_monorepo_folder_own_their_code(system):
-    """`apps/catalog/...` é de `@org/catalog`, não de uma unidade chamada `apps`."""
+    """`apps/catalog/...` belongs to `@org/catalog`, not to a unit called `apps`."""
 
     catalog_root = """
         import { navigateToUrl } from "single-spa";
@@ -85,5 +85,5 @@ def test_units_nested_in_a_monorepo_folder_own_their_code(system):
         "catalog",
         "checkout",
     ]
-    # Código fora de qualquer unidade não vira consumidor fantasma.
+    # Code outside any unit does not become a phantom consumer.
     assert architecture.api_calls == []

@@ -1,9 +1,9 @@
 """
-Construção das aplicações a partir dos `registerApplication`.
+Building the applications from the `registerApplication` calls.
 
-Fragmentos são os exports do entrypoint que não fazem parte do
-contrato de lifecycle do single-spa. Telas são as `<Route>`
-declaradas pelo `rootComponent`.
+Fragments are the entrypoint's exports that are not part of the
+single-spa lifecycle contract. Screens are the `<Route>` elements
+declared by the `rootComponent`.
 """
 
 from __future__ import annotations
@@ -57,8 +57,8 @@ class MicroFrontendBuilder:
             ),
         )
 
-        # Aplicação registrada cujo entrypoint não resolve segue
-        # sendo um nó do grafo. Sumir é pior que aparecer incompleta.
+        # A registered application whose entrypoint does not resolve is
+        # still a node of the graph. Vanishing is worse than appearing incomplete.
         if not entrypoint:
             microfrontend.metadata["entrypoint_resolved"] = False
             return microfrontend
@@ -79,11 +79,11 @@ class MicroFrontendBuilder:
 
         for name, line in exported:
 
-            # Texto, lista, tipo: sai pelo `export`, mas ninguém monta.
+            # Text, list, type: leaves through `export`, but nobody mounts it.
             if values.is_data(entrypoint, name):
                 continue
 
-            # `export { Card } from "./Card"` não importa: segue o reexport.
+            # `export { Card } from "./Card"` does not matter: follow the re-export.
             target = imports.file_for(name) or values.origin(entrypoint, name)
 
             microfrontend.fragments.append(
@@ -97,8 +97,8 @@ class MicroFrontendBuilder:
                 )
             )
 
-        # Sob single-spa-layout as rotas não estão no registro: elas
-        # vivem no template, e o registro fica sem activeWhen algum.
+        # Under single-spa-layout the routes are not in the registration:
+        # they live in the template, and the registration has no activeWhen at all.
         if not microfrontend.routes:
 
             declared = self.context.layout_routes_of(registration.name)
@@ -107,11 +107,11 @@ class MicroFrontendBuilder:
                 microfrontend.routes = declared
                 microfrontend.metadata["routes_from"] = "single-spa-layout"
 
-        # Terceira fonte, a do próprio Angular: o single-spa-angular
-        # manda declarar `APP_BASE_HREF` com o prefixo em que a
-        # aplicação é montada, para que o roteador interno funcione
-        # sob ele. É o `activeWhen` escrito do lado da aplicação — e
-        # existe mesmo quando o orquestrador não está no repositório.
+        # Third source, Angular's own: single-spa-angular requires
+        # declaring `APP_BASE_HREF` with the prefix where the application
+        # is mounted, so that the internal router works under it. It is
+        # the `activeWhen` written on the application's side — and it
+        # exists even when the orchestrator is not in the repository.
         if not microfrontend.routes:
 
             base = self._base_href(self.context.package_dir(entrypoint))
@@ -120,9 +120,9 @@ class MicroFrontendBuilder:
                 microfrontend.routes = [base]
                 microfrontend.metadata["routes_from"] = "APP_BASE_HREF"
 
-        # A forma do activeWhen viaja junto: rota vinda de função de
-        # atividade não tem a mesma confiança de rota literal, e quem
-        # lê o artefato precisa poder distinguir.
+        # The form of activeWhen travels along: a route coming from an
+        # activity function does not have the same confidence as a
+        # literal route, and whoever reads the artifact needs to tell them apart.
         if registration.active_when_form != "literal":
             microfrontend.metadata["active_when_form"] = (
                 registration.active_when_form
@@ -154,18 +154,18 @@ class MicroFrontendBuilder:
         registration: Registration,
     ) -> Path | None:
         """
-        O arquivo de entrada do micro frontend registrado.
+        The entry file of the registered micro frontend.
 
-        Duas vias, nesta ordem. O índice de pacotes resolve o
-        especificador do import map — `@org/mfe-x` — para o diretório
-        que declara aquele nome no `package.json`, que é a via
-        confiável. A convenção de nome é o recurso quando o pacote não
-        está no repositório analisado.
+        Two ways, in this order. The package index resolves the import
+        map specifier — `@org/mfe-x` — to the directory that declares
+        that name in `package.json`, which is the reliable way. The
+        naming convention is the fallback when the package is not in
+        the analyzed repository.
 
-        Aplicação registrada sem pacote próprio existe: o shell pode
-        declarar ciclos de vida inline. Devolver `None` aqui é
-        resposta legítima, e `build` a mantém no grafo marcada como
-        não resolvida.
+        A registered application without its own package does exist:
+        the shell may declare lifecycles inline. Returning `None` here
+        is a legitimate answer, and `build` keeps it in the graph marked
+        as unresolved.
         """
 
         if registration.entrypoint:
@@ -176,10 +176,10 @@ class MicroFrontendBuilder:
         if not specifier:
             return None
 
-        # Caminho relativo: o shell carrega o módulo do próprio
-        # repositório, sem pacote publicado. É assim que um monolito
-        # sendo migrado entra no grafo — ele é aplicação registrada
-        # como qualquer outra, e some se só olharmos o import map.
+        # Relative path: the shell loads the module from its own
+        # repository, without a published package. That is how a
+        # monolith being migrated enters the graph — it is a registered
+        # application like any other, and vanishes if we only look at the import map.
         if specifier.startswith("."):
             return ModuleResolver.resolve(
                 specifier, registration.declared_in
@@ -194,9 +194,9 @@ class MicroFrontendBuilder:
             if found:
                 return found
 
-            # Pacote encontrado, entrada fora da convenção: o campo
-            # `main`/`module` do manifesto é a declaração do próprio
-            # projeto sobre onde ele começa.
+            # Package found, entry outside the convention: the manifest's
+            # `main`/`module` field is the project's own declaration of
+            # where it starts.
             return self._from_manifest(directory)
 
         for candidate in self.context.tree.manifests():
@@ -210,11 +210,12 @@ class MicroFrontendBuilder:
 
     def _base_href(self, directory: Path) -> str | None:
         """
-        O prefixo de `{ provide: APP_BASE_HREF, useValue: "/x/" }`.
+        The prefix of `{ provide: APP_BASE_HREF, useValue: "/x/" }`.
 
-        Só valor literal e único: mais de um prefixo distinto no mesmo
-        pacote não diz qual é o da montagem. `/` também não serve —
-        diz que a aplicação está na raiz, não que é dona dela.
+        Only a single literal value: more than one distinct prefix in
+        the same package does not say which one is the mount's. `/` does
+        not work either — it says the application is at the root, not
+        that it owns it.
         """
 
         found: set[str] = set()
@@ -291,7 +292,7 @@ class MicroFrontendBuilder:
 
     @staticmethod
     def _from_manifest(directory: Path) -> Path | None:
-        """O que o `package.json` declara como ponto de partida."""
+        """What `package.json` declares as the starting point."""
 
         manifest_file = directory / "package.json"
 
@@ -322,13 +323,13 @@ class MicroFrontendBuilder:
         source: bytes,
     ) -> tuple[list[str], list[tuple[str, int]]]:
         """
-        O que o arquivo de entrada expõe.
+        What the entry file exposes.
 
-        Devolve dois conjuntos. Os ciclos de vida — `bootstrap`,
-        `mount`, `unmount`, `update` — dizem que aquilo é um micro
-        frontend do single-spa. Todo o resto que sai por `export` é
-        fragmento: componente publicado para outro micro frontend
-        consumir.
+        Returns two sets. The lifecycles — `bootstrap`, `mount`,
+        `unmount`, `update` — say that it is a single-spa micro
+        frontend. Everything else that leaves through `export` is a
+        fragment: a component published for another micro frontend to
+        consume.
         """
 
         lifecycles: list[str] = []
@@ -341,11 +342,11 @@ class MicroFrontendBuilder:
 
             if declaration:
 
-                # Só as variáveis que a própria declaração cria. Descer
-                # na árvore inteira pegava também as locais de dentro
-                # de funções exportadas — o `let el` de
-                # `export function domElementGetter() {...}` virava
-                # fragmento.
+                # Only the variables the declaration itself creates.
+                # Descending into the whole tree also picked up the locals
+                # inside exported functions — the `let el` of
+                # `export function domElementGetter() {...}` became a
+                # fragment.
                 declarators = [
                     child
                     for child in declaration.named_children
@@ -369,11 +370,11 @@ class MicroFrontendBuilder:
 
                 # export const bootstrap = lifecycles.bootstrap;
                 #
-                # A terceira forma, e a que os adaptadores de Angular
-                # geram. Sem ela, uma unidade que exporta os ciclos de
-                # vida um a um não é reconhecida como micro frontend, e
-                # um componente exportado assim não é reconhecido como
-                # fragmento.
+                # The third form, and the one the Angular adapters
+                # generate. Without it, a unit that exports the
+                # lifecycles one by one is not recognized as a micro
+                # frontend, and a component exported this way is not
+                # recognized as a fragment.
                 for declarator in declarators:
                     name_node = declarator.child_by_field_name("name")
 
@@ -422,18 +423,18 @@ class MicroFrontendBuilder:
 
     def _container_of(self, root: Node, source: bytes) -> str | None:
         """
-        O elemento do shell em que este micro frontend é montado.
+        The shell element in which this micro frontend is mounted.
 
-        `domElementGetter` é como o single-spa deixa a aplicação
-        escolher onde aparecer, e `domElement` é a forma direta que
-        os adaptadores de framework aceitam. Declará-lo significa que o shell
-        reservou um lugar no layout — `#navbar-container` —, e que
-        aquilo é encaixado numa página junto de outras coisas. Quem
-        não declara recebe um `div` que o single-spa anexa ao corpo,
-        e ocupa a página sozinho.
+        `domElementGetter` is how single-spa lets the application
+        choose where to appear, and `domElement` is the direct form the
+        framework adapters accept. Declaring it means the shell reserved
+        a place in the layout — `#navbar-container` —, and that the thing
+        is slotted into a page together with other things. An
+        application that does not declare it gets a `div` that
+        single-spa appends to the body, and takes up the page alone.
 
-        É o sinal mais forte que existe para separar composição de
-        tela, e não depende de convenção de pasta nem de nome.
+        It is the strongest signal there is to tell composition from
+        screen, and it depends on no folder or naming convention.
         """
 
         for pair in AstReader.find_all(root, "pair"):
@@ -496,24 +497,24 @@ class MicroFrontendBuilder:
         microfrontend: MicroFrontend,
     ) -> None:
         """
-        O que o componente raiz é, quando o micro frontend não tem
-        roteador próprio.
+        What the root component is, when the micro frontend has no
+        router of its own.
 
-        Em single-spa o roteador é o `activeWhen`: um micro frontend
-        registrado num prefixo já serve aquela rota, e roteador
-        interno só faz falta para servir várias telas sob o mesmo
-        prefixo. Então ausência de `<Route>` não significa ausência de
-        tela — significa uma tela só.
+        In single-spa the router is `activeWhen`: a micro frontend
+        registered under a prefix already serves that route, and an
+        internal router is only needed to serve several screens under
+        the same prefix. So the absence of `<Route>` does not mean the
+        absence of a screen — it means a single screen.
 
-        O sinal de que é composição, e não tela, é o contêiner
-        declarado. `domElementGetter` apontando para um
-        elemento do shell significa que o layout reservou um lugar
-        para aquilo — ele é encaixado numa página junto de outras
-        coisas. Quem não declara recebe um `div` anexado ao corpo.
+        The signal that it is composition, and not a screen, is the
+        declared container. `domElementGetter` pointing to a shell
+        element means the layout reserved a place for it — it is
+        slotted into a page together with other things. An application
+        that does not declare it gets a `div` appended to the body.
 
-        Sem ele, o componente raiz é a tela daquele
-        prefixo. A rota é a do registro; não há expressão a resolver,
-        porque ela não foi escrita no código da tela.
+        Without it, the root component is the screen of that prefix.
+        The route is the registration's; there is no expression to
+        resolve, because it was not written in the screen's code.
         """
 
         name = root_component.stem
@@ -533,8 +534,8 @@ class MicroFrontendBuilder:
 
             return
 
-        # O raiz que só monta providers em volta de um componente do
-        # projeto não é a tela: a tela é o que ele envolve.
+        # A root that only mounts providers around a project component
+        # is not the screen: the screen is what it wraps.
         name, content = self._content_of(root_component)
 
         microfrontend.screens = [
@@ -548,12 +549,13 @@ class MicroFrontendBuilder:
 
     def _content_of(self, root_component: Path) -> tuple[str, Path]:
         """
-        O componente que o raiz mostra, descendo pelos que só envolvem.
+        The component the root shows, descending through the ones that only wrap.
 
-        Um componente só envolve quando o que ele renderiza são
-        componentes de pacote (`<Provider>`, `<LocationProvider>`, o
-        `<Suspense>` do React) e um único componente do projeto, sem
-        elemento HTML próprio. A tela é o primeiro que não é assim.
+        A component only wraps when what it renders are package
+        components (`<Provider>`, `<LocationProvider>`, React's
+        `<Suspense>`) and a single project component, with no HTML
+        element of its own. The screen is the first one that is not
+        like that.
         """
 
         name, current = root_component.stem, root_component
@@ -574,7 +576,7 @@ class MicroFrontendBuilder:
 
                 tag = jsx.tag_name(opening, source) or ""
 
-                # `<>...</>` não tem nome e não é conteúdo.
+                # `<>...</>` has no name and is not content.
                 if not tag:
                     continue
 
@@ -599,12 +601,13 @@ class MicroFrontendBuilder:
     @staticmethod
     def _is_fragment(microfrontend: MicroFrontend) -> bool:
         """
-        Se o micro frontend compõe uma página em vez de ser uma.
+        Whether the micro frontend composes a page instead of being one.
 
-        Um sinal só: o contêiner declarado. Chegou-se a usar também
-        `activeWhen` permanente, e ele não serve — duas aplicações
-        podem dividir o mesmo `activeWhen` sendo as duas telas, e aí
-        montar em toda URL não diz nada sobre o papel de nenhuma.
+        A single signal: the declared container. A permanent
+        `activeWhen` was also used at one point, and it does not work —
+        two applications may share the same `activeWhen` while both are
+        screens, and then mounting on every URL says nothing about
+        either one's role.
         """
 
         return bool(microfrontend.metadata.get("container"))
@@ -615,28 +618,28 @@ class MicroFrontendBuilder:
         root_component: Path | None,
     ) -> list[Screen]:
         """
-        As telas declaradas em qualquer arquivo do micro frontend.
+        The screens declared in any file of the micro frontend.
 
-        Procurar só a partir do componente raiz encontra o que o
-        sistema monta hoje, e perde o que está declarado num arquivo
-        que ninguém importa. Os dois são informação, mas só o segundo
-        responde à pergunta que a reconstrução faz: quais telas este
-        micro frontend define. Se uma delas está desligada, isso é
-        achado para quem lê o resultado, não motivo para o extrator
-        omiti-la.
+        Searching only from the root component finds what the system
+        mounts today, and misses what is declared in a file nobody
+        imports. Both are information, but only the second answers the
+        question the reconstruction asks: which screens this micro
+        frontend defines. If one of them is switched off, that is a
+        finding for whoever reads the result, not a reason for the
+        extractor to omit it.
 
-        Onde as rotas moram também é organização de projeto, não
-        contrato do single-spa — um extrator que exija uma pasta
-        específica está lendo a convenção de um repositório em vez da
-        tecnologia.
+        Where the routes live is also project organization, not a
+        single-spa contract — an extractor that requires a specific
+        folder is reading one repository's convention instead of the
+        technology.
         """
 
         directory = (
             self.context.repository / microfrontend.directory
         ).resolve()
 
-        # Os arquivos que o componente raiz de fato alcança. O que
-        # estiver fora disto é extraído do mesmo jeito, só marcado.
+        # The files the root component actually reaches. Whatever is
+        # outside this is extracted the same way, only flagged.
         alcancados = (
             Reachability(self.context).reachable_from(root_component)
             if root_component
@@ -647,8 +650,8 @@ class MicroFrontendBuilder:
 
         seen: set[tuple[str, str]] = set()
 
-        # Ordenado para que o resultado não dependa da ordem em que o
-        # sistema de arquivos devolveu os caminhos.
+        # Sorted so that the result does not depend on the order in which
+        # the filesystem returned the paths.
         for file_path in sorted(
             path
             for path in self.context.tree.source_files()
@@ -683,8 +686,8 @@ class MicroFrontendBuilder:
 
         imports = ImportTable(root, source, file_path)
 
-        # Roteamento é eixo à parte do de integração: uma unidade
-        # single-spa pode ser Angular, e aí a tela não está em JSX.
+        # Routing is an axis separate from integration: a single-spa
+        # unit may be Angular, and then the screen is not in JSX.
         screens: list[Screen] = AngularRouteReader(
             self.context
         ).screens_in(file_path, application_id)

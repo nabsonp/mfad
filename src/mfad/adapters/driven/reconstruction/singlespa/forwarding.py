@@ -1,15 +1,16 @@
 """
-Funções do projeto que repassam um parâmetro a uma API conhecida.
+Project functions that forward a parameter to a known API.
 
-Projetos embrulham a API da plataforma numa função própria — o
-`fetchApi(url)` que chama `fetch`, o `setItem(key, value)` que grava
-no `localStorage` — e o valor que importa só aparece em quem chama a
-embrulhadora. O critério é fluxo de dado, não nome: a função que
-repassa um parâmetro seu à API vira embrulhadora, e quem repassa o
-próprio parâmetro a uma embrulhadora também, em camadas.
+Projects wrap the platform API in a function of their own — the
+`fetchApi(url)` that calls `fetch`, the `setItem(key, value)` that
+writes to `localStorage` — and the value that matters only appears in
+whoever calls the wrapper. The criterion is data flow, not name: the
+function that forwards one of its parameters to the API becomes a
+wrapper, and so does whoever forwards its own parameter to a wrapper,
+in layers.
 
-Este módulo guarda o que as extrações têm em comum: reconhecer o
-parâmetro e iterar as camadas até nada novo aparecer.
+This module holds what the extractions have in common: recognizing the
+parameter and iterating over the layers until nothing new shows up.
 """
 
 from __future__ import annotations
@@ -27,20 +28,20 @@ from mfad.adapters.driven.reconstruction.ast.symbols import (
 )
 
 
-#: Quantas camadas de função embrulhando outra se seguem.
+#: How many layers of a function wrapping another are followed.
 MAX_LAYERS = 5
 
 
 @dataclass(frozen=True)
 class Parameter:
-    """Valor que é parâmetro da função em volta."""
+    """Value that is a parameter of the enclosing function."""
 
     function: Node
     index: int
 
 
 def parameter_of(identifier: Node, symbols: ModuleSymbols) -> Parameter | None:
-    """O parâmetro de função que o nome designa, se for um."""
+    """The function parameter the name designates, if it is one."""
 
     name = symbols.text(identifier)
 
@@ -65,11 +66,12 @@ def until_stable(
     step: Callable[[Node, ModuleSymbols], bool],
 ) -> None:
     """
-    Aplica `step` a toda chamada, rodada após rodada.
+    Applies `step` to every call, round after round.
 
-    `step` diz se achou embrulhadora nova. A primeira rodada acha as
-    que chamam a API direto; cada rodada seguinte, as que chamam uma
-    da anterior. Para quando uma rodada não acha nada.
+    `step` says whether it found a new wrapper. The first round finds
+    the ones that call the API directly; each following round, the ones
+    that call one from the previous round. Stops when a round finds
+    nothing.
     """
 
     calls = {
@@ -79,7 +81,7 @@ def until_stable(
 
     for _ in range(MAX_LAYERS):
 
-        # Sem curto-circuito: todas as chamadas da rodada contam.
+        # No short-circuit: every call in the round counts.
         found = [step(node, symbols) for symbols in files for node in calls[symbols.path]]
 
         if not any(found):

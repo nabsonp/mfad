@@ -1,20 +1,20 @@
 """
-A declaração de federação, onde quer que ela esteja.
+The federation declaration, wherever it is.
 
-Module Federation não tem orquestrador. Não existe arquivo que
-registre as unidades do sistema, como o `registerApplication` do
-single-spa: cada unidade se declara no próprio arquivo de build, e o
-sistema é o que emerge dessas declarações quando lidas juntas.
+Module Federation has no orchestrator. There is no file that registers
+the units of the system, like single-spa's `registerApplication`: each
+unit declares itself in its own build file, and the system is what
+emerges from those declarations when they are read together.
 
-Três campos importam:
+Three fields matter:
 
-    name       a identidade da unidade na rede de federação
-    exposes    o que ela publica, `{ "./Botao": "./src/Botao" }`
-    remotes    de quem ela consome, `{ app1: "app1@http://…" }`
+    name       the identity of the unit in the federation network
+    exposes    what it publishes, `{ "./Botao": "./src/Botao" }`
+    remotes    whom it consumes from, `{ app1: "app1@http://…" }`
 
-A mesma declaração aparece sob várias embalagens — webpack, Vite,
-Rspack, o wrapper do Nx —, e todas recebem o mesmo objeto. Por isso
-a busca é pelo objeto, não pelo empacotador.
+The same declaration shows up under several wrappers — webpack, Vite,
+Rspack, the Nx wrapper — and all of them take the same object. That is
+why the search targets the object, not the bundler.
 """
 
 from __future__ import annotations
@@ -27,11 +27,11 @@ from tree_sitter import Node
 
 from mfad.adapters.driven.reconstruction.ast import AstReader
 
-#: Como a declaração é construída, por empacotador.
+#: How the declaration is built, per bundler.
 #:
-#: `withModuleFederation` é o embrulho do Nx sobre o plugin do
-#: webpack, e `federation` é o do plugin de Vite. Procurar pelo nome
-#: do plugin direto perderia os dois, que é o que acontecia antes.
+#: `withModuleFederation` is the Nx wrapper around the webpack plugin,
+#: and `federation` is the Vite plugin's. Searching for the plugin
+#: name directly would miss both, which is what used to happen.
 DECLARATIONS = (
     "ModuleFederationPlugin",
     "withModuleFederation",
@@ -40,7 +40,7 @@ DECLARATIONS = (
     "moduleFederationPlugin",
 )
 
-#: Arquivos que costumam carregá-la.
+#: Files that usually hold it.
 CONFIG_NAMES = (
     "webpack.config",
     "webpack.prod",
@@ -55,19 +55,19 @@ CONFIG_NAMES = (
 
 @dataclass
 class Federation:
-    """O que uma unidade declara sobre si e sobre quem ela consome."""
+    """What a unit declares about itself and about whom it consumes."""
 
     name: str
     directory: Path
     declared_in: Path
 
-    #: caminho publicado -> módulo interno
+    #: published path -> internal module
     exposes: dict[str, str] = field(default_factory=dict)
 
-    #: apelido local -> especificador remoto
+    #: local alias -> remote specifier
     remotes: dict[str, str] = field(default_factory=dict)
 
-    #: dependências compartilhadas declaradas
+    #: declared shared dependencies
     shared: list[str] = field(default_factory=list)
 
 
@@ -77,16 +77,16 @@ def is_config(path: Path) -> bool:
 
 
 def read(path: Path, root: Node, source: bytes) -> list[Federation]:
-    """As declarações de federação contidas num arquivo."""
+    """The federation declarations contained in a file."""
 
     found = []
 
-    # `new ModuleFederationPlugin({...})` é `new_expression`, e
-    # `withModuleFederation({...})` é `call_expression`. As duas
-    # formas aparecem no mesmo ecossistema, e procurar só uma
-    # devolvia declaração nenhuma num projeto webpack inteiro.
-    # Num arquivo cujo nome existe só para conter a declaração, o
-    # objeto pode estar exportado sem chamada alguma em volta.
+    # `new ModuleFederationPlugin({...})` is a `new_expression`, and
+    # `withModuleFederation({...})` is a `call_expression`. Both
+    # forms appear in the same ecosystem, and searching for only one
+    # returned no declaration at all in an entire webpack project.
+    # In a file whose name exists only to hold the declaration, the
+    # object may be exported with no call around it.
     if path.name.startswith(("module-federation.config", "federation.config")):
 
         exported = exported_object(root, source)
@@ -119,15 +119,15 @@ def read(path: Path, root: Node, source: bytes) -> list[Federation]:
 
         for child in arguments.named_children:
 
-            # `federation({...})` — o literal está ali.
+            # `federation({...})` — the literal is right there.
             if child.type == "object":
                 candidate = child
 
-            # `federation(config)` — o literal está noutro lugar do
-            # mesmo arquivo. É a forma canônica do Nx, e a que o
-            # plugin de Vite também aceita; sem resolver o
-            # identificador, um projeto inteiro lê como se não
-            # tivesse federação nenhuma.
+            # `federation(config)` — the literal is elsewhere in the
+            # same file. This is the canonical Nx form, and the Vite
+            # plugin accepts it too; without resolving the
+            # identifier, an entire project reads as if it had no
+            # federation at all.
             elif child.type == "identifier":
                 candidate = _declared_object(
                     root, AstReader.text(child, source), source
@@ -149,12 +149,12 @@ def read(path: Path, root: Node, source: bytes) -> list[Federation]:
 
 def exported_object(root: Node, source: bytes) -> Node | None:
     """
-    O literal de objeto que o arquivo exporta por padrão.
+    The object literal the file exports by default.
 
-    `export default { name, exposes }`, ou `export default config`
-    com o objeto declarado acima. É como o Nx escreve o
-    `module-federation.config.ts`: o arquivo existe só para conter a
-    declaração, e não há chamada nenhuma para procurar dentro.
+    `export default { name, exposes }`, or `export default config`
+    with the object declared above. This is how Nx writes
+    `module-federation.config.ts`: the file exists only to hold the
+    declaration, and there is no call to search inside.
     """
 
     for node in AstReader.find_all(root, "export_statement"):
@@ -179,7 +179,7 @@ def exported_object(root: Node, source: bytes) -> Node | None:
 
 
 def _declared_object(root: Node, name: str, source: bytes) -> Node | None:
-    """O literal de objeto atribuído a `name` neste arquivo."""
+    """The object literal assigned to `name` in this file."""
 
     for declarator in AstReader.find_all(root, "variable_declarator"):
 
@@ -192,9 +192,9 @@ def _declared_object(root: Node, name: str, source: bytes) -> Node | None:
         if AstReader.text(target, source) != name:
             continue
 
-        # `const config: ModuleFederationConfig = {...}` — a anotação
-        # de tipo fica entre o nome e o valor, e o valor continua
-        # sendo o objeto.
+        # `const config: ModuleFederationConfig = {...}` — the type
+        # annotation sits between the name and the value, and the
+        # value is still the object.
         if value.type == "object":
             return value
 
@@ -240,10 +240,10 @@ def _pairs(
 
     for pair in node.named_children:
 
-        # `federation({ ...remoteConfig })` — o literal existe, mas o
-        # que interessa está no objeto espalhado dentro dele. Sem
-        # resolver, o campo `name` não aparece e a declaração é
-        # descartada como se não fosse uma.
+        # `federation({ ...remoteConfig })` — the literal exists, but
+        # what matters is in the object spread inside it. Without
+        # resolving it, the `name` field does not show up and the
+        # declaration is discarded as if it were not one.
         if pair.type == "spread_element" and root is not None:
 
             for child in pair.named_children:
@@ -276,11 +276,11 @@ def _pairs(
 
 def _mapping(node: Node | None, source: bytes) -> dict[str, str]:
     """
-    Um campo que é mapa, ou lista, ou nenhum dos dois.
+    A field that is a map, or a list, or neither.
 
-    `exposes` e `remotes` são objetos; `shared` costuma ser objeto mas
-    também aparece como lista de nomes. Um campo montado em variável
-    devolve vazio: resolvê-lo exigiria avaliar o módulo.
+    `exposes` and `remotes` are objects; `shared` is usually an object
+    but also appears as a list of names. A field built in a variable
+    returns empty: resolving it would require evaluating the module.
     """
 
     if node is None:
@@ -312,7 +312,7 @@ def _mapping(node: Node | None, source: bytes) -> dict[str, str]:
 
 
 def package_name(directory: Path) -> str | None:
-    """O nome declarado no `package.json` daquele diretório."""
+    """The name declared in that directory's `package.json`."""
 
     try:
         manifest = json.loads(

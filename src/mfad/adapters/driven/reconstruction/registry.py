@@ -1,9 +1,9 @@
 """
-Registro de reconstrutores.
+Registry of reconstructors.
 
-É o ponto de extensão do módulo 1: adicionar suporte a outra
-tecnologia de micro frontend é escrever uma implementação de
-`Reconstructor` e registrá-la aqui. Nenhum outro módulo muda.
+This is the extension point of module 1: adding support for another
+micro frontend technology means writing an implementation of
+`Reconstructor` and registering it here. No other module changes.
 """
 
 from __future__ import annotations
@@ -34,17 +34,17 @@ def get(name: str) -> Reconstructor:
 
     if name not in _REGISTRY:
 
-        known = ", ".join(sorted(_REGISTRY)) or "nenhum"
+        known = ", ".join(sorted(_REGISTRY)) or "none"
 
         raise KeyError(
-            f"Framework desconhecido: {name}. Disponíveis: {known}"
+            f"Unknown framework: {name}. Available: {known}"
         )
 
     return _REGISTRY[name]
 
 
 def detect(repository: Path) -> Reconstructor | None:
-    """Devolve o primeiro reconstrutor que reconhece o repositório."""
+    """Return the first reconstructor that recognizes the repository."""
 
     for reconstructor in available():
 
@@ -56,12 +56,12 @@ def detect(repository: Path) -> Reconstructor | None:
 
 def unsupported(repository: Path) -> str | None:
     """
-    A plataforma não suportada, quando ela é o repositório inteiro.
+    The unsupported platform, when it makes up the whole repository.
 
-    Pacotes construídos sobre plataforma com integração própria saem
-    da varredura (ver `SourceTree.PLATFORMS`). Quando não sobra código
-    nenhum, a resposta honesta é "não suportado", não uma reconstrução
-    vazia que parece válida.
+    Packages built on a platform with its own integration are left out
+    of the scan (see `SourceTree.PLATFORMS`). When no code is left at
+    all, the honest answer is "unsupported", not an empty reconstruction
+    that looks valid.
     """
 
     from mfad.adapters.driven.reconstruction.ast import SourceTree
@@ -75,7 +75,7 @@ def unsupported(repository: Path) -> str | None:
 
 
 def excluded(repository: Path) -> dict[str, str]:
-    """Os pacotes deixados de fora por serem de plataforma não suportada."""
+    """The packages left out because they belong to an unsupported platform."""
 
     from mfad.adapters.driven.reconstruction.ast import SourceTree
 

@@ -1,11 +1,11 @@
 """
-Utilitários dos testes.
+Test utilities.
 
-Cada teste monta um repositório mínimo numa pasta temporária, com
-só o código que a regra em teste precisa ver, e roda a reconstrução
-inteira sobre ele. Os exemplos são escritos a partir da documentação
-de cada tecnologia — não copiados dos sistemas do estudo —, para que
-o teste prove a regra e não a forma de um projeto.
+Each test builds a minimal repository in a temporary folder, with
+only the code the rule under test needs to see, and runs the whole
+reconstruction over it. The examples are written from each
+technology's documentation — not copied from the study's systems —,
+so that the test proves the rule and not the shape of a project.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from mfad.domain import MicroFrontendArchitecture
 
 
 def write(root: Path, files: dict[str, str | dict]) -> Path:
-    """Grava os arquivos; dicionário vira JSON (para `package.json`)."""
+    """Writes the files; a dictionary becomes JSON (for `package.json`)."""
 
     for relative, content in files.items():
 
@@ -48,10 +48,10 @@ def reconstruct(
 
     reconstructor = container.reconstructor(framework, root)
 
-    assert reconstructor is not None, "nenhum extrator reconheceu o repositório"
+    assert reconstructor is not None, "no extractor recognized the repository"
 
-    # Os reconstrutores são instâncias únicas no registro: o prefixo
-    # de um teste não pode vazar para o próximo.
+    # The reconstructors are single instances in the registry: one
+    # test's prefix must not leak into the next.
     if hasattr(reconstructor, "organization_prefix"):
         reconstructor.organization_prefix = prefix
 
@@ -60,7 +60,7 @@ def reconstruct(
 
 @pytest.fixture
 def system(tmp_path):
-    """`system({...})` grava os arquivos e devolve a arquitetura."""
+    """`system({...})` writes the files and returns the architecture."""
 
     def build(files, framework=None, prefix=None):
         write(tmp_path, files)
@@ -73,7 +73,7 @@ def package(name: str, **dependencies: str) -> dict:
     return {"name": name, "dependencies": dependencies or {"single-spa": "^6.0.0"}}
 
 
-#: Ciclo de vida mínimo de um micro frontend single-spa em React.
+#: Minimal lifecycle of a single-spa micro frontend in React.
 def react_lifecycles(root_component: str = "./root.component") -> str:
     return f"""
         import React from "react";
@@ -89,12 +89,12 @@ def react_lifecycles(root_component: str = "./root.component") -> str:
 
 def by_id(architecture: MicroFrontendArchitecture, identifier: str):
     found = architecture.microfrontend(identifier)
-    assert found is not None, f"{identifier} não está no inventário: {[m.id for m in architecture.microfrontends]}"
+    assert found is not None, f"{identifier} is not in the inventory: {[m.id for m in architecture.microfrontends]}"
     return found
 
 
 def mfe(directory: str, name: str, root: str) -> dict:
-    """Na forma que o `create-single-spa` gera: `src/<org>-<projeto>.js`."""
+    """In the shape `create-single-spa` generates: `src/<org>-<project>.js`."""
 
     organization, _, project = name.lstrip("@").partition("/")
 
@@ -106,7 +106,7 @@ def mfe(directory: str, name: str, root: str) -> dict:
 
 
 def root_config(applications: dict[str, str], directory: str = "root-config") -> dict:
-    """Orquestrador com `registerApplication` literal: nome → `activeWhen`."""
+    """Orchestrator with a literal `registerApplication`: name → `activeWhen`."""
 
     registrations = "\n".join(
         f"""

@@ -1,4 +1,4 @@
-"""Extrair o acesso ao estado global."""
+"""Extract the access to global state."""
 
 from __future__ import annotations
 

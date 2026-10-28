@@ -1,39 +1,38 @@
 """
-Acesso ao estado global.
+Access to global state.
 
-Dois micro frontends que leem a mesma fatia do estado estão
-acoplados sem trocar mensagem e sem importar nada um do outro —
-um acoplamento que nenhuma das outras extrações enxerga.
+Two micro frontends that read the same slice of state are coupled
+without exchanging messages and without importing anything from each
+other — a coupling none of the other extractions sees.
 
-A detecção é por biblioteca conhecida, identificada pelo
-especificador do import. Não há heurística de nome: o que vem de
-`react-redux` é acesso a estado, chame-se a variável como se
-chamar.
+Detection is by known library, identified by the import specifier.
+There is no naming heuristic: what comes from `react-redux` is state
+access, whatever the variable is called.
 
-Nas bibliotecas, só a LEITURA é extraída.
-`useSelector((state) => state.cart)` percorre o caminho
-explicitamente, e é isso que se registra. A escrita —
-`dispatch(addProduto(item))` — revela apenas o nome da ação no
-ponto da chamada; saber que fatia ela altera exigiria seguir o
-redutor, que pode nem estar no mesmo repositório.
+For the libraries, only READS are extracted.
+`useSelector((state) => state.cart)` walks the path explicitly, and
+that is what gets recorded. A write — `dispatch(addProduto(item))` —
+reveals only the action's name at the call site; knowing which slice it
+changes would require following the reducer, which may not even be in
+the same repository.
 
-O armazenamento do navegador — `localStorage` e `sessionStorage` —
-também é estado global, e dos mais comuns entre micro frontends: o
-token de autenticação gravado por um e lido por todos. Aqui leitura
-e escrita entram, porque as duas dizem a chave.
+Browser storage — `localStorage` and `sessionStorage` — is also global
+state, and one of the most common between micro frontends: the
+authentication token written by one and read by all. Here both reads
+and writes are included, because both state the key.
 
-Store Redux criado dentro da própria unidade não é global: é o estado
-dela. Só conta o que é lido de um store que pode ser compartilhado —
-criado fora, pelo orquestrador ou por um pacote comum.
+A Redux store created inside the unit itself is not global: it is that
+unit's state. Only what is read from a store that may be shared counts
+— created outside, by the orchestrator or by a common package.
 
-A função do projeto que repassa um parâmetro seu como chave do
-armazenamento — `setLocalStorageItem(key, value)` — vira acesso ao
-armazenamento também, e a chave é lida em quem a chama. O acesso é
-de quem chama: o utilitário pode morar num pacote comum, e é cada
-micro frontend que o usa que toca aquela chave.
+A project function that forwards one of its parameters as a storage key
+— `setLocalStorageItem(key, value)` — becomes a storage access too, and
+the key is read at its callers. The access belongs to the caller: the
+utility may live in a common package, and it is each micro frontend
+that uses it that touches that key.
 
-Acesso dentro de função que ninguém chama não conta, pelo mesmo
-critério de código morto da comunicação.
+An access inside a function nobody calls does not count, by the same
+dead-code criterion used for communication.
 """
 
 from __future__ import annotations
@@ -67,25 +66,25 @@ from mfad.adapters.driven.reconstruction.singlespa.ownership import Ownership
 from mfad.domain import MicroFrontend, SourceLocation, StateAccess
 
 
-#: Pedaço de chave: texto conhecido, parâmetro, ou `None` para valor
-#: que não se resolve.
+#: Key piece: known text, parameter, or `None` for a value that does
+#: not resolve.
 Part = str | Parameter | None
 
-#: Trecho da chave que depende de valor de runtime, como nas URLs.
+#: Key segment that depends on a runtime value, as in URLs.
 PARAM = "{param}"
 
 
 @dataclass(frozen=True)
 class Forward:
-    """Um acesso que a função faz com a chave que recebe."""
+    """An access the function makes with the key it receives."""
 
-    #: `localStorage` ou `sessionStorage`
+    #: `localStorage` or `sessionStorage`
     kind: str
 
-    #: posição do parâmetro que é a chave
+    #: position of the parameter that is the key
     index: int
 
-    #: texto que a função põe antes e depois da chave recebida
+    #: text the function puts before and after the received key
     prefix: str
     suffix: str
 
@@ -94,12 +93,12 @@ class Forward:
 
 @dataclass(frozen=True)
 class Target:
-    """Uma chamada que acessa o armazenamento, e de onde sai a chave."""
+    """A call that accesses storage, and where the key comes from."""
 
     kind: str
     access: str
 
-    #: `None` em `clear()`, que grava em todas as chaves
+    #: `None` in `clear()`, which writes to every key
     key: Node | None
     prefix: str = ""
     suffix: str = ""
@@ -116,28 +115,28 @@ class GlobalStateExtractor:
 
         self.ownership = Ownership(context.repository, microfrontends)
 
-        #: arquivo de pacote compartilhado → as unidades que o importam
+        #: shared package file → the units that import it
         self.shared = shared.importers(context, microfrontends)
 
         self.known = {item.id for item in microfrontends}
 
         self.evaluator = ExpressionEvaluator(context.routes)
 
-        #: unidades que criam o próprio store Redux
+        #: units that create their own Redux store
         self.private_stores: set[str] = set()
 
         self.index: SymbolIndex = context.symbols()
 
         self.liveness = Liveness(context)
 
-        #: (arquivo, função) → acessos que ela faz com a chave recebida
+        #: (file, function) → accesses it makes with the received key
         self.wrappers: dict[tuple[Path, str], set[Forward]] = {}
 
-        #: o último nome de cada embrulhadora, para só resolver a
-        #: chamada que pode ser uma delas
+        #: the last name of each wrapper, so that only a call that may
+        #: be one of them gets resolved
         self._wrapper_names: set[str] = set()
 
-        #: (arquivo, nome) → a função da biblioteca que o nome repete
+        #: (file, name) → the library function the name repeats
         self.aliases: dict[tuple[Path, str], tuple[libraries.StateLibrary, str]] = {}
 
     def extract(self) -> list[StateAccess]:
@@ -178,8 +177,8 @@ class GlobalStateExtractor:
 
         owner = self.ownership.of_file(file_path)
 
-        # Acesso em pacote compartilhado acontece em cada unidade que o
-        # importa (`shared`); fora disso, não é de micro frontend nenhum.
+        # An access in a shared package happens in each unit that
+        # imports it (`shared`); otherwise, it belongs to no micro frontend.
         owners = [owner] if owner in self.known else sorted(self.shared.get(canonical(file_path), ()))
 
         if not owners:
@@ -242,10 +241,10 @@ class GlobalStateExtractor:
 
             library, kind = entry
 
-            # Store criado dentro da própria unidade é estado local, por
-            # mais que use a mesma biblioteca que as outras.
-            # Store criado dentro da própria unidade é estado local, por
-            # mais que use a mesma biblioteca que as outras.
+            # A store created inside the unit itself is local state, even
+            # if it uses the same library as the others.
+            # A store created inside the unit itself is local state, even
+            # if it uses the same library as the others.
             readers = [owner for owner in owners if not (library.module == "react-redux" and owner in self.private_stores)]
 
             if not readers or not self.liveness.is_live(node, symbols):
@@ -266,7 +265,7 @@ class GlobalStateExtractor:
         return found
 
     def _private_stores(self) -> set[str]:
-        """As unidades em cujo código um store Redux é criado."""
+        """The units in whose code a Redux store is created."""
 
         factories = set(libraries.REDUX_STORE_FACTORIES)
 
@@ -304,16 +303,17 @@ class GlobalStateExtractor:
         return found
 
     # ------------------------------------------------------------------
-    # Quem é o quê neste arquivo
+    # Who is what in this file
     # ------------------------------------------------------------------
 
     def _bindings(self, symbols: ModuleSymbols) -> dict[str, tuple[libraries.StateLibrary, str]]:
         """
-        Nome local -> (biblioteca, papel da função).
+        Local name -> (library, role of the function).
 
-        Vale o import da biblioteca e o de um nome do projeto que só a
-        repete: o `useAppSelector` que a documentação do Redux Toolkit
-        manda declarar uma vez e usar no lugar de `useSelector`
+        Both the library's import and that of a project name that only
+        repeats it count: the `useAppSelector` that the Redux Toolkit
+        documentation says to declare once and use instead of
+        `useSelector`
         (https://redux.js.org/usage/usage-with-typescript#define-typed-hooks).
         """
 
@@ -337,7 +337,7 @@ class GlobalStateExtractor:
         symbols: ModuleSymbols,
         local: str,
     ) -> tuple[libraries.StateLibrary, str] | None:
-        """A função da biblioteca por trás de um nome importado do projeto."""
+        """The library function behind a name imported from the project."""
 
         found = self.index.imported(symbols, local)
 
@@ -355,9 +355,9 @@ class GlobalStateExtractor:
 
     def _find_aliases(self, symbols: ModuleSymbols) -> None:
         """
-        `const useAppSelector = useSelector` e a forma do Redux Toolkit 2,
-        `useSelector.withTypes<RootState>()`: o nome declarado é o próprio
-        seletor, com outro tipo.
+        `const useAppSelector = useSelector` and the Redux Toolkit 2 form,
+        `useSelector.withTypes<RootState>()`: the declared name is the
+        selector itself, with another type.
         """
 
         own = self._bindings_of_libraries(symbols)
@@ -393,7 +393,7 @@ class GlobalStateExtractor:
 
     @staticmethod
     def _bindings_of_libraries(symbols: ModuleSymbols) -> dict[str, tuple[libraries.StateLibrary, str]]:
-        """Só os nomes importados das bibliotecas, sem os do projeto."""
+        """Only the names imported from the libraries, without the project's."""
 
         by_module = {library.module: library for library in libraries.STATE_LIBRARIES}
 
@@ -413,15 +413,15 @@ class GlobalStateExtractor:
         return bindings
 
     # ------------------------------------------------------------------
-    # Armazenamento do navegador
+    # Browser storage
     # ------------------------------------------------------------------
 
     # ------------------------------------------------------------------
-    # Armazenamento do navegador
+    # Browser storage
     # ------------------------------------------------------------------
 
     def _targets(self, node: Node, symbols: ModuleSymbols) -> list[Target]:
-        """Os acessos ao armazenamento que a chamada faz, direto ou por embrulhadora."""
+        """The storage accesses the call makes, directly or through a wrapper."""
 
         direct = self._storage(node, symbols)
 
@@ -429,12 +429,12 @@ class GlobalStateExtractor:
 
     def _storage(self, node: Node, symbols: ModuleSymbols) -> Target | None:
         """
-        `localStorage.setItem(chave, …)` e `getItem(chave)`.
+        `localStorage.setItem(chave, …)` and `getItem(chave)`.
 
-        O receptor precisa ser o próprio `localStorage` ou
-        `sessionStorage`: um `cache.getItem("x")` qualquer não é
-        armazenamento compartilhado, e casar só pelo nome do método
-        transformaria toda classe com `getItem` num estado global.
+        The receiver must be `localStorage` or `sessionStorage` itself:
+        an arbitrary `cache.getItem("x")` is not shared storage, and
+        matching only by method name would turn every class with
+        `getItem` into global state.
         """
 
         function = unwrap(node.child_by_field_name("function"))
@@ -453,7 +453,7 @@ class GlobalStateExtractor:
         if name not in libraries.STORAGE_WRITE + libraries.STORAGE_READ + libraries.STORAGE_CLEAR:
             return None
 
-        # Aceita `localStorage` e `window.localStorage`.
+        # Accepts `localStorage` and `window.localStorage`.
         kind = symbols.text(receiver).rpartition(".")[2]
 
         if kind not in libraries.STORAGES:
@@ -461,7 +461,7 @@ class GlobalStateExtractor:
 
         arguments = self._arguments(node)
 
-        # `clear()` apaga todas as chaves: grava sem dizer qual.
+        # `clear()` erases every key: it writes without saying which.
         if name in libraries.STORAGE_CLEAR:
             return Target(kind=kind, access="write", key=None)
 
@@ -473,7 +473,7 @@ class GlobalStateExtractor:
         return Target(kind=kind, access=access, key=arguments[0])
 
     def _wrapper_call(self, node: Node, symbols: ModuleSymbols) -> list[Target]:
-        """Chamada a uma função do projeto que repassa a chave."""
+        """Call to a project function that forwards the key."""
 
         function = unwrap(node.child_by_field_name("function"))
 
@@ -505,10 +505,10 @@ class GlobalStateExtractor:
 
     def _find_wrappers(self, node: Node, symbols: ModuleSymbols) -> bool:
         """
-        A função em volta, se ela repassa um parâmetro como a chave.
+        The enclosing function, if it forwards a parameter as the key.
 
-        A chave tem de ser o parâmetro, com no máximo texto conhecido
-        antes e depois: `key`, `` `app:${key}` ``, `"pref." + key`.
+        The key must be the parameter, with at most known text before
+        and after it: `key`, `` `app:${key}` ``, `"pref." + key`.
         """
 
         found = False
@@ -551,13 +551,13 @@ class GlobalStateExtractor:
 
     def _complete_key(self, target: Target, symbols: ModuleSymbols) -> str | None:
         """
-        A chave, com `{param}` no lugar de cada trecho de runtime.
+        The key, with `{param}` in place of each runtime segment.
 
-        `` `${user.handle}_provider` `` é a mesma fatia para todo
-        usuário: o contrato é o formato da chave, como o caminho de
-        uma URL. Sem nenhum texto conhecido — `getItem(key)` — não há
-        contrato a registrar. A chave que é parâmetro da função em
-        volta é lida em quem a chama, não aqui.
+        `` `${user.handle}_provider` `` is the same slice for every
+        user: the contract is the key's format, like the path of a URL.
+        With no known text at all — `getItem(key)` — there is no
+        contract to record. A key that is a parameter of the enclosing
+        function is read at its callers, not here.
         """
 
         if target.key is None:
@@ -577,17 +577,17 @@ class GlobalStateExtractor:
 
     def _key_parts(self, node: Node, symbols: ModuleSymbols) -> list[Part]:
         """
-        Os pedaços da chave.
+        The pieces of the key.
 
-        Só literal ou constante resolvível, nunca o nome do
-        identificador. A chave é o contrato: duas unidades se
-        acoplam por tocarem a MESMA string. Cair no nome da variável
-        junta qualquer par de arquivos que, por coincidência, chame
-        a sua de `storageKey` — foi o que aconteceu com dois theme
-        providers copiados, que nada tinham entre si.
+        Only a literal or a resolvable constant, never the identifier's
+        name. The key is the contract: two units are coupled because
+        they touch the SAME string. Falling back to the variable name
+        joins any pair of files that, by coincidence, call theirs
+        `storageKey` — which is what happened with two copied theme
+        providers that had nothing to do with each other.
 
-        O preço é perder a chave montada em variável. Vale: inventar
-        acoplamento é pior do que não achar um.
+        The price is losing a key built in a variable. Worth it:
+        inventing coupling is worse than missing one.
         """
 
         node = unwrap(node)
@@ -660,15 +660,15 @@ class GlobalStateExtractor:
 
         value = self.evaluator.evaluate(node, source)
 
-        # Só chave inteira: `"cart_" + id` não diz qual fatia é, e o
-        # começo dela juntaria chaves diferentes numa só.
+        # Whole keys only: `"cart_" + id` does not say which slice it is,
+        # and its beginning would merge different keys into one.
         if not value or value.match != EXACT or value.based:
             return None
 
         return value.url
 
     # ------------------------------------------------------------------
-    # Leituras
+    # Reads
     # ------------------------------------------------------------------
 
     def _accesses(
@@ -696,11 +696,11 @@ class GlobalStateExtractor:
 
     def _paths(self, selector: Node, source: bytes) -> list[str]:
         """
-        Os caminhos que um seletor percorre.
+        The paths a selector walks.
 
-        `(state) => state.cart` devolve `cart`. Um seletor que monta
-        objeto — `(state) => ({ user: state.user, cart: state.cart })` —
-        devolve os dois: são duas fatias lidas, não uma.
+        `(state) => state.cart` returns `cart`. A selector that builds
+        an object — `(state) => ({ user: state.user, cart: state.cart })`
+        — returns both: they are two slices read, not one.
         """
 
         parameter = self._first_parameter(selector, source)
@@ -755,10 +755,10 @@ class GlobalStateExtractor:
         parameter: str,
     ) -> str | None:
         """
-        `state.user.profile` vira `user.profile`.
+        `state.user.profile` becomes `user.profile`.
 
-        Só a expressão mais externa interessa: as internas são
-        prefixos dela e contariam a mesma leitura duas vezes.
+        Only the outermost expression matters: the inner ones are its
+        prefixes and would count the same read twice.
         """
 
         if node.parent and node.parent.type == "member_expression":

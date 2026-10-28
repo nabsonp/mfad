@@ -1,10 +1,10 @@
 """
 Composition root.
 
-Único lugar do sistema que conhece implementações concretas. É
-aqui que os registros são populados e que os casos de uso recebem
-suas dependências injetadas. Todo o resto fala só com as portas
-de `mfad.application.ports`.
+The only place in the system that knows concrete implementations.
+This is where the registries are populated and where the use cases
+get their dependencies injected. Everything else talks only to the
+ports in `mfad.application.ports`.
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ from mfad.application.use_cases import (
 
 
 def bootstrap() -> None:
-    """Popula os registros com o que vem de fábrica."""
+    """Populates the registries with the built-in defaults."""
 
     if reconstruction.available():
         return
@@ -78,7 +78,7 @@ def bootstrap() -> None:
 
 
 class Container:
-    """Fábrica de casos de uso com as dependências resolvidas."""
+    """Use-case factory with the dependencies resolved."""
 
     def __init__(self):
 
@@ -91,7 +91,7 @@ class Container:
         self.probe: SourceProbe = GitSourceProbe()
 
     # ------------------------------------------------------------------
-    # Resolução de implementações
+    # Resolving implementations
     # ------------------------------------------------------------------
 
     def reconstructor(
@@ -101,8 +101,8 @@ class Container:
         organization_prefix: str | None = None,
     ) -> Reconstructor | None:
 
-        # Plataforma com integração própria sai da varredura em qualquer
-        # caso; se ela é o repositório inteiro, não sobra o que ler.
+        # A platform with its own integration leaves the scan in any
+        # case; if it is the whole repository, nothing is left to read.
         platform = reconstruction.unsupported(repository_path)
 
         if platform:
@@ -116,8 +116,8 @@ class Container:
 
             if not chosen:
 
-                # Nada reconhecido no que sobrou depois de tirar os
-                # pacotes de plataforma: o sistema é a plataforma.
+                # Nothing recognized in what was left after removing the
+                # platform packages: the system is the platform.
                 excluded = reconstruction.excluded(repository_path)
 
                 if excluded:
@@ -129,14 +129,14 @@ class Container:
 
                 return None
 
-        # O prefixo é opcional e específico de quem o suporta.
+        # The prefix is optional and specific to those that support it.
         if organization_prefix and hasattr(chosen, "organization_prefix"):
             chosen.organization_prefix = organization_prefix
 
         return chosen
 
     def excluded_packages(self, repository_path: Path) -> dict[str, str]:
-        """Pacotes fora da análise por serem de plataforma não suportada."""
+        """Packages left out of the analysis for belonging to an unsupported platform."""
 
         return reconstruction.excluded(repository_path)
 
@@ -148,7 +148,7 @@ class Container:
         return [antipatterns.get(name) for name in names]
 
     # ------------------------------------------------------------------
-    # Casos de uso
+    # Use cases
     # ------------------------------------------------------------------
 
     def extract_microfrontends(

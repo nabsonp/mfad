@@ -1,4 +1,4 @@
-"""O reconstrutor de arquiteturas single-spa."""
+"""The reconstructor of single-spa architectures."""
 
 from __future__ import annotations
 
@@ -42,9 +42,9 @@ class SingleSpaReconstructor(Reconstructor):
     name = "single-spa"
 
     description = (
-        "Aplicações registradas via registerApplication, "
-        "fragmentos exportados pelo entrypoint e telas "
-        "declaradas pelo rootComponent."
+        "Applications registered via registerApplication, "
+        "fragments exported by the entrypoint and screens "
+        "declared by the rootComponent."
     )
 
     def __init__(self, organization_prefix: str | None = None):
@@ -53,13 +53,13 @@ class SingleSpaReconstructor(Reconstructor):
         self._contexts: dict[Path, ScanContext] = {}
 
     # ------------------------------------------------------------------
-    # Porta
+    # Port
     # ------------------------------------------------------------------
 
     def detect(self, repository: Path) -> bool:
         """
-        Reconhece o repositório por dois sinais independentes:
-        a dependência declarada e a chamada em si.
+        Recognizes the repository by two independent signals: the
+        declared dependency and the call itself.
         """
 
         tree = SourceTree(repository)
@@ -109,8 +109,8 @@ class SingleSpaReconstructor(Reconstructor):
             if self._in_scope(registration.name)
         ]
 
-        # Descoberta de baixo para cima, para o que o registro não
-        # nomeia. Ver `discovery.by_lifecycles`.
+        # Bottom-up discovery, for what the registration does not
+        # name. See `discovery.by_lifecycles`.
         registrations += discovery.by_lifecycles(
             context,
             builder._exports,
@@ -134,7 +134,7 @@ class SingleSpaReconstructor(Reconstructor):
 
     @staticmethod
     def _package_of(context, registration) -> Path | None:
-        """O diretório do pacote que uma aplicação registrada ocupa."""
+        """The package directory a registered application occupies."""
 
         if registration.specifier and not registration.specifier.startswith("."):
             return context.packages.get(registration.specifier)
@@ -199,14 +199,14 @@ class SingleSpaReconstructor(Reconstructor):
         ).extract()
 
     # ------------------------------------------------------------------
-    # Varredura
+    # Scan
     # ------------------------------------------------------------------
 
     def _context(self, repository: Path) -> ScanContext:
         """
-        A varredura do repositório é cara e os dois passos da
-        porta precisam dela. O contexto é memorizado por caminho
-        para que chamá-los em sequência não pague duas vezes.
+        Scanning the repository is expensive and both steps of the port
+        need it. The context is memoized by path so that calling them
+        in sequence does not pay twice.
         """
 
         resolved = repository.resolve()
@@ -233,26 +233,27 @@ class SingleSpaReconstructor(Reconstructor):
         microfrontends: list[MicroFrontend],
     ) -> None:
         """
-        Acrescenta o orquestrador ao grafo, como nó de papel `shell`.
+        Adds the orchestrator to the graph, as a node with the `shell` role.
 
-        Ele não aparece em `registerApplication` — é quem chama — e
-        por isso ficava de fora, embora seja quem monta todos os
-        outros. O grafo sem ele mostra micro frontends soltos, sem
-        nada explicando como chegam à página: é a relação mais
-        importante do sistema, e era a única ausente.
+        It does not appear in `registerApplication` — it is the caller —
+        and so it was left out, even though it is what mounts all the
+        others. The graph without it shows loose micro frontends, with
+        nothing explaining how they reach the page: it is the most
+        important relationship in the system, and it was the only one
+        missing.
 
-        Marcar como shell a aplicação que MORA no mesmo pacote do
-        orquestrador, como se fazia antes, é outra coisa e estava
-        errado: um monolito carregado por caminho relativo a partir
-        do root-config é aplicação registrada como as demais, não o
-        orquestrador.
+        Marking as shell the application that LIVES in the same package
+        as the orchestrator, as was done before, is something else and
+        was wrong: a monolith loaded by relative path from the
+        root-config is a registered application like the others, not
+        the orchestrator.
         """
 
-        # Um shell por orquestrador. Um repositório pode conter mais
-        # de um sistema — o de exemplo aqui contém dois —, e juntar
-        # os registros de todos num nó só inventaria um orquestrador
-        # que monta aplicações de sistemas diferentes.
-        #: pacote → (arquivo que declara, nomes montados)
+        # One shell per orchestrator. A repository may contain more than
+        # one system — the example one here contains two —, and merging
+        # the registrations of all of them into a single node would
+        # invent an orchestrator that mounts applications of different systems.
+        #: package → (declaring file, mounted names)
         by_package: dict[Path, tuple[Path, set[str]]] = {}
 
         for registration in context.registrations:
@@ -263,10 +264,10 @@ class SingleSpaReconstructor(Reconstructor):
                 directory, (registration.declared_in, set())
             )[1].add(registration.name)
 
-        # Sob single-spa-layout o registro é `applications.forEach(
-        # registerApplication)`, sem nome literal nenhum. Quem monta é
-        # o pacote que declara o layout, e o que ele monta são as
-        # aplicações que o layout nomeia.
+        # Under single-spa-layout the registration is `applications.forEach(
+        # registerApplication)`, with no literal name at all. The mounter
+        # is the package that declares the layout, and what it mounts are
+        # the applications the layout names.
         for layout_file, declared in sorted(context.layouts.items()):
 
             directory = context.package_dir(layout_file)
@@ -297,8 +298,8 @@ class SingleSpaReconstructor(Reconstructor):
 
             shell.size = context.size_of(directory)
 
-            # Quem ele monta. É a aresta de composição do sistema: o
-            # shell escolhe a aplicação por URL e a põe na página.
+            # What it mounts. It is the system's composition edge: the
+            # shell picks the application by URL and puts it on the page.
             shell.mounts = sorted(
                 {self._mounted(name, microfrontends) for name in names}
             )
@@ -310,13 +311,13 @@ class SingleSpaReconstructor(Reconstructor):
     @staticmethod
     def _mounted(name: str, microfrontends: list[MicroFrontend]) -> str:
         """
-        O identificador da unidade montada, quando ela está no inventário.
+        The identifier of the mounted unit, when it is in the inventory.
 
-        O orquestrador nomeia pelo especificador do import map; a
-        unidade achada pelos ciclos de vida se chama pelo `package.json`.
-        Mesma regra de `ScanContext.layout_routes_of`: igual, ou igual
-        sem o escopo. Fora isso o nome fica como está — a unidade pode
-        não estar no repositório.
+        The orchestrator names it by the import map specifier; the unit
+        found through the lifecycles is named by its `package.json`.
+        Same rule as `ScanContext.layout_routes_of`: equal, or equal
+        without the scope. Otherwise the name stays as it is — the unit
+        may not be in the repository.
         """
 
         ids = {item.id for item in microfrontends}
@@ -332,7 +333,7 @@ class SingleSpaReconstructor(Reconstructor):
 
     @staticmethod
     def _shell_id(directory: Path, relative: str) -> str:
-        """O nome declarado no `package.json`, ou o diretório."""
+        """The name declared in `package.json`, or the directory."""
 
         manifest_file = directory / "package.json"
 

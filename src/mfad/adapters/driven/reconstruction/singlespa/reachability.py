@@ -1,22 +1,23 @@
 """
-Alcance entre arquivos de um mesmo micro frontend.
+Reachability between files of the same micro frontend.
 
-Chamadas a serviço raramente moram na tela. O padrão comum é a tela
-importar um módulo de serviço, que importa outro, que finalmente
-faz a chamada — e sem seguir essa cadeia o endpoint fica atribuído
-ao arquivo onde a chamada está, que não diz nada sobre quem o usa.
+Service calls rarely live in the screen. The common pattern is the
+screen importing a service module, which imports another, which
+finally makes the call — and without following that chain the endpoint
+is attributed to the file where the call is, which says nothing about
+who uses it.
 
-Este módulo resolve isso percorrendo os imports RELATIVOS, que são
-os internos ao micro frontend, os apelidos do `tsconfig` que caem
-dentro do mesmo pacote, e — no Angular — os componentes que
-o template usa pelo seletor, que a tela renderiza sem importar.
-Imports de pacote ficam de fora de propósito: atravessar a fronteira
-do pacote seria sair da unidade, e é justamente a fronteira que
-interessa preservar.
+This module solves that by walking the RELATIVE imports, which are the
+ones internal to the micro frontend, the `tsconfig` aliases that fall
+inside the same package, and — in Angular — the components the
+template uses by selector, which the screen renders without importing.
+Package imports are left out on purpose: crossing the package boundary
+would mean leaving the unit, and it is precisely the boundary that
+must be preserved.
 
-O percurso é iterativo e guarda os visitados, porque grafo de
-módulo tem ciclo com frequência — dois arquivos que se importam
-mutuamente são comuns e legítimos.
+The walk is iterative and keeps track of visited nodes, because module
+graphs frequently have cycles — two files that import each other are
+common and legitimate.
 """
 
 from __future__ import annotations
@@ -40,10 +41,10 @@ class Reachability:
 
     def reachable_from(self, origin: Path) -> set[Path]:
         """
-        Os arquivos que `origin` alcança, incluindo ele mesmo.
+        The files `origin` reaches, including itself.
 
-        O resultado é memorizado: uma tela e um fragmento da mesma
-        pasta costumam alcançar quase o mesmo conjunto.
+        The result is memoized: a screen and a fragment in the same
+        folder usually reach almost the same set.
         """
 
         if origin in self._closure:
@@ -69,7 +70,7 @@ class Reachability:
         return seen
 
     def _imports_of(self, file_path: Path) -> set[Path]:
-        """Os arquivos do mesmo micro frontend que este importa."""
+        """The files of the same micro frontend that this one imports."""
 
         if file_path in self._direct:
             return self._direct[file_path]
@@ -91,17 +92,17 @@ class Reachability:
             if not target:
                 continue
 
-            # Apelido do `tsconfig` (`@/utils/x`) é import interno do
-            # projeto, mas `paths` também pode apontar para o pacote
-            # vizinho de um monorepo — e aí é fronteira, como import de
-            # pacote.
+            # A `tsconfig` alias (`@/utils/x`) is an internal project
+            # import, but `paths` may also point to a neighboring
+            # package in a monorepo — and then it is a boundary, like a
+            # package import.
             if not record.module.startswith(".") and package not in target.parents:
                 continue
 
             found.add(target)
 
-        # No Angular a tela não importa o que renderiza: o template
-        # usa o seletor. Sem isto, tudo abaixo da tela ficava fora.
+        # In Angular the screen does not import what it renders: the
+        # template uses the selector. Without this, everything below the screen was left out.
         found |= self.context.templates().used_by(file_path)
 
         self._direct[file_path] = found
@@ -114,13 +115,13 @@ def placements(
     microfrontends: list[MicroFrontend],
 ) -> dict[str, Placement]:
     """
-    Arquivo relativo → telas e fragmentos que o alcançam.
+    Relative file → screens and fragments that reach it.
 
-    Invertido de propósito: a extração encontra a instanciação ou a
-    ponta de um canal e precisa perguntar quem chega até ali, não o
-    contrário. Telas e fragmentos ficam separados porque só a tela
-    é lugar; o fragmento é o caminho pelo qual o código de outro
-    micro frontend chega a uma tela.
+    Inverted on purpose: the extraction finds the instantiation or the
+    end of a channel and needs to ask who reaches it, not the other way
+    round. Screens and fragments are kept separate because only the
+    screen is a place; the fragment is the path through which another
+    micro frontend's code reaches a screen.
     """
 
     reachability = Reachability(context)
@@ -164,7 +165,7 @@ def placement_of(
     found: dict[str, Placement],
     files: list[str],
 ) -> Placement:
-    """A união do alcance de vários arquivos — as várias pontas de um lado."""
+    """The union of the reachability of several files — the several ends of one side."""
 
     screens: set[str] = set()
     fragments: set[str] = set()

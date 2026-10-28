@@ -1,7 +1,7 @@
 """
-Resultados dos casos de uso.
+Use-case results.
 
-Dados, não texto: o adaptador condutor decide como apresentá-los.
+Data, not text: the driving adapter decides how to present them.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class CommunicationsResult:
     communications: list[Communication]
     configured: bool
 
-    #: Mecanismos declarados que não produziram aresta nenhuma.
+    #: Declared mechanisms that produced no edge at all.
     unmatched: list[str] = field(default_factory=list)
 
 
@@ -67,7 +67,7 @@ class ReconstructionResult:
     architecture: MicroFrontendArchitecture
     written: list[Path] = field(default_factory=list)
 
-    #: Mecanismos declarados que não produziram aresta nenhuma.
+    #: Declared mechanisms that produced no edge at all.
     unmatched: list[str] = field(default_factory=list)
 
 

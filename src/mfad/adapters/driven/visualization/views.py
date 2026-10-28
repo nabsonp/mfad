@@ -1,19 +1,19 @@
 """
-As visões do mapa, cada uma um SVG pronto.
+The map views, each one a ready SVG.
 
-Um desenho só, com todas as relações e todos os micro frontends,
-deixa de ser lido a partir de umas vinte unidades: as arestas se
-cruzam no meio e os nós se sobrepõem. Cada pergunta ganha o seu
-desenho, com o arranjo que serve a ela:
+A single drawing, with all relations and all micro frontends, stops
+being readable from about twenty units on: the edges cross in the
+middle and the nodes overlap. Each question gets its own drawing,
+with the arrangement that serves it:
 
-- visão geral e uma por relação entre pares (composição, navegação,
-  comunicação), por força dirigida, só com quem participa;
-- estado global e backend, bipartidos: o que é compartilhado vira
-  nó, e cada participante se liga a ele uma vez;
-- telas: onde, na interface, cada relação acontece.
+- overview and one per pairwise relation (composition, navigation,
+  communication), force-directed, only with those who take part;
+- global state and backend, bipartite: what is shared becomes a
+  node, and each participant links to it once;
+- screens: where in the interface each relation happens.
 
-As visões são calculadas aqui, em Python, como o resto do desenho;
-o JavaScript só alterna qual está à mostra.
+The views are computed here, in Python, like the rest of the drawing;
+the JavaScript only toggles which one is shown.
 """
 
 from __future__ import annotations
@@ -37,24 +37,24 @@ COLORS = {
     "backend": "#b45309",
 }
 
-#: Relações com frase de direção entre micro frontends. A direção é a
-#: da dependência: quem depende aponta para quem é usado — o
-#: consumidor do fragmento para o provedor, quem navega para o dono
-#: da rota, quem publica para quem assina. As frases ficam em
-#: `i18n/texts.json` (`direction.*` e `screen_direction.*`).
+#: Relations with a direction sentence between micro frontends. The direction
+#: is that of the dependency: whoever depends points to whoever is used: the
+#: fragment consumer to the provider, whoever navigates to the owner
+#: of the route, whoever publishes to whoever subscribes. The sentences live in
+#: `i18n/texts.json` (`direction.*` and `screen_direction.*`).
 DIRECTED = ("mount", "composition", "navigation", "communication", "backend")
 
 SCREEN_DIRECTED = ("composition", "navigation", "communication")
 
 
 def meaning(relation: str, source: str, target: str, screens: bool = False) -> i18n.Ref:
-    """A frase da seta com os nomes de verdade: `checkout exibe um fragmento de products`."""
+    """The arrow sentence with the real names: `checkout displays a fragment of products`."""
 
     return i18n.ref(f"{'screen_direction' if screens else 'direction'}.{relation}", a=source, b=target)
 
 
 def edge_title(relation: str, source: str, target: str, count: int, labels: str, screens: bool = False) -> str:
-    """O `<title>` de uma aresta, traduzível."""
+    """The `<title>` of an edge, translatable."""
 
     ref = i18n.ref(
         "edge.title",
@@ -67,9 +67,9 @@ def edge_title(relation: str, source: str, target: str, count: int, labels: str,
     return mark(ref, "title")
 
 
-#: Quanto cada relação puxa os nós no arranjo. A montagem liga o
-#: orquestrador a todos e, com o mesmo peso das outras, reduziria
-#: tudo a uma estrela.
+#: How much each relation pulls the nodes in the arrangement. Mounting links the
+#: orchestrator to everyone and, with the same weight as the others, would reduce
+#: everything to a star.
 WEIGHTS = {
     "mount": 0.35,
     "composition": 2.0,
@@ -80,21 +80,21 @@ WEIGHTS = {
 
 @dataclass
 class View:
-    """Uma visão: o desenho, a legenda e o que ela deixa de fora."""
+    """A view: the drawing, the legend and what it leaves out."""
 
     id: str
 
-    #: chave do rótulo da aba
+    #: key of the tab label
     label: str
 
     svg: str
     legend: str
 
-    #: o que a visão deixa de fora, como referência de texto
+    #: what the view leaves out, as a text reference
     caption: i18n.Ref | None = None
 
-    #: Recortes da mesma visão, um por micro frontend: o desenho só
-    #: com ele e com quem se relaciona com ele, arranjado de novo.
+    #: Slices of the same view, one per micro frontend: the drawing only
+    #: with it and with those related to it, arranged again.
     variants: dict[str, str] = field(default_factory=dict)
 
 
@@ -104,11 +104,12 @@ def escape(value) -> str:
 
 def markers(view: str) -> str:
     """
-    Pontas de seta, uma por cor, com id próprio da visão.
+    Arrowheads, one per color, with an id specific to the view.
 
-    Com o mesmo id em todas as visões, `url(#arrow-…)` resolvia para
-    o marcador da primeira — que está numa aba oculta, e marcador em
-    elemento oculto não é desenhado: as outras abas ficavam sem seta.
+    With the same id in every view, `url(#arrow-…)` resolved to the
+    marker of the first one, which is in a hidden tab, and a marker in
+    a hidden element is not drawn: the other tabs ended up without
+    arrows.
     """
 
     prefix = _marker_prefix(view)
@@ -128,10 +129,11 @@ def _marker_prefix(view: str) -> str:
 
 def legend(relations: list[str], extra: str = "", screens: bool = False) -> str:
     """
-    Cada relação com o que a seta dela quer dizer.
+    Each relation with what its arrow means.
 
-    A cor diz a relação; sem a frase, `checkout → products` na
-    composição não diz se checkout exibe products ou o contrário.
+    The color tells the relation; without the sentence,
+    `checkout → products` in composition does not say whether checkout
+    shows products or the other way around.
     """
 
     directed = SCREEN_DIRECTED if screens else DIRECTED
@@ -155,9 +157,9 @@ def legend(relations: list[str], extra: str = "", screens: bool = False) -> str:
 
 def _svg(view: str, width: float, height: float, body: list[str], fit: str = "contain") -> str:
     """
-    `fit` diz como o desenho cabe na janela ao abrir: `contain`
-    inteiro à vista, para os grafos; `width` só na largura, rolando
-    na vertical, para as listas longas.
+    `fit` says how the drawing fits the window when opened: `contain`
+    fully in view, for graphs; `width` only across the width, scrolling
+    vertically, for long lists.
     """
 
     width = max(width, 320)
@@ -175,7 +177,7 @@ def _svg(view: str, width: float, height: float, body: list[str], fit: str = "co
 
 
 # ----------------------------------------------------------------------
-# Micro frontends como nós
+# Micro frontends as nodes
 # ----------------------------------------------------------------------
 
 
@@ -235,7 +237,7 @@ def _mfe_node(item: dict, box: Box, flagged: dict[str, int]) -> str:
 
 
 # ----------------------------------------------------------------------
-# Relações entre pares
+# Pairwise relations
 # ----------------------------------------------------------------------
 
 
@@ -248,13 +250,13 @@ def pairs_view(
     keep_isolated: bool,
 ) -> View | None:
     """
-    Micro frontends ligados pelas relações escolhidas.
+    Micro frontends linked by the chosen relations.
 
-    Uma linha por sentido, par e relação, com uma seta só. `A → B` e
-    `B → A` são dois arcos, um de cada lado da reta: uma linha com
-    ponta nos dois extremos parecia relação sem direção, e composição,
-    navegação e comunicação sempre têm uma. A espessura cresce com o
-    número de ocorrências.
+    One line per direction, pair and relation, with a single arrow.
+    `A → B` and `B → A` are two arcs, one on each side of the straight
+    line: a line with heads on both ends looked like a relation without
+    direction, and composition, navigation and communication always
+    have one. The thickness grows with the number of occurrences.
     """
 
     items = {item["id"]: item for item in data["microfrontends"]}
@@ -318,9 +320,9 @@ def pairs_view(
 
         height = caption_y + 18 + loose_height + layout.MARGIN
 
-    # Tudo que liga o mesmo par — relações diferentes e os dois
-    # sentidos — se abre em leque, medido sempre na orientação do par
-    # ordenado, para que nenhum arco caia sobre outro.
+    # Everything linking the same pair (different relations and both
+    # directions) fans out, always measured in the orientation of the ordered
+    # pair, so that no arc falls on top of another.
     fan: dict[tuple[str, str], list[tuple[str, str]]] = {}
 
     for source, target, relation in sorted(grouped):
@@ -338,8 +340,8 @@ def pairs_view(
 
         bow = 0.0 if len(siblings) == 1 else (index - (len(siblings) - 1) / 2) * 0.18
 
-        # O arco é traçado de quem age para quem recebe; na orientação
-        # inversa, o mesmo lado da reta pede a curvatura com sinal trocado.
+        # The arc is drawn from whoever acts to whoever receives; in the reverse
+        # orientation, the same side of the line needs the curvature with the sign flipped.
         if source != a:
             bow = -bow
 
@@ -376,13 +378,13 @@ def pairs_view(
 
 
 # ----------------------------------------------------------------------
-# Bipartidos: estado global e backend
+# Bipartite: global state and backend
 # ----------------------------------------------------------------------
 
 
 def _slot_size(title: str, meta: str) -> tuple[float, float]:
 
-    # Título em fonte mono, um pouco mais larga que a proporcional.
+    # Title in a mono font, slightly wider than the proportional one.
     return (
         max(len(title) * 7.4 + layout.text_width(meta, 10) + 34, 90),
         layout.ROW_HEIGHT - 6,
@@ -402,7 +404,7 @@ def _slot(identifier: str, title: str, meta: str, box: Box, kind: str) -> str:
 
 
 def _row_node(item: dict, box: Box, flagged: dict[str, int]) -> str:
-    """Micro frontend como linha de lista, para os desenhos em coluna."""
+    """Micro frontend as a list row, for the column drawings."""
 
     count = flagged.get(item["id"], 0)
 
@@ -431,10 +433,10 @@ def _row_size(item: dict) -> tuple[float, float]:
 
 def state_view(data: dict, flagged: dict[str, int]) -> View | None:
     """
-    Fatias de estado global e quem as toca.
+    Global-state slices and who touches them.
 
-    Seta para a fatia é escrita; seta para o micro frontend é
-    leitura. Duas pontas: lê e grava.
+    An arrow to the slice is a write; an arrow to the micro frontend is
+    a read. Two heads: reads and writes.
     """
 
     slices = data["slices"]
@@ -509,7 +511,7 @@ def state_view(data: dict, flagged: dict[str, int]) -> View | None:
 
 
 def backend_view(data: dict, flagged: dict[str, int]) -> View | None:
-    """Endpoints consumidos por mais de um micro frontend, e quem os consome."""
+    """Endpoints consumed by more than one micro frontend, and who consumes them."""
 
     shared = [entry for entry in data["endpoints"] if len(entry["callers"]) > 1]
 
@@ -573,12 +575,12 @@ def backend_view(data: dict, flagged: dict[str, int]) -> View | None:
 
 
 # ----------------------------------------------------------------------
-# Telas
+# Screens
 # ----------------------------------------------------------------------
 
 
 def screens_view(data: dict, flagged: dict[str, int]) -> View | None:
-    """A visão de telas inteira, e um recorte por micro frontend."""
+    """The whole screens view, and one slice per micro frontend."""
 
     whole = _screens_svg(data, flagged, None)
 
@@ -616,12 +618,14 @@ def screens_view(data: dict, flagged: dict[str, int]) -> View | None:
 
 def _screens_svg(data: dict, flagged: dict[str, int], focus: str | None) -> tuple[str, list[str]] | None:
     """
-    Telas e fragmentos de cada micro frontend, e as relações entre eles.
+    Screens and fragments of each micro frontend, and the relations
+    between them.
 
-    Só entra quem participa de alguma relação entre micro frontends:
-    a tela que instancia um fragmento de outro, a que publica ou
-    assina um canal, a de onde se navega e a que recebe. O resto do
-    inventário de telas está no painel de cada micro frontend.
+    Only those taking part in some relation between micro frontends go
+    in: the screen that instantiates a fragment of another, the one
+    that publishes or subscribes to a channel, the one navigated from
+    and the one that receives. The rest of the screen inventory is in
+    each micro frontend's panel.
     """
 
     screens = data["screens"]
@@ -659,8 +663,8 @@ def _screens_svg(data: dict, flagged: dict[str, int], focus: str | None) -> tupl
 
         return (0 if item["kind"] == "screen" else 1, item["route"] or "~", item["name"])
 
-    # Título e complemento de cada linha: texto do código (nome, rota)
-    # ou referência de texto da página, que muda com o idioma.
+    # Title and complement of each row: code text (name, route)
+    # or a page text reference, which changes with the language.
     def text(node: str) -> tuple[str | i18n.Ref, str | i18n.Ref]:
 
         if node not in screens:
@@ -717,8 +721,8 @@ def _screens_svg(data: dict, flagged: dict[str, int], focus: str | None) -> tupl
 
     column = {node: frames[owner(node)].x for node in involved}
 
-    # Moldura por baixo, aresta por cima: a ponta da seta encosta na
-    # linha de destino, dentro da moldura, e por baixo dela sumia.
+    # Frame below, edge on top: the arrowhead touches the
+    # destination row, inside the frame, and underneath it the head vanished.
     body = []
 
     for group_id, frame in sorted(frames.items()):
@@ -798,7 +802,7 @@ def _longest(value: str | i18n.Ref) -> str:
 
 
 def _piece(value: str | i18n.Ref, tag: str, attrs: str = "") -> str:
-    """Texto do código, como está, ou texto da página, marcado para traduzir."""
+    """Code text, as it is, or page text, marked for translation."""
 
     if isinstance(value, dict):
         return mark(value, tag, attrs)
@@ -807,7 +811,7 @@ def _piece(value: str | i18n.Ref, tag: str, attrs: str = "") -> str:
 
 
 def build(data: dict, flagged: dict[str, int]) -> list[View]:
-    """As visões que têm o que mostrar, na ordem das abas."""
+    """The views that have something to show, in tab order."""
 
     present = {edge["relation"] for edge in data["edges"]}
 

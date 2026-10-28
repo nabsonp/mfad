@@ -1,9 +1,9 @@
 """
-Adaptador condutor: linha de comando.
+Driving adapter: command line.
 
-Responsabilidade única: traduzir argumentos em um caso de uso,
-executá-lo, entregar o resultado ao apresentador e mapear falha
-em código de saída. Nenhuma regra mora aqui.
+Single responsibility: translate arguments into a use case, execute
+it, hand the result to the presenter and map failure into an exit
+code. No rule lives here.
 """
 
 from __future__ import annotations
@@ -19,11 +19,12 @@ from mfad.application.errors import ApplicationError
 from mfad.composition import Container
 
 
-#: As coleções que `reconstruct --only` sabe extrair sozinhas.
+#: The collections that `reconstruct --only` can extract on their own.
 #:
-#: Foram seis subcomandos até virarem uma flag: eram recorte do mesmo
-#: processo, expostos como se fossem comandos diferentes, e faziam a
-#: ajuda do programa listar onze entradas para um fluxo de três passos.
+#: They were six subcommands until they became a flag: they were
+#: slices of the same process, exposed as if they were different
+#: commands, and made the program's help list eleven entries for a
+#: three-step flow.
 EXTRACTIONS = {
     "microfrontends": "_applications",
     "compositions": "_compositions",
@@ -39,8 +40,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mfad",
         description=(
-            "Análise estática de arquiteturas micro frontend: "
-            "reconstrução, detecção de anti-padrões e visualização."
+            "Static analysis of micro frontend architectures: "
+            "reconstruction, anti-pattern detection and visualization."
         ),
     )
 
@@ -57,7 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--framework")
         subparser.add_argument(
             "--prefix",
-            help="Prefixo da organização, ex.: @nabstore/",
+            help="Organization prefix, e.g. @nabstore/",
         )
         return subparser
 
@@ -65,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
     reconstruct = with_source(
         subparsers.add_parser(
             "reconstruct",
-            help="Extrai todos os artefatos arquiteturais.",
+            help="Extracts all the architectural artifacts.",
         )
     )
     reconstruct.add_argument("--out", type=Path, default=Path("artifacts"))
@@ -73,15 +74,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--only",
         choices=sorted(EXTRACTIONS),
         help=(
-            "Extrai só uma coleção, em vez de todas. Recorte do mesmo "
-            "processo, útil para depurar um extrator."
+            "Extracts a single collection instead of all of them. A slice of "
+            "the same process, useful to debug an extractor."
         ),
     )
     reconstruct.add_argument(
         "--spec",
         type=Path,
         help=(
-            "Caminho da declaração de comunicação. Por padrão, "
+            "Path of the communication declaration. By default, "
             f"<repo>/{SETUP_DIRECTORY}/"
         ),
     )
@@ -90,7 +91,7 @@ def build_parser() -> argparse.ArgumentParser:
     analyze = with_source(
         subparsers.add_parser(
             "analyze",
-            help="Reconstrói, detecta e visualiza numa só passada.",
+            help="Reconstructs, detects and visualizes in a single pass.",
         )
     )
     analyze.add_argument("--out", type=Path, default=Path("artifacts"))
@@ -101,14 +102,14 @@ def build_parser() -> argparse.ArgumentParser:
     # --------------------------------------------- setup-communication
     setup = subparsers.add_parser(
         "setup-communication",
-        help="Declara como os micro frontends se comunicam.",
+        help="Declares how the micro frontends communicate.",
     )
     setup.add_argument("repository", type=Path)
     setup.add_argument(
         "--out",
         type=Path,
         help=(
-            "Onde gravar a declaração. Por padrão, "
+            "Where to write the declaration. By default, "
             f"<repo>/{SETUP_DIRECTORY}/"
         ),
     )
@@ -116,7 +117,7 @@ def build_parser() -> argparse.ArgumentParser:
     # ----------------------------------------------------------- detect
     detect = subparsers.add_parser(
         "detect",
-        help="Detecta anti-padrões sobre os artefatos.",
+        help="Detects anti-patterns over the artifacts.",
     )
     detect.add_argument(
         "artifacts",
@@ -130,7 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     # -------------------------------------------------------- visualize
     visualize = subparsers.add_parser(
         "visualize",
-        help="Gera a visualização da arquitetura.",
+        help="Generates the architecture visualization.",
     )
     visualize.add_argument(
         "artifacts",
@@ -199,8 +200,8 @@ def _reconstructor(container, arguments, write):
 
     if not chosen:
         write(
-            "Nenhum extrator reconheceu o repositório. "
-            "Use --framework para forçar um."
+            "No extractor recognized the repository. "
+            "Use --framework to force one."
         )
 
         return chosen
@@ -209,8 +210,8 @@ def _reconstructor(container, arguments, write):
 
     if excluded:
         write(
-            f"{len(excluded)} pacote(s) fora da análise, construídos sobre "
-            "plataforma com integração própria:"
+            f"{len(excluded)} package(s) left out of the analysis, built on "
+            "a platform with its own integration:"
         )
 
         for path, platform in excluded.items():
@@ -227,8 +228,8 @@ def _reconstruct(container, arguments, write) -> int:
         return 1
 
     write(
-        f"Reconstruindo {arguments.repository} "
-        f"com o extrator {reconstructor.name}"
+        f"Reconstructing {arguments.repository} "
+        f"with the {reconstructor.name} extractor"
     )
 
     result = container.reconstruct(
@@ -371,13 +372,14 @@ def _detect(container, arguments, write) -> int:
 
 def _destination(arguments) -> Path | None:
     """
-    Onde a visualização é gravada quando --out não foi informado.
+    Where the visualization is written when --out was not given.
 
-    Formatos de texto vão para a saída padrão, que é onde servem: o
-    mermaid existe para ser colado num documento. O HTML não — são
-    centenas de kilobytes num arquivo único, e despejá-los no terminal
-    obriga o usuário a copiar da tela o que o comando já tinha pronto.
-    Por isso ele ganha um caminho padrão dentro da pasta de artefatos.
+    Text formats go to standard output, which is where they are
+    useful: mermaid exists to be pasted into a document. HTML does not
+    — it is hundreds of kilobytes in a single file, and dumping it to
+    the terminal forces the user to copy from the screen what the
+    command already had ready. That is why it gets a default path
+    inside the artifacts folder.
     """
 
     if arguments.out:
@@ -391,12 +393,13 @@ def _destination(arguments) -> Path | None:
 
 def _analyze(container, arguments, write) -> int:
     """
-    Os três passos numa chamada só.
+    The three steps in a single call.
 
-    É o caso de uso de quase todo mundo, e até aqui exigia acertar
-    três comandos em ordem sabendo que `detect` lê o que `reconstruct`
-    escreveu e que `visualize` precisa de `--detections`. Esse
-    encadeamento é detalhe da ferramenta, não decisão do usuário.
+    It is almost everyone's use case, and until now it required
+    getting three commands right, in order, knowing that `detect`
+    reads what `reconstruct` wrote and that `visualize` needs
+    `--detections`. That chaining is a detail of the tool, not a
+    decision of the user.
     """
 
     reconstructor = _reconstructor(container, arguments, write)
@@ -405,8 +408,8 @@ def _analyze(container, arguments, write) -> int:
         return 1
 
     write(
-        f"Reconstruindo {arguments.repository} "
-        f"com o extrator {reconstructor.name}"
+        f"Reconstructing {arguments.repository} "
+        f"with the {reconstructor.name} extractor"
     )
 
     reconstruction = container.reconstruct(

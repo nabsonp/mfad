@@ -1,4 +1,4 @@
-"""Extrair as chamadas a serviços externos."""
+"""Extract the calls to external services."""
 
 from __future__ import annotations
 

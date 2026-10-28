@@ -1,31 +1,32 @@
 """
-Chamadas a serviços externos.
+Calls to external services.
 
-A detecção não depende do framework de micro frontend nem da
-organização do projeto. Ela parte de âncoras genéricas — a API da
-plataforma web, o especificador de import das bibliotecas cliente e
-o tipo injetado do `HttpClient` do Angular — e resolve o caminho com
-avaliação parcial da expressão.
+Detection depends neither on the micro frontend framework nor on how
+the project is organized. It starts from generic anchors — the web
+platform API, the import specifier of the client libraries and the
+injected type of Angular's `HttpClient` — and resolves the path with
+partial evaluation of the expression.
 
-Projetos costumam embrulhar o cliente HTTP numa função própria:
+Projects often wrap the HTTP client in a function of their own:
 
     export function fetchApi(url, options) {
       return fetch(`${API_BASE_URL}${url}`, options);
     }
 
-e a URL só aparece em quem chama `fetchApi("/contas")`. Por isso a
-função que REPASSA um parâmetro seu como URL de um cliente vira
-cliente também, com a URL naquela posição — e isso se propaga: um
-serviço que chama `fetchApi(endpoint)` com o próprio parâmetro é
-cliente do mesmo jeito. O critério é fluxo de dado, não nome: a
-função não precisa se chamar `get` nem morar em `services/`.
+and the URL only appears in whoever calls `fetchApi("/contas")`. So a
+function that FORWARDS one of its parameters as the URL of a client
+becomes a client too, with the URL at that position — and this
+propagates: a service that calls `fetchApi(endpoint)` with its own
+parameter is a client in the same way. The criterion is data flow, not
+name: the function does not need to be called `get` nor live in
+`services/`.
 
-Chamada dentro de função sem uso não conta, pelo mesmo critério de
-código morto da comunicação.
+A call inside an unused function does not count, by the same dead-code
+criterion used for communication.
 
-Para saber qual TELA chama é preciso seguir os imports: a chamada
-mora no módulo de serviço, não na tela que o usa. O alcance entre
-arquivos resolve isso.
+Knowing which SCREEN makes the call requires following the imports: the
+call lives in the service module, not in the screen that uses it.
+Cross-file reachability solves this.
 """
 
 from __future__ import annotations
@@ -66,48 +67,48 @@ from mfad.adapters.driven.reconstruction.singlespa.reachability import (
 from mfad.domain import ApiCall, MicroFrontend, SourceLocation
 
 
-#: Trecho de URL que depende de valor de runtime: `/users/{param}`.
+#: URL segment that depends on a runtime value: `/users/{param}`.
 PARAM = "{param}"
 
-#: Uma URL cujo trecho é `{param}` ganha esta correspondência.
+#: A URL whose segment is `{param}` gets this match.
 PATTERN = "pattern"
 
-#: Quantas indireções — variável, função que devolve a URL — se
-#: seguem a partir de um argumento.
+#: How many indirections — variable, function that returns the URL —
+#: are followed from an argument.
 MAX_DEPTH = 4
 
 
-#: Pedaço de URL: texto conhecido, parâmetro, ou `None` para valor
-#: que não se resolve.
+#: URL piece: known text, parameter, or `None` for a value that does
+#: not resolve.
 Part = str | Parameter | None
 
 
 @dataclass(frozen=True)
 class Shape:
-    """De onde uma chamada HTTP tira a URL e o verbo."""
+    """Where an HTTP call takes its URL and verb from."""
 
     url: Node
     client: str
 
-    #: verbo fixo da chamada (`api.post`)
+    #: fixed verb of the call (`api.post`)
     method: str | None = None
 
-    #: argumento de onde sai o `method` (`fetch(url, { method })`)
+    #: argument the `method` comes from (`fetch(url, { method })`)
     options: Node | None = None
 
-    #: texto que a função embrulhadora põe antes da URL recebida
+    #: text the wrapping function puts before the received URL
     prefix: str = ""
 
-    #: e depois dela, com `{param}` no trecho de runtime
+    #: and after it, with `{param}` in the runtime segment
     suffix: str = ""
 
-    #: há uma base desconhecida antes de tudo
+    #: there is an unknown base before everything
     based: bool = False
 
 
 @dataclass(frozen=True)
 class Wrapper:
-    """Função do projeto que é cliente HTTP por repassar a URL."""
+    """Project function that is an HTTP client because it forwards the URL."""
 
     client: str
     url: int
@@ -116,14 +117,14 @@ class Wrapper:
     based: bool = False
     method: str | None = None
 
-    #: parâmetro de onde sai o `method`, quando é repassado
+    #: parameter the `method` comes from, when it is forwarded
     method_from: int | None = None
 
 
 def extracted(context: ScanContext, microfrontends: list[MicroFrontend]) -> tuple[list[ApiCall], set[tuple[str, int]]]:
     """
-    As chamadas HTTP e onde está cada requisição, memorizadas no
-    contexto: a navegação precisa das requisições, e a extração é cara.
+    The HTTP calls and where each request is, memoized in the context:
+    navigation needs the requests, and extraction is expensive.
     """
 
     key = tuple(item.id for item in microfrontends)
@@ -147,7 +148,7 @@ class ApiCallExtractor:
 
         self.ownership = Ownership(context.repository, microfrontends)
 
-        #: arquivo de pacote compartilhado → as unidades que o importam
+        #: shared package file → the units that import it
         self.shared = shared.importers(context, microfrontends)
 
         self.evaluator = ExpressionEvaluator(context.routes)
@@ -160,15 +161,15 @@ class ApiCallExtractor:
 
         self.wrappers: dict[tuple[Path, str], Wrapper] = {}
 
-        #: o último nome de cada embrulhadora, para só resolver a
-        #: chamada que pode ser uma delas
+        #: the last name of each wrapper, so that only a call that may
+        #: be one of them gets resolved
         self._wrapper_names: set[str] = set()
 
         self.callers = self._callers(microfrontends)
 
-        #: (arquivo, início) de toda chamada que é requisição HTTP, viva
-        #: ou não, com caminho resolvido ou não: a URL que ela recebe é
-        #: recurso a buscar, nunca destino de navegação.
+        #: (file, start) of every call that is an HTTP request, live or
+        #: not, with a resolved path or not: the URL it receives is a
+        #: resource to fetch, never a navigation target.
         self.requests: set[tuple[str, int]] = set()
 
     def extract(self) -> list[ApiCall]:
@@ -202,10 +203,10 @@ class ApiCallExtractor:
         microfrontends: list[MicroFrontend],
     ) -> dict[Path, tuple[list[str], list[str]]]:
         """
-        Arquivo -> (telas, fragmentos) que o alcançam.
+        File -> (screens, fragments) that reach it.
 
-        Invertido de propósito: a extração encontra a chamada e
-        precisa perguntar quem chega até ali, não o contrário.
+        Inverted on purpose: extraction finds the call and needs to ask
+        who reaches it, not the other way round.
         """
 
         reachability = Reachability(self.context)
@@ -248,9 +249,9 @@ class ApiCallExtractor:
 
         owner = self.ownership.of_file(symbols.path)
 
-        # Chamada fora de qualquer unidade só acontece dentro de quem
-        # importa o pacote em que ela mora (`shared`); sem ninguém, não
-        # é de micro frontend nenhum.
+        # A call outside any unit only happens inside whoever imports
+        # the package it lives in (`shared`); with no one, it belongs to
+        # no micro frontend.
         owners = [owner] if owner else sorted(self.shared.get(canonical(symbols.path), ()))
 
         if not owners:
@@ -273,8 +274,8 @@ class ApiCallExtractor:
 
             path = self._path(shape, symbols)
 
-            # Chamada em função que ninguém chama não acontece — o mesmo
-            # critério da comunicação e do estado global.
+            # A call in a function nobody calls does not happen — the
+            # same criterion as communication and global state.
             if path is None or not self.liveness.is_live(node, symbols):
                 continue
 
@@ -301,15 +302,15 @@ class ApiCallExtractor:
         return found
 
     # ------------------------------------------------------------------
-    # Funções que embrulham um cliente
+    # Functions that wrap a client
     # ------------------------------------------------------------------
 
     def _find_wrappers(self, files: list[ModuleSymbols]) -> None:
         """
-        As funções que repassam um parâmetro como URL, em camadas.
+        The functions that forward a parameter as the URL, in layers.
 
-        A primeira camada embrulha um cliente conhecido; cada camada
-        seguinte embrulha uma da anterior.
+        The first layer wraps a known client; each following layer
+        wraps one from the previous layer.
         """
 
         def step(node: Node, symbols: ModuleSymbols) -> bool:
@@ -336,16 +337,16 @@ class ApiCallExtractor:
         symbols: ModuleSymbols,
     ) -> tuple[tuple[Path, str], Wrapper] | None:
         """
-        A função em volta, se ela repassa um parâmetro como a URL.
+        The enclosing function, if it forwards a parameter as the URL.
 
-        A URL tem de começar pelo parâmetro, com no máximo uma base
-        desconhecida e texto antes: `${base}${url}`, `base + url`,
-        `url`. Depois dele pode seguir mais caminho, como em
-        `${base}${endpoint}/${id}`: o texto fica, e o que é de runtime
-        vira `{param}`. Se o texto antes já é um caminho de serviço —
-        `/api/` — a chamada é registrada onde está, como sempre foi, e
-        a função não vira embrulhadora: não há como saber o que o
-        parâmetro completa.
+        The URL must start with the parameter, with at most one unknown
+        base and text before it: `${base}${url}`, `base + url`, `url`.
+        More path may follow it, as in `${base}${endpoint}/${id}`: the
+        text stays, and what is runtime becomes `{param}`. If the text
+        before it is already a service path — `/api/` — the call is
+        recorded where it is, as it always was, and the function does
+        not become a wrapper: there is no way to know what the
+        parameter completes.
         """
 
         if self._path(shape, symbols) is not None:
@@ -367,8 +368,8 @@ class ApiCallExtractor:
 
         parts = parts[: chosen + 1]
 
-        # O parâmetro tem de ser da função em volta da chamada, e não
-        # de uma função que só devolveu a URL a ela.
+        # The parameter must belong to the function enclosing the call,
+        # not to a function that merely returned the URL to it.
         if not self._encloses(tail.function, shape.url):
             return None
 
@@ -406,9 +407,9 @@ class ApiCallExtractor:
     @staticmethod
     def _url_at(parts: list[Part], index: int) -> bool:
         """
-        Se o parâmetro na posição pode ser a URL: antes dele, só base
-        desconhecida e depois texto; depois dele, nada ou a continuação
-        do caminho (`/`, `?`).
+        Whether the parameter at the position can be the URL: before it,
+        only an unknown base followed by text; after it, nothing or the
+        continuation of the path (`/`, `?`).
         """
 
         head = parts[:index]
@@ -429,7 +430,7 @@ class ApiCallExtractor:
         function: Node,
         symbols: ModuleSymbols,
     ) -> tuple[str | None, int | None]:
-        """O verbo fixo, ou o parâmetro de opções de onde ele vem."""
+        """The fixed verb, or the options parameter it comes from."""
 
         options = unwrap(options)
 
@@ -446,7 +447,7 @@ class ApiCallExtractor:
         if method:
             return method.upper(), None
 
-        # `{ ...options, headers }`: o `method` vem de quem chamou.
+        # `{ ...options, headers }`: the `method` comes from the caller.
         for child in options.named_children:
 
             if child.type != "spread_element":
@@ -460,7 +461,7 @@ class ApiCallExtractor:
         return None, None
 
     # ------------------------------------------------------------------
-    # A forma de cada chamada
+    # The shape of each call
     # ------------------------------------------------------------------
 
     def _shape(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
@@ -472,7 +473,7 @@ class ApiCallExtractor:
         )
 
     def _platform_call(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
-        """`fetch(url, { method })` e `xhr.open(method, url)`."""
+        """`fetch(url, { method })` and `xhr.open(method, url)`."""
 
         function = node.child_by_field_name("function")
 
@@ -518,7 +519,7 @@ class ApiCallExtractor:
         )
 
     def _client_call(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
-        """`api.get(url)`, `this.http.get(url)` e `axios({ url, method })`."""
+        """`api.get(url)`, `this.http.get(url)` and `axios({ url, method })`."""
 
         function = node.child_by_field_name("function")
 
@@ -579,7 +580,7 @@ class ApiCallExtractor:
 
             return Shape(url=arguments[0], client=module, method=verb.upper())
 
-        # chamada direta na própria biblioteca: `axios({ url })`
+        # direct call on the library itself: `axios({ url })`
         if function.type == "identifier":
 
             module = bindings.get(symbols.text(function))
@@ -606,7 +607,7 @@ class ApiCallExtractor:
         return None
 
     def _wrapper_call(self, node: Node, symbols: ModuleSymbols) -> Shape | None:
-        """Chamada a uma função do projeto que embrulha um cliente."""
+        """Call to a project function that wraps a client."""
 
         function = unwrap(node.child_by_field_name("function"))
 
@@ -647,34 +648,35 @@ class ApiCallExtractor:
         )
 
     # ------------------------------------------------------------------
-    # Quem é cliente HTTP neste arquivo
+    # Who is an HTTP client in this file
     # ------------------------------------------------------------------
 
     def _bindings(self, symbols: ModuleSymbols) -> dict[str, str]:
         """
-        Nomes locais que se comportam como cliente HTTP.
+        Local names that behave as an HTTP client.
 
-        Começa pelos imports das bibliotecas conhecidas e propaga
-        para as instâncias criadas a partir delas — é o caso de
-        `const api = axios.create({ baseURL })`, em que a chamada
-        nunca acontece sobre o nome importado. A instância criada num
-        módulo do projeto e importada por outro também conta.
+        Starts from the imports of the known libraries and propagates
+        to the instances created from them — that is the case of
+        `const api = axios.create({ baseURL })`, where the call never
+        happens on the imported name. An instance created in one
+        project module and imported by another also counts.
 
-        No Angular o cliente é o que foi injetado pelo tipo
-        `HttpClient`: `this.http`, quando o campo `http` tem esse tipo.
+        In Angular the client is whatever was injected by the
+        `HttpClient` type: `this.http`, when the `http` field has that
+        type.
         """
 
         if symbols.path in self._bindings_cache:
             return self._bindings_cache[symbols.path]
 
-        # Ciclo de imports: o arquivo ainda em cálculo não contribui.
+        # Import cycle: the file still being computed does not contribute.
         self._bindings_cache[symbols.path] = {}
 
         by_module = {client.module: client for client in http_clients.CLIENTS}
 
         bindings: dict[str, str] = {}
 
-        #: nome local do tipo injetável → módulo
+        #: local name of the injectable type → module
         injectable: dict[str, str] = {}
 
         for record in ImportTable.records(symbols.root, symbols.source):
@@ -691,7 +693,7 @@ class ApiCallExtractor:
 
             else:
 
-                # Instância criada noutro módulo do projeto.
+                # Instance created in another project module.
                 target = ModuleResolver.resolve(record.module, symbols.path)
 
                 other = self.index.of(target) if target else None
@@ -748,7 +750,7 @@ class ApiCallExtractor:
 
             return None
 
-        # alias direto: `const client = axios`
+        # direct alias: `const client = axios`
         if value.type == "identifier" and text in bindings:
             return bindings[text]
 
@@ -795,11 +797,11 @@ class ApiCallExtractor:
         )
 
     # ------------------------------------------------------------------
-    # A URL
+    # The URL
     # ------------------------------------------------------------------
 
     def _full_parts(self, shape: Shape, symbols: ModuleSymbols) -> list[Part]:
-        """Os pedaços da URL, com o que a embrulhadora põe antes."""
+        """The URL pieces, with what the wrapper puts before them."""
 
         parts = self._parts(shape.url, symbols, 0)
 
@@ -808,9 +810,9 @@ class ApiCallExtractor:
         if shape.prefix:
             head.append(shape.prefix)
 
-        # Embrulhadora do tipo `${base}${endpoint}`: quem chama passa o
-        # caminho relativo à base — `"parametro"` —, e a barra que os
-        # separa está na base.
+        # Wrapper of the `${base}${endpoint}` kind: the caller passes
+        # the path relative to the base — `"parametro"` —, and the slash
+        # separating them is in the base.
         elif shape.based and parts and isinstance(parts[0], str) and not (
             parts[0].startswith("/") or parts[0].startswith("http")
         ):
@@ -819,12 +821,12 @@ class ApiCallExtractor:
         return head + parts + ([shape.suffix] if shape.suffix else [])
 
     def _path(self, shape: Shape, symbols: ModuleSymbols) -> tuple[str, str] | None:
-        """O caminho do serviço e a correspondência, se for endpoint."""
+        """The service path and the match, if it is an endpoint."""
 
         parts = self._full_parts(shape, symbols)
 
-        # A base desconhecida no começo fica de fora: o caminho de um
-        # serviço não depende dela.
+        # The unknown base at the start is left out: a service's path
+        # does not depend on it.
         based = False
 
         while parts and not isinstance(parts[0], str):
@@ -836,16 +838,16 @@ class ApiCallExtractor:
 
         text = "".join(part if isinstance(part, str) else PARAM for part in parts)
 
-        # `${base}.json`, `${nome}-x`: o que segue a base não é caminho.
+        # `${base}.json`, `${nome}-x`: what follows the base is not a path.
         if based and not text.startswith("/"):
             return None
 
-        # A consulta e o fragmento não fazem parte da identidade da
-        # rota: `/gigs?page=2` e `/gigs` são o mesmo contrato.
+        # The query and the fragment are not part of the route's
+        # identity: `/gigs?page=2` and `/gigs` are the same contract.
         path = text.split("?")[0].split("#")[0]
 
-        # Barra repetida e barra no fim não mudam o recurso:
-        # `/tercero/` e `/tercero` são o mesmo contrato.
+        # Repeated slashes and a trailing slash do not change the
+        # resource: `/tercero/` and `/tercero` are the same contract.
         path = re.sub(r"(?<!:)/{2,}", "/", path)
 
         if len(path) > 1:
@@ -893,8 +895,8 @@ class ApiCallExtractor:
             if value is not None:
                 return self._parts(value, symbols, depth + 1)
 
-        # `cond ? `${base}${url}/${id}` : `${base}${url}``: vale o que as
-        # duas formas têm em comum, se for a URL recebida.
+        # `cond ? `${base}${url}/${id}` : `${base}${url}``: what counts is
+        # what the two forms have in common, if it is the received URL.
         if node.type == "ternary_expression":
 
             consequence = self._parts(node.child_by_field_name("consequence"), symbols, depth)
@@ -926,13 +928,13 @@ class ApiCallExtractor:
                 if len(arguments) == 1 or (isinstance(path[0], str) and path[0].startswith("http")):
                     return path
 
-                # Caminho absoluto troca o caminho da base e fica só com a origem.
+                # An absolute path replaces the base's path and keeps only the origin.
                 if isinstance(path[0], str) and path[0].startswith("/"):
                     return [None, *path]
 
                 return self._parts(arguments[1], symbols, depth) + path
 
-        # `url.toString()` e `url.href` de um `URL`.
+        # `url.toString()` and `url.href` of a `URL`.
         if node.type == "call_expression":
 
             function = unwrap(node.child_by_field_name("function"))
@@ -951,7 +953,7 @@ class ApiCallExtractor:
             if self._is_url_object(node.child_by_field_name("object"), symbols):
                 return self._parts(node.child_by_field_name("object"), symbols, depth)
 
-        # `buildUrl(id)`: função do próprio projeto que só devolve a URL.
+        # `buildUrl(id)`: a project function that only returns the URL.
         if node.type == "call_expression":
 
             target = self.index.callee(node, symbols)
@@ -964,7 +966,7 @@ class ApiCallExtractor:
                 owner = self.index.of(target[0])
                 return self._parts(returned, owner, depth + 1) if owner else [None]
 
-        # Constante do repositório e `rota.replace(":id", id)`.
+        # Repository constant and `rota.replace(":id", id)`.
         value = self.evaluator.evaluate(node, symbols.source)
 
         if value is None:
@@ -1003,7 +1005,7 @@ class ApiCallExtractor:
 
     @staticmethod
     def _is_url_object(node: Node | None, symbols: ModuleSymbols) -> bool:
-        """`new URL(...)`, direto ou pela variável que o guarda."""
+        """`new URL(...)`, directly or through the variable holding it."""
 
         node = unwrap(node)
 
@@ -1096,21 +1098,22 @@ class ApiCallExtractor:
     @staticmethod
     def _is_endpoint(value: str) -> bool:
         """
-        Descarta o que claramente não é endereço de serviço.
+        Discards what is clearly not a service address.
 
-        Caminho relativo de módulo e string vazia entram pelos mesmos
-        caminhos que uma URL; o filtro evita que virem chamada de API.
+        A relative module path and an empty string come in through the
+        same paths as a URL; the filter keeps them from becoming API
+        calls.
         """
 
         if value.startswith("http"):
 
-            # URL absoluta toda literal nomeia o serviço pelo endereço.
+            # A fully literal absolute URL names the service by its address.
             if PARAM not in value:
                 return True
 
-            # Com trecho de runtime, quem nomeia é o caminho depois do
-            # host: `http://localhost:${porta}${url}` é um proxy, não
-            # um serviço.
+            # With a runtime segment, what names it is the path after the
+            # host: `http://localhost:${porta}${url}` is a proxy, not a
+            # service.
             _, _, rest = value.partition("://")
             _, slash, path = rest.partition("/")
             value = slash + path
@@ -1118,9 +1121,9 @@ class ApiCallExtractor:
         if not value.startswith("/"):
             return False
 
-        # Sem nenhum trecho literal — `/`, `/{param}` — o caminho não
-        # nomeia serviço nenhum, e juntaria chamadas sem relação numa
-        # rota só no `hammering-apis`.
+        # With no literal segment at all — `/`, `/{param}` — the path
+        # names no service, and would merge unrelated calls into a
+        # single route in `hammering-apis`.
         return any(
             segment.replace(PARAM, "")
             for segment in value.split("/")

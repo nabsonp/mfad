@@ -1,22 +1,23 @@
 """
-Os textos que a ferramenta mostra, em português e em inglês.
+The texts the tool shows, in Portuguese and in English.
 
-Um JSON só, com cada chave nos dois idiomas lado a lado: quem
-traduz vê as duas versões juntas, e a página e as regras leem do
-mesmo lugar.
+A single JSON, with each key in both languages side by side: whoever
+translates sees both versions together, and the page and the rules
+read from the same place.
 
-Um texto é referido por uma `Ref` — a chave e os valores que entram
-nele —, e não pela frase pronta. A página leva as referências e troca
-de idioma sem voltar ao Python; o artefato de detecção leva a frase
-em português, como sempre, e a referência no `metadata`.
+A text is referred to by a `Ref` (the key and the values that go
+into it), not by the finished sentence. The page carries the
+references and switches language without going back to Python; the
+detection artifact carries the sentence in the default language
+(English) and the reference in `metadata`.
 
-Formato de uma entrada:
+Format of an entry:
 
-- `{"pt": "...", "en": "..."}`, com `{nome}` para cada valor;
-- plural: `{"pt": {"one": "...", "other": "..."}, ...}`, escolhido
-  pelo valor `n`, ou pelo que `"plural"` nomear;
-- um valor que é outra `Ref` (`{"key": ..., "args": ...}`) é
-  traduzido antes de entrar.
+- `{"pt": "...", "en": "..."}`, with `{name}` for each value;
+- plural: `{"pt": {"one": "...", "other": "..."}, ...}`, chosen
+  by the value `n`, or by the one `"plural"` names;
+- a value that is another `Ref` (`{"key": ..., "args": ...}`) is
+  translated before it goes in.
 """
 
 from __future__ import annotations
@@ -29,12 +30,12 @@ from typing import Any
 
 LANGUAGES = ("pt", "en")
 
-DEFAULT = "pt"
+DEFAULT = "en"
 
-#: O rótulo de cada idioma no seletor: o português é o do Brasil.
+#: The label of each language in the selector: Portuguese is Brazilian Portuguese.
 LABELS = {"pt": "PT-BR", "en": "EN"}
 
-#: Uma referência a texto: `{"key": "hammering.message", "args": {...}}`.
+#: A reference to a text: `{"key": "hammering.message", "args": {...}}`.
 Ref = dict[str, Any]
 
 
@@ -49,25 +50,25 @@ def texts() -> dict[str, dict]:
 
 
 def ref(key: str, **args: Any) -> Ref:
-    """A referência, conferida: chave que não existe é erro aqui, não na página."""
+    """The reference, checked: a key that does not exist is an error here, not on the page."""
 
     if key not in texts():
-        raise KeyError(f"texto sem tradução: {key}")
+        raise KeyError(f"text without translation: {key}")
 
     return {"key": key, "args": args}
 
 
 def fact(label: str, value: Any) -> dict[str, Any]:
     """
-    Um dado da detecção, rotulado: a página mostra cada um num campo,
-    em vez de uma frase que junta todos.
+    A detection datum, labeled: the page shows each one in its own
+    field, instead of a sentence that joins them all.
     """
 
     return {"label": ref(label), "value": value}
 
 
 def t(value: Ref | str, language: str = DEFAULT) -> str:
-    """A frase no idioma pedido."""
+    """The sentence in the requested language."""
 
     if isinstance(value, str):
         value = {"key": value, "args": {}}
@@ -89,17 +90,18 @@ def t(value: Ref | str, language: str = DEFAULT) -> str:
 
 
 def longest(value: Ref | str) -> str:
-    """A versão mais longa, para medir caixa que tem de caber nas duas."""
+    """The longest version, to size a box that has to fit both."""
 
     return max((t(value, language) for language in LANGUAGES), key=len)
 
 
 def mark(value: Ref | str, tag: str = "span", attrs: str = "") -> str:
     """
-    O texto no idioma padrão, marcado para a página trocar de idioma.
+    The text in the default language, marked for the page to switch
+    language.
 
-    `data-t` é a chave e `data-a`, os valores; o script refaz a frase
-    a partir dos dois.
+    `data-t` is the key and `data-a` the values; the script rebuilds
+    the sentence from the two.
     """
 
     return f"<{tag}{attrs}{marker(value)}>{html.escape(t(value))}</{tag}>"
@@ -107,10 +109,10 @@ def mark(value: Ref | str, tag: str = "span", attrs: str = "") -> str:
 
 def marker(value: Ref | str, attribute: str | None = None) -> str:
     """
-    Só os atributos da marca, para um elemento que o chamador escreve.
+    Only the marker attributes, for an element the caller writes.
 
-    Com `attribute`, o que se traduz é aquele atributo (`placeholder`,
-    `title`), não o conteúdo.
+    With `attribute`, what gets translated is that attribute
+    (`placeholder`, `title`), not the content.
     """
 
     if isinstance(value, str):

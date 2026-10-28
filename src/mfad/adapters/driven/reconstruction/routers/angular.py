@@ -1,15 +1,15 @@
 """
-Rotas do Angular Router.
+Angular Router routes.
 
-Escrito a partir da interface `Route` documentada em
-https://angular.dev/api/router/Route — não de repositório algum.
+Written from the `Route` interface documented at
+https://angular.dev/api/router/Route, not from any particular repository.
 
-Em Angular a rota é DADO, não marcação: um array de literais de
-objeto. Isso a torna mais simples de ler que o `<Route>` do React,
-e ao mesmo tempo traz duas coisas que o JSX não tem — o segmento é
-relativo e precisa ser concatenado com o do pai, e o componente
-pode chegar por `loadComponent`, que carrega o caminho do arquivo
-dentro do próprio especificador.
+In Angular a route is DATA, not markup: an array of object literals.
+That makes it simpler to read than React's `<Route>`, and at the same
+time brings two things JSX does not have: the segment is relative and
+must be concatenated with the parent's, and the component may arrive
+through `loadComponent`, which carries the file path inside the
+specifier itself.
 """
 
 from __future__ import annotations
@@ -26,11 +26,11 @@ from mfad.adapters.driven.reconstruction.ast import (
 from mfad.domain import Screen
 
 
-#: As chaves que fazem de um literal de objeto uma rota.
+#: The keys that make an object literal a route.
 #:
-#: `path` sozinho não basta: qualquer configuração tem um campo
-#: chamado assim. O que caracteriza a rota é `path` junto de um
-#: destino, e os destinos são exatamente estes na interface.
+#: `path` alone is not enough: any configuration has a field with
+#: that name. What characterizes a route is `path` together with a
+#: destination, and the destinations are exactly these in the interface.
 DESTINATIONS = (
     "component",
     "loadComponent",
@@ -41,7 +41,7 @@ DESTINATIONS = (
 
 
 class AngularRouteReader:
-    """As telas que um arquivo declara via Angular Router."""
+    """The screens a file declares via Angular Router."""
 
     name = "angular-router"
 
@@ -59,8 +59,8 @@ class AngularRouteReader:
 
         found: list[Screen] = []
 
-        # O arquivo que um `loadChildren` carrega responde abaixo da
-        # rota que o carrega, não da raiz.
+        # The file a `loadChildren` loads answers below the route
+        # that loads it, not below the root.
         prefixes = sorted(self._mounts().get(file_path.resolve(), {""}))
 
         for array in self._route_arrays(root, source):
@@ -73,9 +73,9 @@ class AngularRouteReader:
 
     def _route_arrays(self, root: Node, source: bytes) -> list[Node]:
 
-        # Um array aninhado é visitado de novo pela varredura, e
-        # já foi percorrido como `children` do pai. Só os de
-        # primeiro nível entram.
+        # A nested array is visited again by the scan, and it was
+        # already walked as the parent's `children`. Only top-level
+        # arrays are included.
         return [
             array
             for array in AstReader.find_all(root, "array")
@@ -88,15 +88,15 @@ class AngularRouteReader:
 
     def _mounts(self) -> dict[Path, set[str]]:
         """
-        Arquivo → os caminhos em que um `loadChildren` o monta.
+        File → the paths at which a `loadChildren` mounts it.
 
         `{ path: 'admin', loadChildren: () => import('./admin.routes') }`
-        põe as rotas de `admin.routes` sob `/admin`
-        (https://angular.dev/guide/ngmodules/lazy-loading). O carregado
-        pode ser o arquivo das rotas ou o `NgModule` que as registra com
-        `RouterModule.forChild`; neste caso, o prefixo passa aos arquivos
-        de rotas que o módulo importa. Carregamentos encadeados somam os
-        prefixos.
+        puts the routes of `admin.routes` under `/admin`
+        (https://angular.dev/guide/ngmodules/lazy-loading). The loaded
+        target may be the routes file or the `NgModule` that registers
+        them with `RouterModule.forChild`; in that case, the prefix passes
+        on to the route files the module imports. Chained loads add up
+        their prefixes.
         """
 
         if self.context._angular_mounts is not None:
@@ -123,8 +123,8 @@ class AngularRouteReader:
                 for target, route in self._lazy_children(array, source, file_path, ""):
                     edges.append((file_path.resolve(), target, route))
 
-        # O `NgModule` carregado sem rotas próprias passa o prefixo a
-        # quem ele importa e tem rotas.
+        # A loaded `NgModule` without routes of its own passes the prefix
+        # on to whatever it imports that has routes.
         for _, target, _ in list(edges):
 
             try:
@@ -176,7 +176,7 @@ class AngularRouteReader:
         return mounts
 
     def _lazy_children(self, array: Node, source: bytes, file_path: Path, prefix: str) -> list[tuple[Path, str]]:
-        """(arquivo carregado, rota) de cada `loadChildren` do array, com os `children` dentro."""
+        """(loaded file, route) for each `loadChildren` in the array, including those inside `children`."""
 
         found: list[tuple[Path, str]] = []
 
@@ -193,7 +193,7 @@ class AngularRouteReader:
 
             if lazy is not None:
 
-                # A forma antiga, em texto: `'./admin/admin.module#AdminModule'`.
+                # The old string form: `'./admin/admin.module#AdminModule'`.
                 specifier = (
                     self._literal(lazy, source).split("#")[0]
                     if lazy.type == "string"
@@ -274,12 +274,12 @@ class AngularRouteReader:
         file_path: Path,
     ) -> tuple[str | None, Path | None]:
         """
-        O componente da rota, pelas duas formas documentadas.
+        The route's component, through the two documented forms.
 
-        `component: X` nomeia um símbolo, resolvido pelo import.
-        `loadComponent: () => import('./x').then(m => m.X)` carrega
-        o caminho do arquivo dentro do especificador, o que é mais
-        direto: não depende da tabela de imports.
+        `component: X` names a symbol, resolved through the import.
+        `loadComponent: () => import('./x').then(m => m.X)` carries
+        the file path inside the specifier, which is more direct: it
+        does not depend on the import table.
         """
 
         direct = fields.get("component")
@@ -308,7 +308,7 @@ class AngularRouteReader:
 
     @staticmethod
     def _lazy_specifier(node: Node, source: bytes) -> str | None:
-        """O módulo de `() => import('./x')`."""
+        """The module of `() => import('./x')`."""
 
         for call in AstReader.find_all(node, "call_expression"):
 
@@ -333,7 +333,7 @@ class AngularRouteReader:
 
     @staticmethod
     def _lazy_name(node: Node, source: bytes) -> str | None:
-        """O símbolo de `.then(m => m.MyComponent)`."""
+        """The symbol of `.then(m => m.MyComponent)`."""
 
         for member in AstReader.find_all(node, "member_expression"):
 
@@ -413,11 +413,11 @@ class AngularRouteReader:
     @staticmethod
     def _join(prefix: str, segment: str | None) -> str | None:
         """
-        Concatena o segmento ao do pai.
+        Concatenates the segment to the parent's.
 
-        Em Angular o `path` é RELATIVO — `path: 'info'` dentro de
-        `path: 'product/:id'` responde por `/product/:id/info`. Ler
-        o segmento isolado daria uma rota que não existe.
+        In Angular `path` is RELATIVE: `path: 'info'` inside
+        `path: 'product/:id'` answers at `/product/:id/info`. Reading
+        the segment alone would yield a route that does not exist.
         """
 
         if segment is None:
